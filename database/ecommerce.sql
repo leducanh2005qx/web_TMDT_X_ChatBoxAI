@@ -1,0 +1,23 @@
+CREATE DATABASE IF NOT EXISTS ecommerce;
+USE ecommerce;
+
+CREATE TABLE roles (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(50)
+);
+
+INSERT INTO roles (name) VALUES
+('ADMIN'),
+('MANAGER'),
+('SALES'),
+('WAREHOUSE'),
+('CUSTOMER');
+
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100),
+  email VARCHAR(100) UNIQUE,
+  password VARCHAR(255),
+  role_id INT,
+  FOREIGN KEY (role_id) REFERENCES roles(id)
+);
