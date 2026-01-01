@@ -1,0 +1,44 @@
+.admin-page {
+  padding: 20px;
+}
+
+.admin-top {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.back-btn {
+  padding: 8px 14px;
+  border: none;
+  background: #eee;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.order-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.order-table th,
+.order-table td {
+  border: 1px solid #ddd;
+  padding: 12px;
+  text-align: center;
+}
+
+.order-table th {
+  background: #f5f6fa;
+}
+
+.order-table tr:hover {
+  background: #f0f4ff;
+}
+
+.empty {
+  font-style: italic;
+  color: #666;
+}

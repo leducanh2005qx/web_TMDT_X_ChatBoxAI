@@ -1,0 +1,128 @@
+.cart-page {
+  padding: 30px;
+  display: flex;
+  justify-content: center;
+}
+
+.cart-box {
+  width: 100%;
+  max-width: 900px;
+  background: #fff;
+  padding: 30px;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.cart-title {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.empty-cart {
+  text-align: center;
+  color: #777;
+}
+
+/* ===== ITEM ===== */
+.cart-item {
+  display: grid;
+  grid-template-columns: 90px 1fr 150px 150px;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.cart-image {
+  width: 90px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.cart-info h4 {
+  margin-bottom: 4px;
+}
+
+.cart-info p {
+  color: #666;
+}
+
+/* ===== QUANTITY ===== */
+.cart-quantity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cart-quantity button {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.cart-quantity span {
+  min-width: 24px;
+  text-align: center;
+  font-weight: bold;
+}
+
+/* ===== SUBTOTAL ===== */
+.cart-subtotal {
+  font-weight: bold;
+  text-align: right;
+}
+
+/* ===== FOOTER ===== */
+.cart-footer {
+  margin-top: 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.back-shop {
+  background: #f3f4f6;
+  border: none;
+  padding: 12px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.cart-total {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.checkout-btn {
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  padding: 14px 22px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.checkout-btn:hover {
+  background: #15803d;
+}
+
+/* ===== MOBILE ===== */
+@media (max-width: 768px) {
+  .cart-item {
+    grid-template-columns: 70px 1fr;
+    grid-template-rows: auto auto;
+  }
+
+  .cart-quantity,
+  .cart-subtotal {
+    grid-column: span 2;
+    justify-content: flex-end;
+  }
+}

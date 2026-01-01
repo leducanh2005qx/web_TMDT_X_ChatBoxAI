@@ -2,7 +2,8 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-const SECRET_KEY = "SECRET_KEY";
+// ❌ BỎ hard-code
+// const SECRET_KEY = "SECRET_KEY";
 
 // =======================
 // REGISTER (CHỈ CUSTOMER)
@@ -20,12 +21,11 @@ exports.register = async (req, res) => {
     name,
     email,
     password: hashedPassword,
-    role_id: 5, // ✅ CUSTOMER
+    role_id: 5, // CUSTOMER
   };
 
   User.create(newUser, (err) => {
     if (err) {
-      // Email trùng
       return res.status(500).json({ message: "Email đã tồn tại" });
     }
 
@@ -43,7 +43,6 @@ exports.login = (req, res) => {
     return res.status(400).json({ message: "Thiếu email hoặc mật khẩu" });
   }
 
-  // ⚠️ findByEmail PHẢI JOIN roles
   User.findByEmail(email, (err, result) => {
     if (err) return res.status(500).json(err);
 
@@ -53,23 +52,21 @@ exports.login = (req, res) => {
 
     const user = result[0];
 
-    // Check password
     const isMatch = bcrypt.compareSync(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: "Wrong password" });
     }
 
-    // 🔑 Token chứa role name
+    // 🔑 TOKEN DÙNG ENV
     const token = jwt.sign(
       {
         id: user.id,
         role: user.role_name, // "ADMIN" | "CUSTOMER"
       },
-      SECRET_KEY,
+      process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
 
-    // ✅ Trả role dạng CHUỖI
     res.json({
       message: "Login successful",
       token,

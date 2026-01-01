@@ -1,0 +1,35 @@
+.order-detail-page {
+  max-width: 900px;
+  margin: 30px auto;
+  padding: 20px;
+}
+
+.order-items {
+  margin-top: 20px;
+}
+
+.order-item {
+  display: grid;
+  grid-template-columns: 80px 1fr 150px;
+  gap: 20px;
+  align-items: center;
+  padding: 15px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.order-item img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.subtotal {
+  font-weight: bold;
+  text-align: right;
+}
+
+.order-total {
+  text-align: right;
+  margin-top: 20px;
+}
