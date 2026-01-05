@@ -12,7 +12,7 @@ export const login = async (email, password) => {
   return res.json();
 };
 
-// 📝 Đăng ký (CUSTOMER)
+// 📝 Đăng ký
 export const register = async (name, email, password) => {
   const res = await fetch(`${API_URL}/auth/register`, {
     method: "POST",
@@ -24,13 +24,16 @@ export const register = async (name, email, password) => {
 
 /* ================= PRODUCTS ================= */
 
-// 📦 Lấy danh sách sản phẩm (PUBLIC)
 export const getProducts = async () => {
   const res = await fetch(`${API_URL}/products`);
   return res.json();
 };
 
-// ➕ Thêm sản phẩm (ADMIN)
+export const getProductById = async (id) => {
+  const res = await fetch(`${API_URL}/products/${id}`);
+  return res.json();
+};
+
 export const createProduct = async (formData) => {
   const token = localStorage.getItem("token");
 
@@ -45,7 +48,6 @@ export const createProduct = async (formData) => {
   return res.json();
 };
 
-// ✏️ Sửa sản phẩm (ADMIN)
 export const updateProduct = async (id, formData) => {
   const token = localStorage.getItem("token");
 
@@ -60,7 +62,6 @@ export const updateProduct = async (id, formData) => {
   return res.json();
 };
 
-// ❌ Xóa sản phẩm (ADMIN)
 export const deleteProduct = async (id) => {
   const token = localStorage.getItem("token");
 
@@ -74,9 +75,8 @@ export const deleteProduct = async (id) => {
   return res.json();
 };
 
-/* ================= ORDERS ================= */
+/* ================= ORDERS (USER) ================= */
 
-// ➕ Tạo đơn hàng (CUSTOMER)
 export const createOrder = async (order) => {
   const token = localStorage.getItem("token");
 
@@ -92,7 +92,6 @@ export const createOrder = async (order) => {
   return res.json();
 };
 
-// 📜 Đơn hàng của user
 export const getMyOrders = async () => {
   const token = localStorage.getItem("token");
 
@@ -105,9 +104,20 @@ export const getMyOrders = async () => {
   return res.json();
 };
 
+export const getOrderById = async (orderId) => {
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(`${API_URL}/orders/${orderId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  return res.json();
+};
+
 /* ================= ADMIN ORDERS ================= */
 
-// 📦 Tất cả đơn hàng (ADMIN)
 export const getAllOrdersAdmin = async () => {
   const token = localStorage.getItem("token");
 
@@ -120,7 +130,25 @@ export const getAllOrdersAdmin = async () => {
   return res.json();
 };
 
-// 📊 Thống kê đơn hàng (ADMIN)
+// 🔄 FIX CHÍNH Ở ĐÂY
+export const updateOrderStatusAdmin = async (orderId, status) => {
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(
+    `${API_URL}/orders/admin/${orderId}/status`, // ✅ ĐÚNG ROUTE
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status }),
+    }
+  );
+
+  return res.json();
+};
+
 export const getOrderStatsAdmin = async () => {
   const token = localStorage.getItem("token");
 

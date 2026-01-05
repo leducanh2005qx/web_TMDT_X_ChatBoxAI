@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../../components/layout/Header";
-import { getAllOrdersAdmin } from "../../services/api"; // ✅ ĐÚNG TÊN EXPORT
+import { getAllOrdersAdmin } from "../../services/api";
 import "./AdminOrders.css";
 
 function AdminOrders() {
@@ -10,6 +10,7 @@ function AdminOrders() {
 
   useEffect(() => {
     getAllOrdersAdmin().then((data) => {
+      console.log("ADMIN ORDERS:", data); // 🔍 debug
       setOrders(Array.isArray(data) ? data : []);
     });
   }, []);
@@ -45,8 +46,8 @@ function AdminOrders() {
 
             <tbody>
               {orders.map((o) => (
-                <tr key={o.id}>
-                  <td>{o.id}</td>
+                <tr key={o.orderId}>
+                  <td>{o.orderId}</td>
                   <td>{o.email || "Khách không đăng nhập"}</td>
                   <td>{Number(o.total).toLocaleString()} đ</td>
                   <td>{new Date(o.created_at).toLocaleString()}</td>

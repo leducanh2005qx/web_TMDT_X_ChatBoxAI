@@ -1,35 +1,24 @@
 const express = require("express");
 const router = express.Router();
+
 const authMiddleware = require("../middlewares/authMiddleware");
-const adminMiddleware = require("../middlewares/adminMiddleware");
 const orderController = require("../controllers/orderController");
 
-router.get(
-  "/orders",
-  authMiddleware,
-  adminMiddleware,
-  orderController.getAllOrders
-);
+/**
+ * BASE PATH: /api/orders/admin
+ * Không dùng role – chỉ cần đăng nhập
+ */
 
-router.get(
-  "/orders/:id",
-  authMiddleware,
-  adminMiddleware,
-  orderController.getOrderDetail
-);
+// 📦 Xem tất cả đơn hàng
+router.get("/", authMiddleware, orderController.getAllOrdersAdmin);
 
-router.put(
-  "/orders/:id/status",
-  authMiddleware,
-  adminMiddleware,
-  orderController.updateOrderStatus
-);
+// 📊 Thống kê (⚠️ PHẢI ĐỂ TRƯỚC /:id)
+router.get("/stats", authMiddleware, orderController.getStatistics);
 
-router.get(
-  "/statistics",
-  authMiddleware,
-  adminMiddleware,
-  orderController.getStatistics
-);
+// 🔍 Xem chi tiết đơn hàng
+router.get("/:id", authMiddleware, orderController.getOrderDetailAdmin);
+
+// 🔄 Cập nhật trạng thái đơn hàng
+router.put("/:id/status", authMiddleware, orderController.updateOrderStatus);
 
 module.exports = router;
