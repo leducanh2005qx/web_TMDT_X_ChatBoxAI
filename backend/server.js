@@ -13,7 +13,6 @@ const adminOrderRoutes = require("./routes/adminOrderRoutes");
 const app = express();
 
 /* ================= MIDDLEWARE ================= */
-// ✅ FIX CORS – CHO PHÉP FRONTEND 3000 GỌI BACKEND 5000
 app.use(
   cors({
     origin: "http://localhost:3000",
@@ -29,10 +28,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 /* ================= ROUTES ================= */
+// ⚠️ ADMIN PHẢI ĐỨNG TRƯỚC
+app.use("/api/orders/admin", adminOrderRoutes); // ✅ ADMIN
+app.use("/api/orders", orderRoutes); // ✅ USER
+
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
-app.use("/api/orders", orderRoutes); // USER
-app.use("/api/orders/admin", adminOrderRoutes); // ADMIN
+app.use("/api/categories", require("./routes/categoryRoutes"));
 
 /* ================= SERVER ================= */
 app.listen(5000, () => {

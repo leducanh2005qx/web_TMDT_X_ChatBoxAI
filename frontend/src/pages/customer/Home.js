@@ -1,34 +1,27 @@
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "../../components/layout/Header";
-import Shop from "./Shop";
+import "./Home.css";
 
-function Home({ cart, setCart }) {
-  const [role, setRole] = useState(null);
+function Home() {
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const userRole = localStorage.getItem("role");
-    const token = localStorage.getItem("token");
-
-    if (!token || !userRole) {
-      navigate("/login");
-    } else {
-      setRole(userRole);
-    }
-  }, [navigate]);
-
-  if (!role) return <p>Đang tải...</p>;
 
   return (
     <>
-      <Header />
+      <div className="home-hero">
+        <div className="hero-content">
+          <h1>🛒 Cửa hàng công nghệ</h1>
+          <p>Mua sắm nhanh chóng – An toàn – Giá tốt</p>
 
-      {role === "ADMIN" ? (
-        navigate("/admin/dashboard")
-      ) : (
-        <Shop cart={cart} setCart={setCart} />
-      )}
+          <button className="hero-btn" onClick={() => navigate("/shop")}>
+            Mua ngay
+          </button>
+        </div>
+      </div>
+
+      <div className="home-info">
+        <div className="info-card">🚚 Giao hàng nhanh</div>
+        <div className="info-card">💳 Thanh toán tiện lợi</div>
+        <div className="info-card">⭐ Sản phẩm chất lượng</div>
+      </div>
     </>
   );
 }

@@ -1,42 +1,101 @@
 .header {
-  height: 60px;
-  background: #2563eb;
-  color: white;
+  height: 70px;
+  padding: 0 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #eee;
+}
+
+/* ===== LEFT ===== */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 32px;
 }
 
 .logo {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: bold;
-}
-
-.header nav a {
-  color: white;
-  margin-right: 16px;
   text-decoration: none;
+  color: #111;
 }
 
-.header nav a:hover {
-  text-decoration: underline;
+.nav a {
+  margin-right: 20px;
+  text-decoration: none;
+  color: #444;
+  font-weight: 500;
 }
 
-.role {
-  margin-right: 16px;
-  font-weight: bold;
+.nav a:hover {
+  color: #2563eb;
 }
 
-.logout {
-  cursor: pointer;
-  font-weight: bold;
+/* ===== CENTER ===== */
+.header-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
 }
+
+.header-search {
+  width: 320px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+  transition: box-shadow 0.25s ease;
+}
+
+.header-search:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+/* ===== RIGHT ===== */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* ===== CART ===== */
+.cart-btn {
+  position: relative;
+  font-size: 22px;
+  text-decoration: none;
+  color: #111;
+}
+
+/* BADGE ĐỎ */
 .cart-badge {
-  background: red;
-  color: white;
-  border-radius: 50%;
-  padding: 2px 7px;
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  background: #dc2626;
+  color: #fff;
   font-size: 12px;
-  margin-left: 5px;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: bold;
+}
+
+/* ===== LOGOUT ===== */
+.logout-btn {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.logout-btn:hover {
+  background: #dc2626;
 }

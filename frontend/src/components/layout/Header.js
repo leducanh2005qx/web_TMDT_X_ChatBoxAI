@@ -1,41 +1,78 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
 import "./Header.css";
 
-function Header() {
-  const navigate = useNavigate();
-  const role = localStorage.getItem("role");
+function Header({ cart = [], cartCount = 0, onSearch }) {
+  const [keyword, setKeyword] = useState("");
+  const [isLogin, setIsLogin] = useState(false);
 
-  const logout = () => {
-    localStorage.clear();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    setIsLogin(!!localStorage.getItem("token"));
+  }, [location.pathname]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
     navigate("/login");
+    window.location.reload();
+  };
+
+  const handleSearch = (e) => {
+    const value = e.target.value;
+    setKeyword(value);
+    onSearch && onSearch(value);
+
+    if (location.pathname !== "/shop") {
+      navigate("/shop");
+    }
   };
 
   return (
     <header className="header">
-      <div className="logo">MyShop</div>
+      {/* LEFT */}
+      <div className="header-left">
+        <Link to="/home" className="logo">
+          TIGER SHOP
+        </Link>
 
-      <nav>
-        {/* ===== CUSTOMER ===== */}
-        {role !== "ADMIN" && (
-          <>
-            <Link to="/home">Shop</Link>
-            <Link to="/cart">Giỏ hàng</Link>
-            <Link to="/orders">Đơn hàng</Link>
-          </>
+        <nav className="nav">
+          <Link to="/home">Home</Link>
+          <Link to="/shop">Shop</Link>
+          <Link to="/orders">Orders</Link>
+        </nav>
+      </div>
+
+      {/* SEARCH */}
+      <div className="header-center">
+        <input
+          type="text"
+          className="header-search"
+          placeholder="Tìm kiếm sản phẩm..."
+          value={keyword}
+          onChange={handleSearch}
+        />
+      </div>
+
+      {/* RIGHT */}
+      <div className="header-right">
+        <Link to="/cart" className="cart-btn">
+          🛒
+          {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
+        </Link>
+
+        {isLogin ? (
+          <button className="logout-btn" onClick={handleLogout}>
+            Logout
+          </button>
+        ) : (
+          <Link to="/login" className="login-link">
+            Login
+          </Link>
         )}
-
-        {/* ===== ADMIN ===== */}
-        {role === "ADMIN" && (
-          <>
-            <Link to="/admin/dashboard">Admin</Link>
-          </>
-        )}
-
-        {/* ===== LOGOUT (LUÔN HIỆN) ===== */}
-        <span className="logout" onClick={logout}>
-          Logout
-        </span>
-      </nav>
+      </div>
     </header>
   );
 }

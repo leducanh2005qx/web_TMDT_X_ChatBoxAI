@@ -1,59 +1,70 @@
 import { useState } from "react";
-import { login } from "../../services/api";
 import { useNavigate, Link } from "react-router-dom";
+import { login } from "../../services/api";
 import "./Login.css";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
     try {
-      const result = await login(email, password);
+      const data = await login(email, password);
 
-      if (result && result.token) {
-        localStorage.setItem("token", result.token);
-        localStorage.setItem("role", result.role);
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("role", data.role);
 
-        if (result.role === "ADMIN") {
-          navigate("/admin/dashboard");
-        } else {
-          navigate("/home");
-        }
+      if (data.role === "ADMIN") {
+        navigate("/admin/dashboard");
       } else {
-        alert("Email hoặc mật khẩu sai");
+        navigate("/home");
       }
-    } catch (error) {
-      alert("Không kết nối được server");
+    } catch (err) {
+      setError(err.message || "Đăng nhập thất bại");
     }
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <h2 className="auth-title">Đăng nhập</h2>
+    <div className="login-page">
+      <div className="login-card">
+        <h2>🔐 Đăng nhập</h2>
+        <p className="subtitle">Chào mừng bạn quay trở lại</p>
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        {error && <div className="error-msg">{error}</div>}
 
-        <input
-          type="password"
-          placeholder="Mật khẩu"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Email</label>
+            <input
+              type="email"
+              placeholder="Nhập email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
 
-        <button type="button" onClick={handleLogin}>
-          Đăng nhập
-        </button>
+          <div className="form-group">
+            <label>Mật khẩu</label>
+            <input
+              type="password"
+              placeholder="Nhập mật khẩu"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
 
-        <p className="auth-switch">
-          Chưa có tài khoản? <Link to="/register">Đăng ký</Link>
+          <button className="login-btn">Đăng nhập</button>
+        </form>
+
+        <p className="register-text">
+          Chưa có tài khoản? <Link to="/register">Đăng ký ngay</Link>
         </p>
       </div>
     </div>

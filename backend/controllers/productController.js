@@ -1,7 +1,7 @@
 const Product = require("../models/Product");
 const db = require("../config/db");
 
-// ================= GET ALL =================
+// GET ALL
 exports.getAllProducts = (req, res) => {
   Product.getAll((err, result) => {
     if (err) return res.status(500).json(err);
@@ -9,11 +9,17 @@ exports.getAllProducts = (req, res) => {
   });
 };
 
-// ================= GET BY ID (QUAN TRỌNG) =================
+// GET BY ID (kèm category)
 exports.getProductById = (req, res) => {
   const { id } = req.params;
 
-  const sql = "SELECT * FROM products WHERE id = ?";
+  const sql = `
+    SELECT p.*, c.name AS category
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    WHERE p.id = ?
+  `;
+
   db.query(sql, [id], (err, result) => {
     if (err) return res.status(500).json(err);
 
@@ -21,14 +27,13 @@ exports.getProductById = (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
     }
 
-    // trả về đầy đủ: name, price, image, description, stock
     res.json(result[0]);
   });
 };
 
-// ================= CREATE =================
+// CREATE
 exports.createProduct = (req, res) => {
-  const { name, price, description, stock } = req.body;
+  const { name, price, description, stock, category_id } = req.body;
   const image = req.file ? `uploads/${req.file.filename}` : null;
 
   if (!name || !price) {
@@ -42,6 +47,7 @@ exports.createProduct = (req, res) => {
       description: description || "",
       stock: stock ? Number(stock) : 0,
       image,
+      category_id: category_id ? Number(category_id) : null,
     },
     (err) => {
       if (err) return res.status(500).json(err);
@@ -54,10 +60,10 @@ exports.createProduct = (req, res) => {
   );
 };
 
-// ================= UPDATE =================
+// UPDATE
 exports.updateProduct = (req, res) => {
   const { id } = req.params;
-  const { name, price, description, stock } = req.body;
+  const { name, price, description, stock, category_id } = req.body;
   const image = req.file ? `uploads/${req.file.filename}` : null;
 
   if (!name || !price) {
@@ -72,6 +78,7 @@ exports.updateProduct = (req, res) => {
       description: description || "",
       stock: stock ? Number(stock) : 0,
       image,
+      category_id: category_id ? Number(category_id) : null,
     },
     (err) => {
       if (err) return res.status(500).json(err);
@@ -84,7 +91,7 @@ exports.updateProduct = (req, res) => {
   );
 };
 
-// ================= DELETE =================
+// DELETE
 exports.deleteProduct = (req, res) => {
   const { id } = req.params;
 

@@ -1,49 +1,41 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Header from "../../components/layout/Header";
+import { getProductById } from "../../services/api";
 import "./ProductDetail.css";
 
 function ProductDetail({ cart, setCart }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`http://localhost:5000/api/products/${id}`)
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then((data) => {
-        setProduct({
-          ...data,
-          stock: Number(data.stock),
-        });
-      })
-      .catch(() => {
-        alert("Không tải được sản phẩm");
-        navigate(-1);
-      });
-  }, [id, navigate]);
+    const fetchProduct = async () => {
+      try {
+        const data = await getProductById(id);
 
-  if (!product) {
-    return (
-      <>
-        <Header />
-        <p style={{ padding: 20 }}>Đang tải sản phẩm...</p>
-      </>
-    );
-  }
+        // 🔥 QUAN TRỌNG: backend trả object
+        setProduct(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // ===== CART LOGIC =====
-  const cartItem = cart.find((i) => i.id === product.id);
-  const quantity = cartItem ? cartItem.quantity : 0;
+    fetchProduct();
+  }, [id]);
 
-  const increase = () => {
-    if (cartItem) {
+  const addToCart = () => {
+    const exist = cart.find((item) => item.id === product.id);
+
+    if (exist) {
       setCart(
-        cart.map((i) =>
-          i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i
+        cart.map((item) =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
         )
       );
     } else {
@@ -51,75 +43,49 @@ function ProductDetail({ cart, setCart }) {
     }
   };
 
-  const decrease = () => {
-    if (!cartItem) return;
-
-    if (cartItem.quantity === 1) {
-      setCart(cart.filter((i) => i.id !== product.id));
-    } else {
-      setCart(
-        cart.map((i) =>
-          i.id === product.id ? { ...i, quantity: i.quantity - 1 } : i
-        )
-      );
-    }
-  };
+  if (loading) return <p style={{ padding: 40 }}>Đang tải...</p>;
+  if (!product) return <p style={{ padding: 40 }}>Không tìm thấy sản phẩm</p>;
 
   return (
     <>
       <Header />
 
-      <div className="detail-page">
-        <button className="back-btn" onClick={() => navigate(-1)}>
-          ⬅ Quay lại
+      <div className="product-detail-page">
+        <button className="back-btn" onClick={() => navigate("/shop")}>
+          ⬅ Quay lại Shop
         </button>
 
-        <div className="detail-card">
+        <div className="product-detail-card">
           {/* IMAGE */}
-          <div className="detail-image">
+          <div className="image-box">
             <img
               src={`http://localhost:5000/${product.image}`}
               alt={product.name}
+              onError={(e) => {
+                e.target.src = "/no-image.png";
+              }}
             />
           </div>
 
           {/* INFO */}
-          <div className="detail-content">
-            <h1 className="detail-title">{product.name}</h1>
+          <div className="info-box">
+            <h2>{product.name}</h2>
 
-            <p className="detail-price">
-              {Number(product.price).toLocaleString()} đ
+            <p className="price">{Number(product.price).toLocaleString()} đ</p>
+
+            <p className="stock">Tồn kho: {product.stock}</p>
+
+            <p className="desc">
+              {product.description || "Chưa có mô tả sản phẩm"}
             </p>
 
-            {product.stock > 0 ? (
-              <span className="badge in-stock">Còn hàng</span>
-            ) : (
-              <span className="badge out-stock">Hết hàng</span>
-            )}
-
-            {product.description && (
-              <div className="detail-desc">
-                <h4>Mô tả sản phẩm</h4>
-                <p>{product.description}</p>
-              </div>
-            )}
-
-            {/* QUANTITY */}
-            <div className="quantity-box">
-              <span>Số lượng</span>
-
-              <div className="quantity-control">
-                <button onClick={decrease} disabled={!cartItem}>
-                  −
-                </button>
-                <span>{quantity}</span>
-                <button onClick={increase}>+</button>
-              </div>
-            </div>
-
-            <p className="stock-text">
-              Tồn kho: <b>{product.stock}</b>
-            </p>
+            <button
+              className="add-cart-btn"
+              disabled={product.stock === 0}
+              onClick={addToCart}
+            >
+              {product.stock === 0 ? "Hết hàng" : "Thêm vào giỏ"}
+            </button>
           </div>
         </div>
       </div>

@@ -1,13 +1,24 @@
 import { useEffect, useState } from "react";
 import "../../pages/admin/Admin.css";
+import { getCategories } from "../../services/api";
 
 function AdminProductForm({ onSubmit, editingProduct, onCancel }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [stock, setStock] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [categories, setCategories] = useState([]);
+
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
+
+  // load categories
+  useEffect(() => {
+    getCategories().then((data) => {
+      setCategories(Array.isArray(data) ? data : []);
+    });
+  }, []);
 
   useEffect(() => {
     if (editingProduct) {
@@ -15,6 +26,10 @@ function AdminProductForm({ onSubmit, editingProduct, onCancel }) {
       setPrice(editingProduct.price);
       setDescription(editingProduct.description || "");
       setStock(editingProduct.stock ?? "");
+      setCategoryId(
+        editingProduct.category_id ? String(editingProduct.category_id) : ""
+      );
+
       setPreview(
         editingProduct.image
           ? `http://localhost:5000/${editingProduct.image}`
@@ -25,6 +40,7 @@ function AdminProductForm({ onSubmit, editingProduct, onCancel }) {
       setPrice("");
       setDescription("");
       setStock("");
+      setCategoryId("");
       setImage(null);
       setPreview(null);
     }
@@ -39,12 +55,15 @@ function AdminProductForm({ onSubmit, editingProduct, onCancel }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
     const formData = new FormData();
     formData.append("name", name);
     formData.append("price", price);
     formData.append("description", description);
     formData.append("stock", stock);
+    formData.append("category_id", categoryId); // ✅ gửi category_id
     if (image) formData.append("image", image);
+
     onSubmit(formData);
   };
 
@@ -69,7 +88,6 @@ function AdminProductForm({ onSubmit, editingProduct, onCancel }) {
           required
         />
 
-        {/* ➕ tồn kho */}
         <input
           type="number"
           value={stock}
@@ -78,7 +96,20 @@ function AdminProductForm({ onSubmit, editingProduct, onCancel }) {
           min="0"
         />
 
-        {/* ➕ mô tả */}
+        {/* ✅ CHỌN DANH MỤC */}
+        <select
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+          required
+        >
+          <option value="">-- Chọn danh mục --</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+
         <textarea
           value={description}
           placeholder="Mô tả sản phẩm"

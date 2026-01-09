@@ -1,50 +1,73 @@
 import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { register } from "../../services/api";
-import { Link, useNavigate } from "react-router-dom";
-import "./Login.css";
+import "./Register.css";
 
 function Register() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleRegister = async () => {
-    try {
-      const result = await register("Customer", email, password);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
 
-      if (result) {
-        alert("Đăng ký thành công");
-        navigate("/login");
-      }
-    } catch (error) {
-      alert("Đăng ký thất bại");
+    try {
+      await register(name, email, password);
+      navigate("/login");
+    } catch (err) {
+      setError(err.message || "Đăng ký thất bại");
     }
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <h2 className="auth-title">Đăng ký</h2>
+    <div className="register-page">
+      <div className="register-card">
+        <h2>📝 Đăng ký</h2>
+        <p className="subtitle">Tạo tài khoản mới</p>
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        {error && <div className="error-msg">{error}</div>}
 
-        <input
-          type="password"
-          placeholder="Mật khẩu"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Họ và tên</label>
+            <input
+              type="text"
+              placeholder="Nhập họ tên"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
 
-        <button type="button" onClick={handleRegister}>
-          Đăng ký
-        </button>
+          <div className="form-group">
+            <label>Email</label>
+            <input
+              type="email"
+              placeholder="Nhập email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
 
-        <p className="auth-switch">
+          <div className="form-group">
+            <label>Mật khẩu</label>
+            <input
+              type="password"
+              placeholder="Nhập mật khẩu"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          <button className="register-btn">Đăng ký</button>
+        </form>
+
+        <p className="login-text">
           Đã có tài khoản? <Link to="/login">Đăng nhập</Link>
         </p>
       </div>

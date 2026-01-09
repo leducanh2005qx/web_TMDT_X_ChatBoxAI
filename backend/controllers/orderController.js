@@ -1,7 +1,7 @@
 const db = require("../config/db");
 
 /* =====================================================
-   CREATE ORDER + TRỪ KHO (TRANSACTION)
+   CREATE ORDER (USER) – TRỪ TỒN KHO
 ===================================================== */
 exports.createOrder = (req, res) => {
   const userId = req.user.id;
@@ -14,7 +14,7 @@ exports.createOrder = (req, res) => {
   db.beginTransaction((err) => {
     if (err) {
       console.error(err);
-      return res.status(500).json({ message: "Lỗi hệ thống" });
+      return res.status(500).json({ message: "Lỗi transaction" });
     }
 
     const orderSql =
@@ -22,7 +22,6 @@ exports.createOrder = (req, res) => {
 
     db.query(orderSql, [userId, total], (err, result) => {
       if (err) {
-        console.error(err);
         return db.rollback(() =>
           res.status(500).json({ message: "Lỗi tạo đơn hàng" })
         );
@@ -44,22 +43,18 @@ exports.createOrder = (req, res) => {
 
           db.query(itemSql, [orderItems], (err) => {
             if (err) {
-              console.error(err);
               return db.rollback(() =>
                 res.status(500).json({ message: "Lỗi chi tiết đơn hàng" })
               );
             }
 
-            db.commit((commitErr) => {
-              if (commitErr) {
-                console.error(commitErr);
-                return db.rollback(() =>
-                  res.status(500).json({ message: "Lỗi xác nhận đơn hàng" })
-                );
-              }
-
-              res.json({ success: true, orderId });
-            });
+            db.commit(() =>
+              res.json({
+                success: true,
+                orderId,
+                message: "Đặt hàng thành công",
+              })
+            );
           });
           return;
         }
@@ -78,21 +73,19 @@ exports.createOrder = (req, res) => {
 
             if (rows[0].stock < item.quantity) {
               return db.rollback(() =>
-                res.status(400).json({ message: "Không đủ tồn kho" })
+                res.status(400).json({ message: "Sản phẩm không đủ tồn kho" })
               );
             }
 
             db.query(
               "UPDATE products SET stock = stock - ? WHERE id = ?",
               [item.quantity, item.id],
-              (errUpdate) => {
-                if (errUpdate) {
-                  console.error(errUpdate);
+              (err) => {
+                if (err) {
                   return db.rollback(() =>
                     res.status(500).json({ message: "Lỗi cập nhật tồn kho" })
                   );
                 }
-
                 handleItem(index + 1);
               }
             );
@@ -106,7 +99,7 @@ exports.createOrder = (req, res) => {
 };
 
 /* =====================================================
-   USER: ORDERS
+   USER: LẤY DANH SÁCH ĐƠN
 ===================================================== */
 exports.getOrdersByUser = (req, res) => {
   const sql = `
@@ -125,6 +118,9 @@ exports.getOrdersByUser = (req, res) => {
   });
 };
 
+/* =====================================================
+   USER: CHI TIẾT ĐƠN
+===================================================== */
 exports.getOrderDetail = (req, res) => {
   const { id } = req.params;
 
@@ -170,7 +166,7 @@ exports.getOrderDetail = (req, res) => {
 };
 
 /* =====================================================
-   ADMIN
+   ADMIN: LẤY TẤT CẢ ĐƠN
 ===================================================== */
 exports.getAllOrdersAdmin = (req, res) => {
   const sql = `
@@ -194,85 +190,116 @@ exports.getAllOrdersAdmin = (req, res) => {
   });
 };
 
-exports.getOrderDetailAdmin = (req, res) => {
-  const { id } = req.params;
-
-  const sql = `
-    SELECT 
-      o.id AS orderId,
-      o.total,
-      o.status,
-      o.created_at,
-      u.email,
-      p.name,
-      p.image,
-      oi.quantity,
-      oi.price
-    FROM orders o
-    LEFT JOIN users u ON o.user_id = u.id
-    JOIN order_items oi ON o.id = oi.order_id
-    JOIN products p ON oi.product_id = p.id
-    WHERE o.id = ?
-  `;
-
-  db.query(sql, [id], (err, rows) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ message: "Lỗi lấy chi tiết admin" });
-    }
-
-    if (rows.length === 0) {
-      return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
-    }
-
-    res.json({
-      orderId: rows[0].orderId,
-      total: rows[0].total,
-      status: rows[0].status,
-      created_at: rows[0].created_at,
-      email: rows[0].email,
-      items: rows.map((r) => ({
-        name: r.name,
-        image: r.image,
-        quantity: Number(r.quantity),
-        price: Number(r.price),
-      })),
-    });
-  });
-};
-
+/* =====================================================
+   ADMIN: UPDATE STATUS – HOÀN KHO KHI HỦY
+===================================================== */
 exports.updateOrderStatus = (req, res) => {
   const { status } = req.body;
-  const allowed = ["pending", "confirmed", "completed", "cancelled"];
+  const orderId = req.params.id;
 
+  const allowed = ["pending", "confirmed", "completed", "cancelled"];
   if (!allowed.includes(status)) {
     return res.status(400).json({ message: "Trạng thái không hợp lệ" });
   }
 
-  db.query(
-    "UPDATE orders SET status = ? WHERE id = ?",
-    [status, req.params.id],
-    (err, result) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ message: "Lỗi cập nhật trạng thái" });
-      }
+  db.beginTransaction((err) => {
+    if (err) return res.status(500).json({ message: "Lỗi transaction" });
 
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
-      }
+    db.query(
+      "SELECT status FROM orders WHERE id = ? FOR UPDATE",
+      [orderId],
+      (err, rows) => {
+        if (err || rows.length === 0) {
+          return db.rollback(() =>
+            res.status(404).json({ message: "Không tìm thấy đơn hàng" })
+          );
+        }
 
-      res.json({ success: true });
-    }
-  );
+        const current = rows[0].status;
+
+        // ❌ Không nhảy cóc
+        if (current === "pending" && status === "completed") {
+          return db.rollback(() =>
+            res
+              .status(400)
+              .json({ message: "Phải xác nhận đơn trước khi hoàn thành" })
+          );
+        }
+
+        // ❌ Không hủy đơn đã hoàn thành
+        if (current === "completed" && status === "cancelled") {
+          return db.rollback(() =>
+            res.status(400).json({ message: "Không thể hủy đơn đã hoàn thành" })
+          );
+        }
+
+        // 👉 HỦY → HOÀN KHO
+        if (status === "cancelled" && current !== "cancelled") {
+          db.query(
+            "SELECT product_id, quantity FROM order_items WHERE order_id = ?",
+            [orderId],
+            (err, items) => {
+              if (err) {
+                return db.rollback(() =>
+                  res.status(500).json({ message: "Lỗi lấy chi tiết đơn" })
+                );
+              }
+
+              const restore = (i) => {
+                if (i === items.length) {
+                  db.query(
+                    "UPDATE orders SET status = ? WHERE id = ?",
+                    [status, orderId],
+                    () =>
+                      db.commit(() =>
+                        res.json({
+                          success: true,
+                          message: "Đã hủy đơn và hoàn kho",
+                        })
+                      )
+                  );
+                  return;
+                }
+
+                db.query(
+                  "UPDATE products SET stock = stock + ? WHERE id = ?",
+                  [items[i].quantity, items[i].product_id],
+                  (err) => {
+                    if (err) {
+                      return db.rollback(() =>
+                        res.status(500).json({ message: "Lỗi hoàn kho" })
+                      );
+                    }
+                    restore(i + 1);
+                  }
+                );
+              };
+
+              restore(0);
+            }
+          );
+        } else {
+          db.query(
+            "UPDATE orders SET status = ? WHERE id = ?",
+            [status, orderId],
+            () => db.commit(() => res.json({ success: true }))
+          );
+        }
+      }
+    );
+  });
 };
 
+/* =====================================================
+   ADMIN: STATISTICS (DOANH THU THỰC)
+===================================================== */
 exports.getStatistics = (req, res) => {
   const sql = `
     SELECT 
       COUNT(*) AS totalOrders,
       IFNULL(SUM(total), 0) AS totalRevenue
     FROM orders
+    WHERE status = 'completed'
   `;
 
   db.query(sql, (err, rows) => {
@@ -280,6 +307,61 @@ exports.getStatistics = (req, res) => {
       console.error(err);
       return res.status(500).json({ message: "Lỗi thống kê" });
     }
-    res.json(rows[0]);
+
+    res.json({
+      totalOrders: Number(rows[0].totalOrders),
+      totalRevenue: Number(rows[0].totalRevenue),
+    });
+  });
+};
+
+/* =====================================================
+   ADMIN: BEST SELLING PRODUCTS
+===================================================== */
+exports.getBestSellingProducts = (req, res) => {
+  const sql = `
+    SELECT 
+      p.id,
+      p.name,
+      p.image,
+      SUM(oi.quantity) AS totalSold
+    FROM order_items oi
+    JOIN orders o ON oi.order_id = o.id
+    JOIN products p ON oi.product_id = p.id
+    WHERE o.status = 'completed'
+    GROUP BY p.id
+    ORDER BY totalSold DESC
+    LIMIT 5
+  `;
+
+  db.query(sql, (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res
+        .status(500)
+        .json({ message: "Lỗi thống kê sản phẩm bán chạy" });
+    }
+    res.json(rows);
+  });
+};
+
+/* =====================================================
+   ADMIN: UNCOMPLETED ORDERS
+===================================================== */
+exports.getUncompletedOrders = (req, res) => {
+  const sql = `
+    SELECT COUNT(*) AS totalUncompleted
+    FROM orders
+    WHERE status IN ('pending', 'confirmed')
+  `;
+
+  db.query(sql, (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res
+        .status(500)
+        .json({ message: "Lỗi thống kê đơn chưa hoàn thành" });
+    }
+    res.json({ totalUncompleted: Number(rows[0].totalUncompleted) });
   });
 };

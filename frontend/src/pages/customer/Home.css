@@ -1,5 +1,54 @@
-.home-container {
-  padding: 20px;
-  background: #f9fafb;
-  min-height: calc(100vh - 60px);
+.home-hero {
+  height: 70vh;
+  background: linear-gradient(135deg, #3498db, #6dd5fa);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+}
+
+.hero-content {
+  text-align: center;
+}
+
+.hero-content h1 {
+  font-size: 42px;
+  margin-bottom: 10px;
+}
+
+.hero-content p {
+  font-size: 18px;
+  margin-bottom: 20px;
+}
+
+.hero-btn {
+  padding: 14px 28px;
+  font-size: 16px;
+  background: white;
+  color: #3498db;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.hero-btn:hover {
+  background: #ecf0f1;
+}
+
+/* ===== INFO ===== */
+.home-info {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 40px;
+  background: #f4f6f9;
+}
+
+.info-card {
+  background: white;
+  padding: 20px 30px;
+  border-radius: 10px;
+  font-size: 16px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
