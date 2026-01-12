@@ -1,44 +1,111 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { io } from "socket.io-client";
+
+const socket = io("http://localhost:5000");
 
 function ChatPanel({ user }) {
-  const [orders, setOrders] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState("");
+  const bottomRef = useRef(null);
 
+  /* JOIN SOCKET ROOM */
   useEffect(() => {
-    if (!user) return;
+    if (!user?.threadId) return;
 
-    fetch(
-      `http://localhost:5000/api/chat/admin/orders/${user.userId}`,
-      {
-        headers: {
-          Authorization: "Bearer " + localStorage.getItem("token"),
-        },
+    socket.emit("join_thread", user.threadId);
+
+    socket.on("new_message", (msg) => {
+      if (msg.threadId === user.threadId) {
+        setMessages((prev) => [...prev, msg]);
       }
-    )
-      .then((res) => res.json())
-      .then(setOrders);
+    });
+
+    return () => {
+      socket.off("new_message");
+    };
   }, [user]);
 
+  /* LOAD MESSAGES */
+  useEffect(() => {
+    if (!user?.threadId) return;
+
+    fetch(`http://localhost:5000/api/chat/admin/messages/${user.threadId}`, {
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setMessages(Array.isArray(data) ? data : []);
+      });
+  }, [user]);
+
+  /* AUTO SCROLL */
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const sendMessage = () => {
+    if (!text.trim()) return;
+
+    fetch(`http://localhost:5000/api/chat/admin/messages/${user.threadId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+      body: JSON.stringify({ content: text }),
+    }).then(() => {
+      // ✅ APPEND NGAY (KHÔNG ĐỢI SOCKET)
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          sender_role: "ADMIN",
+          message: text,
+          threadId: user.threadId,
+        },
+      ]);
+      setText("");
+    });
+  };
+
   if (!user) {
-    return <div className="chat-panel empty">👈 Chọn khách để chat</div>;
+    return <div className="chat-panel">👈 Chọn khách để chat</div>;
   }
 
   return (
     <div className="chat-panel">
-      <h3>Chat với {user.email}</h3>
+      <div className="chat-header">
+        💬 Chat với <strong>{user.email}</strong>
+      </div>
 
-      <div className="orders">
-        <h4>🧾 Đơn hàng gần đây</h4>
+      <div className="chat-messages">
+        {messages.length === 0 && (
+          <p style={{ color: "#6b7280" }}>Chưa có tin nhắn</p>
+        )}
 
-        {orders.length === 0 && <p>Chưa có đơn hàng</p>}
-
-        {orders.map((o) => (
-          <div key={o.id} className="order-card">
-            <div>#{o.id}</div>
-            <div>{Number(o.total).toLocaleString()} đ</div>
-            <div className={`status ${o.status}`}>{o.status}</div>
-            <small>{new Date(o.created_at).toLocaleString()}</small>
+        {messages.map((m) => (
+          <div
+            key={m.id}
+            className={`chat-message ${
+              m.sender_role === "ADMIN" ? "admin" : "user"
+            }`}
+          >
+            {m.message}
           </div>
         ))}
+        <div ref={bottomRef} />
+      </div>
+
+      <div className="chat-input">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Nhập tin nhắn..."
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+        />
+        <button onClick={sendMessage}>Gửi</button>
       </div>
     </div>
   );

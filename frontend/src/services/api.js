@@ -12,7 +12,6 @@ const getAuthHeader = () => {
   };
 };
 
-// ✅ HANDLE RESPONSE AN TOÀN – KHÔNG THROW SAI
 const handleResponse = async (res) => {
   let data = {};
 
@@ -20,11 +19,6 @@ const handleResponse = async (res) => {
     data = await res.json();
   } catch {
     data = {};
-  }
-
-  // 🔥 NẾU BACKEND BÁO SUCCESS → LUÔN TRẢ DATA
-  if (data?.success === true) {
-    return data;
   }
 
   if (!res.ok) {
@@ -146,7 +140,7 @@ export const getOrderById = async (orderId) => {
   return handleResponse(res);
 };
 
-/* ================= ADMIN ORDERS ================= */
+/* ================= ADMIN ORDERS (🔥 FIX CHUẨN) ================= */
 
 export const getAllOrdersAdmin = async () => {
   const res = await fetch(`${API_URL}/orders/admin`, {
@@ -203,7 +197,46 @@ export const getUncompletedOrders = async () => {
   return handleResponse(res);
 };
 
+/* ================= CATEGORIES ================= */
+
 export const getCategories = async () => {
   const res = await fetch(`${API_URL}/categories`);
-  return res.json();
+  return handleResponse(res);
+};
+
+export const createCategory = async (name) => {
+  const res = await fetch(`${API_URL}/categories`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ name }),
+  });
+
+  return handleResponse(res);
+};
+
+export const updateCategory = async (id, name) => {
+  const res = await fetch(`${API_URL}/categories/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ name }),
+  });
+
+  return handleResponse(res);
+};
+
+export const deleteCategory = async (id) => {
+  const res = await fetch(`${API_URL}/categories/${id}`, {
+    method: "DELETE",
+    headers: {
+      ...getAuthHeader(),
+    },
+  });
+
+  return handleResponse(res);
 };

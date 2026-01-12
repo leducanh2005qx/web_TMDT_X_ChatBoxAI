@@ -2,24 +2,18 @@ const { Server } = require("socket.io");
 
 let io;
 
-exports.initSocket = (server) => {
+const initSocket = (server) => {
   io = new Server(server, {
-    cors: {
-      origin: "http://localhost:3000",
-    },
+    cors: { origin: "*" },
   });
 
   io.on("connection", (socket) => {
-    console.log("🟢 Client connected:", socket.id);
-
-    socket.on("joinThread", (threadId) => {
-      socket.join(`thread:${threadId}`);
-    });
-
-    socket.on("disconnect", () => {
-      console.log("🔴 Client disconnected:", socket.id);
+    socket.on("join_thread", (threadId) => {
+      socket.join(`thread_${threadId}`);
     });
   });
+
+  return io;
 };
 
-exports.getIO = () => io;
+module.exports = { initSocket };

@@ -7,9 +7,14 @@ function AdminChat() {
   const [selectedUser, setSelectedUser] = useState(null);
 
   return (
-    <div className="admin-chat">
-      <UserList selectedUser={selectedUser} onSelectUser={setSelectedUser} />
-      <ChatPanel user={selectedUser} />
+    <div className="admin-chat-page">
+      <div className="chat-sidebar">
+        <UserList selectedUser={selectedUser} onSelectUser={setSelectedUser} />
+      </div>
+
+      <div className="chat-main">
+        <ChatPanel user={selectedUser} />
+      </div>
     </div>
   );
 }

@@ -10,10 +10,11 @@ function AdminOrders() {
   const fetchOrders = () => {
     getAllOrdersAdmin()
       .then((data) => {
+        // ✅ CHỐNG DATA SAI FORMAT
         setOrders(Array.isArray(data) ? data : []);
       })
       .catch((err) => {
-        alert(err.message);
+        alert(err.message || "Lỗi lấy đơn hàng");
       });
   };
 
@@ -21,7 +22,7 @@ function AdminOrders() {
     fetchOrders();
   }, []);
 
-  const updateStatus = (id, status) => {
+  const updateStatus = (orderId, status) => {
     if (
       status === "cancelled" &&
       !window.confirm("Bạn chắc chắn muốn hủy đơn này?")
@@ -29,9 +30,9 @@ function AdminOrders() {
       return;
     }
 
-    updateOrderStatusAdmin(id, status)
-      .then(() => fetchOrders())
-      .catch((err) => alert(err.message));
+    updateOrderStatusAdmin(orderId, status)
+      .then(fetchOrders)
+      .catch((err) => alert(err.message || "Lỗi cập nhật trạng thái"));
   };
 
   const statusClass = (status) => {
@@ -78,65 +79,70 @@ function AdminOrders() {
           </thead>
 
           <tbody>
-            {orders.map((o) => (
-              <tr key={o.orderId}>
-                <td>#{o.orderId}</td>
-                <td>{o.email || "Khách vãng lai"}</td>
-                <td>{Number(o.total).toLocaleString()} đ</td>
+            {orders.map((o) => {
+              // ✅ TƯƠNG THÍCH CẢ id & orderId
+              const orderId = o.orderId ?? o.id;
 
-                <td>
-                  <span className={statusClass(o.status)}>{o.status}</span>
-                </td>
+              return (
+                <tr key={orderId}>
+                  <td>#{orderId}</td>
+                  <td>{o.email || "Khách vãng lai"}</td>
+                  <td>{Number(o.total).toLocaleString()} đ</td>
 
-                <td>{new Date(o.created_at).toLocaleString()}</td>
+                  <td>
+                    <span className={statusClass(o.status)}>{o.status}</span>
+                  </td>
 
-                <td className="actions">
-                  {o.status === "pending" && (
-                    <>
-                      <button
-                        className="btn confirm"
-                        onClick={() => updateStatus(o.orderId, "confirmed")}
-                      >
-                        Xác nhận
-                      </button>
+                  <td>{new Date(o.created_at).toLocaleString()}</td>
 
-                      <button
-                        className="btn cancel"
-                        onClick={() => updateStatus(o.orderId, "cancelled")}
-                      >
-                        Hủy
-                      </button>
-                    </>
-                  )}
+                  <td className="actions">
+                    {o.status === "pending" && (
+                      <>
+                        <button
+                          className="btn confirm"
+                          onClick={() => updateStatus(orderId, "confirmed")}
+                        >
+                          Xác nhận
+                        </button>
 
-                  {o.status === "confirmed" && (
-                    <>
-                      <button
-                        className="btn complete"
-                        onClick={() => updateStatus(o.orderId, "completed")}
-                      >
-                        Hoàn thành
-                      </button>
+                        <button
+                          className="btn cancel"
+                          onClick={() => updateStatus(orderId, "cancelled")}
+                        >
+                          Hủy
+                        </button>
+                      </>
+                    )}
 
-                      <button
-                        className="btn cancel"
-                        onClick={() => updateStatus(o.orderId, "cancelled")}
-                      >
-                        Hủy
-                      </button>
-                    </>
-                  )}
+                    {o.status === "confirmed" && (
+                      <>
+                        <button
+                          className="btn complete"
+                          onClick={() => updateStatus(orderId, "completed")}
+                        >
+                          Hoàn thành
+                        </button>
 
-                  {o.status === "completed" && (
-                    <span className="done-text">✔ Đã xong</span>
-                  )}
+                        <button
+                          className="btn cancel"
+                          onClick={() => updateStatus(orderId, "cancelled")}
+                        >
+                          Hủy
+                        </button>
+                      </>
+                    )}
 
-                  {o.status === "cancelled" && (
-                    <span className="cancel-text">✖ Đã hủy</span>
-                  )}
-                </td>
-              </tr>
-            ))}
+                    {o.status === "completed" && (
+                      <span className="done-text">✔ Đã xong</span>
+                    )}
+
+                    {o.status === "cancelled" && (
+                      <span className="cancel-text">✖ Đã hủy</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
