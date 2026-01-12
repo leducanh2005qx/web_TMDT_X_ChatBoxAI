@@ -1,11 +1,15 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useState } from "react";
 
-/* ===== AUTH ===== */
+/* ================= AUTH ================= */
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 
-/* ===== CUSTOMER ===== */
+/* ================= LAYOUT ================= */
+import Layout from "./components/layout/Layout";
+import AdminLayout from "./components/layout/AdminLayout";
+
+/* ================= CUSTOMER ================= */
 import Home from "./pages/customer/Home";
 import Shop from "./pages/customer/Shop";
 import Orders from "./pages/customer/Orders";
@@ -14,89 +18,161 @@ import Checkout from "./pages/customer/Checkout";
 import ProductDetail from "./pages/customer/ProductDetail";
 import Cart from "./components/customer/Cart";
 
-/* ===== ADMIN ===== */
+/* ================= ADMIN ================= */
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminStats from "./pages/admin/AdminStats";
+import AdminChat from "./pages/admin/AdminChat";
+import AdminCategories from "./pages/admin/AdminCategories";
 import AdminRoute from "./components/admin/AdminRoute";
 
-/* ===== LAYOUT ===== */
-import Header from "./components/layout/Header";
+/* ================= CHAT ================= */
+import ChatWidget from "./components/chat/ChatWidget";
 
 function App() {
   const [cart, setCart] = useState([]);
-  const [keyword, setKeyword] = useState("");
+  const [search, setSearch] = useState("");
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    window.location.href = "/login";
-  };
+  const location = useLocation();
+  const path = location.pathname;
+
+  // ❌ Ẩn chat với admin & auth
+  const hideChat =
+    path.startsWith("/admin") || path === "/login" || path === "/register";
 
   return (
     <>
-      {/* ===== HEADER DUY NHẤT ===== */}
-      <Header
-        cart={cart}
-        cartCount={cart.reduce((s, i) => s + i.quantity, 0)}
-        onSearch={setKeyword}
-      />
-
       <Routes>
+        {/* ================= REDIRECT ================= */}
         <Route path="/" element={<Navigate to="/login" replace />} />
 
-        {/* AUTH */}
+        {/* ================= AUTH ================= */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* CUSTOMER */}
-        <Route path="/home" element={<Home cart={cart} setCart={setCart} />} />
+        {/* ================= CUSTOMER ================= */}
+        <Route
+          path="/home"
+          element={
+            <Layout cart={cart} onSearch={setSearch}>
+              <Home cart={cart} setCart={setCart} />
+            </Layout>
+          }
+        />
 
         <Route
           path="/shop"
-          element={<Shop cart={cart} setCart={setCart} keyword={keyword} />}
+          element={
+            <Layout cart={cart} onSearch={setSearch}>
+              <Shop cart={cart} setCart={setCart} keyword={search} />
+            </Layout>
+          }
         />
 
         <Route
           path="/product/:id"
-          element={<ProductDetail cart={cart} setCart={setCart} />}
+          element={
+            <Layout cart={cart} onSearch={setSearch}>
+              <ProductDetail cart={cart} setCart={setCart} />
+            </Layout>
+          }
         />
 
-        <Route path="/cart" element={<Cart cart={cart} setCart={setCart} />} />
+        <Route
+          path="/cart"
+          element={
+            <Layout cart={cart}>
+              <Cart cart={cart} setCart={setCart} />
+            </Layout>
+          }
+        />
+
         <Route
           path="/checkout"
-          element={<Checkout cart={cart} setCart={setCart} />}
+          element={
+            <Layout cart={cart}>
+              <Checkout cart={cart} setCart={setCart} />
+            </Layout>
+          }
         />
 
-        <Route path="/orders" element={<Orders />} />
-        <Route path="/orders/:id" element={<OrderDetail />} />
+        <Route
+          path="/orders"
+          element={
+            <Layout cart={cart}>
+              <Orders />
+            </Layout>
+          }
+        />
 
-        {/* ADMIN */}
+        <Route
+          path="/orders/:id"
+          element={
+            <Layout cart={cart}>
+              <OrderDetail />
+            </Layout>
+          }
+        />
+
+        {/* ================= ADMIN ================= */}
         <Route
           path="/admin/dashboard"
           element={
             <AdminRoute>
-              <AdminDashboard />
+              <AdminLayout>
+                <AdminDashboard />
+              </AdminLayout>
             </AdminRoute>
           }
         />
+
+        <Route
+          path="/admin/categories"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <AdminCategories />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
+
         <Route
           path="/admin/orders"
           element={
             <AdminRoute>
-              <AdminOrders />
+              <AdminLayout>
+                <AdminOrders />
+              </AdminLayout>
             </AdminRoute>
           }
         />
+
+        <Route
+          path="/admin/chat"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <AdminChat />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
+
         <Route
           path="/admin/stats"
           element={
             <AdminRoute>
-              <AdminStats />
+              <AdminLayout>
+                <AdminStats />
+              </AdminLayout>
             </AdminRoute>
           }
         />
       </Routes>
+
+      {/* ================= CUSTOMER CHAT ================= */}
+      {!hideChat && <ChatWidget />}
     </>
   );
 }

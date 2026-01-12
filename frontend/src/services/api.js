@@ -2,7 +2,6 @@ const API_URL = "http://localhost:5000/api";
 
 /* ================= HELPER ================= */
 
-// Lấy token + check tồn tại
 const getAuthHeader = () => {
   const token = localStorage.getItem("token");
   if (!token) {
@@ -13,7 +12,7 @@ const getAuthHeader = () => {
   };
 };
 
-// ✅ HANDLE RESPONSE CHUẨN – KHÔNG LÀM CRASH UI
+// ✅ HANDLE RESPONSE AN TOÀN – KHÔNG THROW SAI
 const handleResponse = async (res) => {
   let data = {};
 
@@ -21,6 +20,11 @@ const handleResponse = async (res) => {
     data = await res.json();
   } catch {
     data = {};
+  }
+
+  // 🔥 NẾU BACKEND BÁO SUCCESS → LUÔN TRẢ DATA
+  if (data?.success === true) {
+    return data;
   }
 
   if (!res.ok) {
@@ -32,7 +36,7 @@ const handleResponse = async (res) => {
       throw new Error(data.message || "Lỗi hệ thống");
     }
 
-    return data;
+    throw new Error(data.message || "Lỗi yêu cầu");
   }
 
   return data;
@@ -179,7 +183,6 @@ export const getOrderStatsAdmin = async () => {
   return handleResponse(res);
 };
 
-// 🔥 Sản phẩm bán chạy
 export const getBestSellingProducts = async () => {
   const res = await fetch(`${API_URL}/orders/admin/best-products`, {
     headers: {
@@ -190,7 +193,6 @@ export const getBestSellingProducts = async () => {
   return handleResponse(res);
 };
 
-// ⏳ Đơn hàng chưa hoàn thành
 export const getUncompletedOrders = async () => {
   const res = await fetch(`${API_URL}/orders/admin/uncompleted`, {
     headers: {
@@ -200,7 +202,8 @@ export const getUncompletedOrders = async () => {
 
   return handleResponse(res);
 };
+
 export const getCategories = async () => {
-  const res = await fetch("http://localhost:5000/api/categories");
+  const res = await fetch(`${API_URL}/categories`);
   return res.json();
 };

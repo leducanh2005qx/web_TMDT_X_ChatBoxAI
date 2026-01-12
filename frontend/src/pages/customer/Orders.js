@@ -8,9 +8,14 @@ function Orders() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    getMyOrders().then((data) => {
-      setOrders(Array.isArray(data) ? data : []);
-    });
+    getMyOrders()
+      .then((data) => {
+        setOrders(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        console.error(err);
+        setOrders([]);
+      });
   }, []);
 
   return (
@@ -22,13 +27,13 @@ function Orders() {
       ) : (
         <div className="orders-list">
           {orders.map((order) => (
-            <div className="order-card" key={order.id}>
+            <div className="order-card" key={order.orderId}>
               <div className="order-header">
                 <span
                   className="order-id clickable"
-                  onClick={() => navigate(`/orders/${order.id}`)}
+                  onClick={() => navigate(`/orders/${order.orderId}`)}
                 >
-                  Mã đơn #{order.id}
+                  Mã đơn #{order.orderId}
                 </span>
 
                 <span className="order-total">
@@ -40,6 +45,10 @@ function Orders() {
                 <p>
                   📅 Ngày tạo:{" "}
                   {new Date(order.created_at).toLocaleString("vi-VN")}
+                </p>
+
+                <p>
+                  📌 Trạng thái: <strong>{order.status}</strong>
                 </p>
               </div>
             </div>

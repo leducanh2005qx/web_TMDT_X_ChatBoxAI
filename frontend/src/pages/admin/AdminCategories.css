@@ -1,0 +1,84 @@
+.admin-categories {
+  padding: 24px;
+  background: #f8fafc;
+  min-height: 100vh;
+}
+
+.admin-categories h1 {
+  font-size: 26px;
+  font-weight: 900;
+  margin-bottom: 20px;
+}
+
+.category-form,
+.category-list {
+  background: #fff;
+  padding: 20px;
+  border-radius: 20px;
+  margin-bottom: 28px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+}
+
+.category-form h2,
+.category-list h2 {
+  margin-bottom: 14px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.category-form form {
+  display: flex;
+  gap: 10px;
+}
+
+.category-form input {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.category-form button {
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #022c22;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.category-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.category-table th,
+.category-table td {
+  padding: 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.category-actions button {
+  margin-right: 8px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+}
+
+.edit-btn {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.delete-btn {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.category-empty {
+  text-align: center;
+  color: #64748b;
+  font-style: italic;
+}

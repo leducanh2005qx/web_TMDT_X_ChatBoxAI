@@ -1,79 +1,177 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  getProducts,
-  createProduct,
-  deleteProduct,
-  updateProduct,
-} from "../../services/api";
-
-import AdminProductForm from "../../components/admin/AdminProductForm";
 import "./AdminDashboard.css";
 
 function AdminDashboard() {
   const [products, setProducts] = useState([]);
-  const [editingProduct, setEditingProduct] = useState(null);
-  const navigate = useNavigate();
+  const [categories, setCategories] = useState([]);
+  const [editing, setEditing] = useState(null);
+  const [image, setImage] = useState(null);
 
-  const loadProducts = async () => {
-    const data = await getProducts();
-    setProducts(Array.isArray(data) ? data : []);
+  const [form, setForm] = useState({
+    name: "",
+    price: "",
+    stock: "",
+    category_id: "",
+    description: "",
+  });
+
+  const token = localStorage.getItem("token");
+
+  /* ===== LOAD DATA ===== */
+  const loadProducts = () => {
+    fetch("http://localhost:5000/api/products")
+      .then((res) => res.json())
+      .then(setProducts);
+  };
+
+  const loadCategories = () => {
+    fetch("http://localhost:5000/api/categories")
+      .then((res) => res.json())
+      .then(setCategories);
   };
 
   useEffect(() => {
     loadProducts();
+    loadCategories();
   }, []);
 
-  const handleAdd = async (formData) => {
-    await createProduct(formData);
-    loadProducts();
+  /* ===== FORM ===== */
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleUpdate = async (formData) => {
-    await updateProduct(editingProduct.id, formData);
-    setEditingProduct(null);
-    loadProducts();
-  };
+  const submit = (e) => {
+    e.preventDefault();
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Xóa sản phẩm này?")) {
-      await deleteProduct(id);
+    const formData = new FormData();
+    Object.keys(form).forEach((k) => formData.append(k, form[k]));
+    if (image) formData.append("image", image);
+
+    const method = editing ? "PUT" : "POST";
+    const url = editing
+      ? `http://localhost:5000/api/products/${editing.id}`
+      : "http://localhost:5000/api/products";
+
+    fetch(url, {
+      method,
+      headers: {
+        Authorization: "Bearer " + token,
+      },
+      body: formData,
+    }).then(() => {
+      setForm({
+        name: "",
+        price: "",
+        stock: "",
+        category_id: "",
+        description: "",
+      });
+      setImage(null);
+      setEditing(null);
       loadProducts();
-    }
+    });
+  };
+
+  const editProduct = (p) => {
+    setEditing(p);
+    setForm({
+      name: p.name,
+      price: p.price,
+      stock: p.stock,
+      category_id: p.category_id,
+      description: p.description,
+    });
+  };
+
+  const deleteProduct = (id) => {
+    if (!window.confirm("Xoá sản phẩm này?")) return;
+
+    fetch(`http://localhost:5000/api/products/${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: "Bearer " + token,
+      },
+    }).then(loadProducts);
   };
 
   return (
-    <div className="admin-layout">
-      {/* SIDEBAR */}
-      <div className="admin-sidebar">
-        <h2>ADMIN</h2>
-        <ul>
-          <li onClick={() => navigate("/admin/dashboard")}>
-            📦 Quản lý sản phẩm
-          </li>
-          <li onClick={() => navigate("/admin/orders")}>🧾 Đơn hàng</li>
-          <li onClick={() => navigate("/admin/stats")}>📊 Thống kê</li>
-        </ul>
+    <div className="admin-dashboard">
+      <h1 className="dashboard-title">🛠 Quản lý sản phẩm</h1>
+
+      {/* ===== FORM ===== */}
+      <div className="product-form">
+        <h2>{editing ? "✏️ Sửa sản phẩm" : "➕ Thêm sản phẩm"}</h2>
+
+        <form onSubmit={submit}>
+          <input
+            name="name"
+            placeholder="Tên sản phẩm"
+            value={form.name}
+            onChange={handleChange}
+            required
+          />
+
+          <input
+            name="price"
+            placeholder="Giá"
+            value={form.price}
+            onChange={handleChange}
+            required
+          />
+
+          <input
+            name="stock"
+            placeholder="Số lượng"
+            value={form.stock}
+            onChange={handleChange}
+            required
+          />
+
+          <select
+            name="category_id"
+            value={form.category_id}
+            onChange={handleChange}
+            required
+          >
+            <option value="">-- Chọn danh mục --</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+
+          <textarea
+            name="description"
+            placeholder="Mô tả sản phẩm"
+            value={form.description}
+            onChange={handleChange}
+          />
+
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setImage(e.target.files[0])}
+          />
+
+          <button type="submit">
+            {editing ? "Cập nhật sản phẩm" : "Thêm sản phẩm"}
+          </button>
+        </form>
       </div>
 
-      {/* CONTENT */}
-      <div className="admin-content">
-        <div className="admin-header">Quản lý sản phẩm</div>
+      {/* ===== TABLE ===== */}
+      <div className="product-table">
+        <h2>📦 Danh sách sản phẩm</h2>
 
-        <AdminProductForm
-          onSubmit={editingProduct ? handleUpdate : handleAdd}
-          editingProduct={editingProduct}
-          onCancel={() => setEditingProduct(null)}
-        />
-
-        <table className="admin-table">
+        <table>
           <thead>
             <tr>
-              <th>ID</th>
               <th>Ảnh</th>
               <th>Tên</th>
+              <th>Danh mục</th>
               <th>Giá</th>
-              <th>Tồn kho</th>
+              <th>Tồn</th>
               <th>Hành động</th>
             </tr>
           </thead>
@@ -81,53 +179,24 @@ function AdminDashboard() {
           <tbody>
             {products.map((p) => (
               <tr key={p.id}>
-                <td>{p.id}</td>
-
                 <td>
-                  {p.image ? (
-                    <img
-                      src={`http://localhost:5000/${p.image}`}
-                      alt={p.name}
-                      style={{
-                        width: 60,
-                        height: 60,
-                        objectFit: "cover",
-                        borderRadius: 4,
-                      }}
-                    />
-                  ) : (
-                    <span>Không ảnh</span>
-                  )}
+                  <img
+                    src={`http://localhost:5000/${p.image}`}
+                    alt={p.name}
+                    className="thumb"
+                  />
                 </td>
-
                 <td>{p.name}</td>
-
-                <td>{Number(p.price).toLocaleString()} đ</td>
-
-                <td>
-                  {p.stock > 0 ? (
-                    <span style={{ color: "green", fontWeight: "bold" }}>
-                      {p.stock}
-                    </span>
-                  ) : (
-                    <span style={{ color: "red", fontWeight: "bold" }}>
-                      Hết hàng
-                    </span>
-                  )}
-                </td>
-
-                <td>
+                <td>{p.category_name}</td>
+                <td>{p.price} đ</td>
+                <td>{p.stock}</td>
+                <td className="actions">
+                  <button onClick={() => editProduct(p)}>Sửa</button>
                   <button
-                    className="btn-edit"
-                    onClick={() => setEditingProduct(p)}
+                    className="danger"
+                    onClick={() => deleteProduct(p.id)}
                   >
-                    Sửa
-                  </button>
-                  <button
-                    className="btn-delete"
-                    onClick={() => handleDelete(p.id)}
-                  >
-                    Xóa
+                    Xoá
                   </button>
                 </td>
               </tr>
@@ -135,9 +204,7 @@ function AdminDashboard() {
 
             {products.length === 0 && (
               <tr>
-                <td colSpan="6" style={{ textAlign: "center" }}>
-                  Chưa có sản phẩm
-                </td>
+                <td colSpan="6">Chưa có sản phẩm</td>
               </tr>
             )}
           </tbody>

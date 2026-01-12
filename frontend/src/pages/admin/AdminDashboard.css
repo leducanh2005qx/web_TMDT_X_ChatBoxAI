@@ -1,205 +1,120 @@
-/* ===== RESET NHẸ ===== */
-* {
-  box-sizing: border-box;
-}
-
-/* ===== LAYOUT ===== */
-.admin-layout {
-  display: flex;
-  min-height: calc(100vh - 70px);
-  background: linear-gradient(135deg, #f8fafc, #eef2ff);
-}
-
-/* ===== SIDEBAR ===== */
-.admin-sidebar {
-  width: 240px;
-  background: linear-gradient(180deg, #1e293b, #0f172a);
-  color: #fff;
-  padding: 24px 20px;
-  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
-}
-
-.admin-sidebar h2 {
-  text-align: center;
-  margin-bottom: 30px;
-  font-size: 22px;
-  letter-spacing: 1px;
-}
-
-.admin-sidebar ul {
-  list-style: none;
-  padding: 0;
-}
-
-.admin-sidebar li {
-  padding: 14px 16px;
-  margin-bottom: 12px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-size: 15px;
-  background: rgba(255, 255, 255, 0.05);
-  transition: all 0.25s ease;
-}
-
-.admin-sidebar li:hover {
-  background: #2563eb;
-  transform: translateX(6px);
-}
-
-/* ===== CONTENT ===== */
-.admin-content {
-  flex: 1;
-  padding: 30px 40px;
-}
-
-/* ===== HEADER ===== */
-.admin-header {
-  font-size: 26px;
-  font-weight: bold;
-  margin-bottom: 20px;
-  color: #1e293b;
-}
-
-/* ===== FORM (GIỮ TƯƠNG THÍCH AdminProductForm) ===== */
-.admin-form {
-  background: #ffffff;
+/* ===== PAGE ===== */
+.admin-dashboard {
   padding: 24px;
-  border-radius: 18px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-  margin-bottom: 30px;
+  background: #f8fafc; /* ✅ nền sáng */
+  color: #0f172a;
+  min-height: 100vh;
 }
 
-.admin-form h3 {
+.dashboard-title {
+  font-size: 26px;
+  font-weight: 900;
+  margin-bottom: 20px;
+}
+
+/* ===== FORM ===== */
+.product-form {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 20px;
+  margin-bottom: 32px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+}
+
+.product-form h2 {
   margin-bottom: 16px;
-  color: #1e40af;
+  color: #0f172a;
 }
 
-.admin-form input,
-.admin-form textarea {
-  width: 100%;
-  padding: 12px 14px;
-  margin-bottom: 14px;
-  border-radius: 10px;
+.product-form form {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.product-form textarea {
+  grid-column: span 2;
+}
+
+.product-form input,
+.product-form textarea,
+.product-form select {
+  padding: 12px;
+  border-radius: 12px;
   border: 1px solid #e5e7eb;
-  font-size: 14px;
+  background: #ffffff;
+  color: #0f172a;
 }
 
-.admin-form input:focus,
-.admin-form textarea:focus {
-  outline: none;
-  border-color: #2563eb;
+.product-form input[type="file"] {
+  grid-column: span 2;
 }
 
-/* ===== BUTTON ===== */
-.btn-primary {
-  background: linear-gradient(135deg, #2563eb, #1e40af);
-  color: #fff;
-  padding: 12px 20px;
-  border-radius: 10px;
+.product-form button {
+  grid-column: span 2;
+  padding: 14px;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
   border: none;
+  border-radius: 14px;
+  font-weight: 800;
+  color: #022c22;
   cursor: pointer;
-  font-size: 14px;
-  transition: all 0.25s ease;
-}
-
-.btn-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
 }
 
 /* ===== TABLE ===== */
-.admin-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0 12px;
+.product-table {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
 }
 
-.admin-table thead th {
+.product-table h2 {
+  margin-bottom: 16px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
   text-align: left;
   padding: 14px;
-  font-size: 14px;
   color: #475569;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.admin-table tbody tr {
-  background: #ffffff;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.admin-table tbody tr:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
-}
-
-.admin-table td {
+td {
   padding: 14px;
-  vertical-align: middle;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.actions button {
+  margin-right: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.actions button:first-child {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.actions button.danger {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 /* ===== IMAGE ===== */
-.admin-table img {
-  border-radius: 8px;
+.thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 14px;
   border: 1px solid #e5e7eb;
-}
-
-/* ===== ACTION BUTTON ===== */
-.btn-edit {
-  background: #f59e0b;
-  border: none;
-  color: #fff;
-  padding: 8px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  margin-right: 8px;
-  transition: 0.2s;
-}
-
-.btn-edit:hover {
-  background: #d97706;
-}
-
-.btn-delete {
-  background: #dc2626;
-  border: none;
-  color: #fff;
-  padding: 8px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.btn-delete:hover {
-  background: #b91c1c;
-}
-
-/* ===== EMPTY ===== */
-.admin-table tbody tr td[colspan] {
-  background: transparent;
-  box-shadow: none;
-  font-style: italic;
-  color: #64748b;
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 900px) {
-  .admin-layout {
-    flex-direction: column;
-  }
-
-  .admin-sidebar {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-  }
-
-  .admin-sidebar ul {
-    display: flex;
-    gap: 10px;
-  }
-
-  .admin-sidebar li {
-    margin-bottom: 0;
-  }
+  background: #f8fafc;
 }

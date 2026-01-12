@@ -32,7 +32,6 @@ function Header({ cart = [], cartCount = 0, onSearch }) {
 
   return (
     <header className="header">
-      {/* LEFT */}
       <div className="header-left">
         <Link to="/home" className="logo">
           TIGER SHOP
@@ -45,7 +44,6 @@ function Header({ cart = [], cartCount = 0, onSearch }) {
         </nav>
       </div>
 
-      {/* SEARCH */}
       <div className="header-center">
         <input
           type="text"
@@ -56,7 +54,6 @@ function Header({ cart = [], cartCount = 0, onSearch }) {
         />
       </div>
 
-      {/* RIGHT */}
       <div className="header-right">
         <Link to="/cart" className="cart-btn">
           🛒

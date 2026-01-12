@@ -1,0 +1,48 @@
+.admin-chat {
+  display: flex;
+  height: calc(100vh - 80px);
+}
+
+.user-list {
+  width: 260px;
+  background: #0f172a;
+  color: white;
+  padding: 12px;
+}
+
+.user-item {
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 6px;
+  background: #1e293b;
+}
+
+.user-item.active {
+  background: #22c55e;
+  color: black;
+}
+
+.chat-panel {
+  flex: 1;
+  padding: 20px;
+  background: #f8fafc;
+}
+
+.order-card {
+  background: white;
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+.status.pending {
+  color: orange;
+}
+.status.completed {
+  color: green;
+}
+.status.confirmed {
+  color: blue;
+}

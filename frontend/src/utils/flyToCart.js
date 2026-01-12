@@ -1,34 +1,33 @@
-export function flyToCart(imgEl) {
-  const cartIcon = document.getElementById("cart-icon");
-  if (!imgEl || !cartIcon) return;
+export function flyToCart(imgElement) {
+  if (!imgElement) return;
 
-  const imgRect = imgEl.getBoundingClientRect();
+  const cartIcon = document.querySelector(".cart-btn");
+  if (!cartIcon) return;
+
+  const imgRect = imgElement.getBoundingClientRect();
   const cartRect = cartIcon.getBoundingClientRect();
 
-  const flyingImg = imgEl.cloneNode(true);
-  flyingImg.className = "fly-image";
+  const clone = imgElement.cloneNode(true);
+  clone.style.position = "fixed";
+  clone.style.left = imgRect.left + "px";
+  clone.style.top = imgRect.top + "px";
+  clone.style.width = imgRect.width + "px";
+  clone.style.height = imgRect.height + "px";
+  clone.style.transition = "all 0.8s ease-in-out";
+  clone.style.zIndex = 9999;
+  clone.style.pointerEvents = "none";
 
-  flyingImg.style.position = "fixed";
-  flyingImg.style.left = imgRect.left + "px";
-  flyingImg.style.top = imgRect.top + "px";
-  flyingImg.style.width = imgRect.width + "px";
-  flyingImg.style.height = imgRect.height + "px";
-  flyingImg.style.zIndex = 9999;
-  flyingImg.style.transition = "all 0.8s cubic-bezier(0.65, 0, 0.35, 1)";
-  flyingImg.style.pointerEvents = "none";
-  flyingImg.style.borderRadius = "12px";
-
-  document.body.appendChild(flyingImg);
+  document.body.appendChild(clone);
 
   requestAnimationFrame(() => {
-    flyingImg.style.left = cartRect.left + "px";
-    flyingImg.style.top = cartRect.top + "px";
-    flyingImg.style.width = "20px";
-    flyingImg.style.height = "20px";
-    flyingImg.style.opacity = "0.5";
+    clone.style.left = cartRect.left + cartRect.width / 2 + "px";
+    clone.style.top = cartRect.top + cartRect.height / 2 + "px";
+    clone.style.width = "20px";
+    clone.style.height = "20px";
+    clone.style.opacity = "0.3";
   });
 
   setTimeout(() => {
-    if (flyingImg.parentNode) flyingImg.parentNode.removeChild(flyingImg);
-  }, 800);
+    document.body.removeChild(clone);
+  }, 900);
 }

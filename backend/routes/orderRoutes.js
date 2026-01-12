@@ -6,7 +6,7 @@ const orderController = require("../controllers/orderController");
 
 /* ================= USER ORDERS ================= */
 
-// ✅ TẠO ĐƠN HÀNG
+// ✅ TẠO ĐƠN
 router.post("/", authMiddleware, orderController.createOrder);
 
 // ✅ LẤY ĐƠN CỦA USER
