@@ -19,13 +19,17 @@ function AdminHeader() {
           onClick={() => navigate("/admin/dashboard")}
         >
           <span className="logo-icon">🐯</span>
-          <span className="logo-text">TIGER SHOP</span>
+          <div className="brand-text">
+            <span className="logo-text">TIGER SHOP</span>
+            <span className="logo-sub">Admin Panel</span>
+          </div>
         </div>
 
         <nav className="admin-nav">
           <NavLink to="/admin/dashboard">Dashboard</NavLink>
           <NavLink to="/admin/categories">Categories</NavLink>
           <NavLink to="/admin/orders">Orders</NavLink>
+          <NavLink to="/admin/vouchers">Vouchers</NavLink>
           <NavLink to="/admin/chat">Chat</NavLink>
           <NavLink to="/admin/stats">Stats</NavLink>
         </nav>
@@ -33,7 +37,10 @@ function AdminHeader() {
 
       {/* RIGHT */}
       <div className="admin-right">
-        <span className="admin-badge">ADMIN</span>
+        <div className="admin-info">
+          <span className="admin-dot" />
+          <span className="admin-role">ADMIN</span>
+        </div>
 
         <button className="admin-logout" onClick={logout}>
           Logout

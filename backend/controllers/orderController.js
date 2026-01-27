@@ -3,10 +3,12 @@ const Chat = require("../models/Chat");
 
 /* =====================================================
    USER – CREATE ORDER (🔥 AUTO CHAT + AUTO THREAD)
+   ✅ TỰ LƯU LOG: receiver_name, receiver_phone, shipping_address, expected_delivery
+   ✅ GIỮ LOGIC VARIANT-ONLY như bạn đang làm
 ===================================================== */
 exports.createOrder = (req, res) => {
   const userId = req.user?.id;
-  const { items, total } = req.body;
+  const { items, total, shipping_address } = req.body;
 
   if (!userId) return res.status(401).json({ message: "Unauthorized" });
   if (!Array.isArray(items) || items.length === 0)
@@ -16,63 +18,146 @@ exports.createOrder = (req, res) => {
   if (!Number.isFinite(totalNumber) || totalNumber < 0)
     return res.status(400).json({ message: "Tổng tiền không hợp lệ" });
 
+  if (!shipping_address || !String(shipping_address).trim())
+    return res.status(400).json({ message: "Thiếu địa chỉ nhận hàng" });
+
+  // ✅ Dự kiến nhận: +3 ngày
+  const expectedDate = new Date();
+  expectedDate.setDate(expectedDate.getDate() + 3);
+  const expected_delivery = expectedDate.toISOString().slice(0, 10); // YYYY-MM-DD
+
   db.beginTransaction((err) => {
     if (err) return res.status(500).json({ message: "Lỗi transaction" });
 
+    // ✅ LẤY TÊN + SĐT từ USERS (không demo)
     db.query(
-      "INSERT INTO orders (user_id, total, status) VALUES (?, ?, 'pending')",
-      [userId, totalNumber],
-      (err, result) => {
-        if (err) {
+      "SELECT name, phone FROM users WHERE id = ?",
+      [userId],
+      (err, urows) => {
+        if (err || !urows || urows.length === 0) {
           return db.rollback(() =>
-            res.status(500).json({ message: "Lỗi tạo đơn hàng" })
+            res
+              .status(500)
+              .json({ message: "Không lấy được thông tin người dùng" }),
           );
         }
 
-        const orderId = result.insertId;
-        const values = items.map((i) => [orderId, i.id, i.quantity, i.price]);
+        const receiver_name = urows[0].name || "";
+        const receiver_phone = urows[0].phone || "";
 
+        // ✅ INSERT ORDERS có log giao hàng
         db.query(
-          "INSERT INTO order_items (order_id, product_id, quantity, price) VALUES ?",
-          [values],
-          (err) => {
+          `INSERT INTO orders 
+            (user_id, total, status, receiver_name, receiver_phone, shipping_address, expected_delivery) 
+           VALUES (?, ?, 'pending', ?, ?, ?, ?)`,
+          [
+            userId,
+            totalNumber,
+            receiver_name,
+            receiver_phone,
+            shipping_address,
+            expected_delivery,
+          ],
+          (err, result) => {
             if (err) {
               return db.rollback(() =>
-                res.status(500).json({ message: "Lỗi chi tiết đơn hàng" })
+                res.status(500).json({ message: "Lỗi tạo đơn hàng" }),
               );
             }
 
-            db.commit(() => {
-              // AUTO CHAT (không làm fail order)
-              Chat.getOrCreateThreadByUserId(userId, (err, thread) => {
-                if (!err && thread) {
-                  const systemMessage = `
+            const orderId = result.insertId;
+
+            // ✅ GIỮ LOGIC CỦA BẠN: order_items lưu theo variant
+            // (order_items của bạn đang insert: order_id, variant_id, quantity, price)
+            const values = items.map((i) => [
+              orderId,
+              i.variant_id,
+              i.quantity,
+              i.price,
+            ]);
+
+            db.query(
+              "INSERT INTO order_items (order_id, variant_id, quantity, price) VALUES ?",
+              [values],
+              (err) => {
+                if (err) {
+                  return db.rollback(() =>
+                    res.status(500).json({ message: "Lỗi chi tiết đơn hàng" }),
+                  );
+                }
+
+                // ✅ GIỮ LOGIC CỦA BẠN: trừ kho theo VARIANT
+                const stockUpdates = items.map(
+                  (i) =>
+                    new Promise((resolve, reject) => {
+                      db.query(
+                        "UPDATE product_variants SET stock = stock - ? WHERE id = ? AND stock >= ?",
+                        [i.quantity, i.variant_id, i.quantity],
+                        (err, result) => {
+                          if (err || result.affectedRows === 0) return reject();
+                          resolve();
+                        },
+                      );
+                    }),
+                );
+
+                Promise.all(stockUpdates)
+                  .then(() => {
+                    db.commit((commitErr) => {
+                      if (commitErr) {
+                        return db.rollback(() =>
+                          res
+                            .status(500)
+                            .json({ message: "Lỗi xác nhận đơn hàng" }),
+                        );
+                      }
+
+                      // ✅ AUTO CHAT (không làm fail order) — GIỮ NGUYÊN
+                      Chat.getOrCreateThreadByUserId(userId, (err, thread) => {
+                        if (!err && thread) {
+                          const systemMessage = `
 🎉 Cảm ơn bạn đã đặt hàng!
 🧾 Mã đơn: #${orderId}
 💰 Tổng tiền: ${totalNumber.toLocaleString()} đ
 📦 Trạng thái: Đang xử lý
-                  `.trim();
+🏠 Địa chỉ: ${shipping_address}
+🚚 Dự kiến nhận: ${expected_delivery}
+                          `.trim();
 
-                  Chat.createMessage(
-                    {
-                      threadId: thread.id,
-                      senderRole: "SYSTEM",
-                      senderId: 0,
-                      receiverId: userId,
-                      message: systemMessage,
-                      orderId,
-                      type: "system",
-                    },
-                    () => {}
-                  );
-                }
-              });
+                          Chat.createMessage(
+                            {
+                              threadId: thread.id,
+                              senderRole: "SYSTEM",
+                              senderId: 0,
+                              receiverId: userId,
+                              message: systemMessage,
+                              orderId,
+                              type: "system",
+                            },
+                            () => {},
+                          );
+                        }
+                      });
 
-              return res.json({ success: true, orderId });
-            });
-          }
+                      return res.json({
+                        success: true,
+                        orderId,
+                        expected_delivery,
+                      });
+                    });
+                  })
+                  .catch(() => {
+                    db.rollback(() =>
+                      res
+                        .status(400)
+                        .json({ message: "Không đủ tồn kho cho biến thể" }),
+                    );
+                  });
+              },
+            );
+          },
         );
-      }
+      },
     );
   });
 };
@@ -82,7 +167,9 @@ exports.createOrder = (req, res) => {
 ===================================================== */
 exports.getOrdersByUser = (req, res) => {
   const sql = `
-    SELECT id AS orderId, total, status, created_at
+    SELECT 
+      id AS orderId, total, status, created_at,
+      receiver_name, receiver_phone, shipping_address, expected_delivery
     FROM orders
     WHERE user_id = ?
     ORDER BY created_at DESC
@@ -101,13 +188,19 @@ exports.getOrderDetail = (req, res) => {
       o.total,
       o.status,
       o.created_at,
+      o.receiver_name,
+      o.receiver_phone,
+      o.shipping_address,
+      o.expected_delivery,
       p.name,
       p.image,
+      pv.variant_name,
       oi.quantity,
       oi.price
     FROM orders o
     JOIN order_items oi ON o.id = oi.order_id
-    JOIN products p ON oi.product_id = p.id
+    JOIN product_variants pv ON oi.variant_id = pv.id
+    JOIN products p ON pv.product_id = p.id
     WHERE o.id = ? AND o.user_id = ?
   `;
 
@@ -121,8 +214,13 @@ exports.getOrderDetail = (req, res) => {
       total: rows[0].total,
       status: rows[0].status,
       created_at: rows[0].created_at,
+      receiver_name: rows[0].receiver_name,
+      receiver_phone: rows[0].receiver_phone,
+      shipping_address: rows[0].shipping_address,
+      expected_delivery: rows[0].expected_delivery,
       items: rows.map((r) => ({
         name: r.name,
+        variant_name: r.variant_name,
         image: r.image,
         quantity: r.quantity,
         price: r.price,
@@ -141,6 +239,10 @@ exports.getAllOrdersAdmin = (req, res) => {
       o.total,
       o.status,
       o.created_at,
+      o.receiver_name,
+      o.receiver_phone,
+      o.shipping_address,
+      o.expected_delivery,
       u.email
     FROM orders o
     LEFT JOIN users u ON o.user_id = u.id
@@ -154,7 +256,7 @@ exports.getAllOrdersAdmin = (req, res) => {
 };
 
 /* =====================================================
-   ✅ ADMIN – ORDER DETAIL (FIX LỖI “KHÔNG TÌM THẤY ĐƠN HÀNG”)
+   ADMIN – ORDER DETAIL
 ===================================================== */
 exports.getOrderDetailAdmin = (req, res) => {
   const sql = `
@@ -163,15 +265,21 @@ exports.getOrderDetailAdmin = (req, res) => {
       o.total,
       o.status,
       o.created_at,
+      o.receiver_name,
+      o.receiver_phone,
+      o.shipping_address,
+      o.expected_delivery,
       u.email,
       p.name,
       p.image,
+      pv.variant_name,
       oi.quantity,
       oi.price
     FROM orders o
     LEFT JOIN users u ON o.user_id = u.id
     JOIN order_items oi ON o.id = oi.order_id
-    JOIN products p ON oi.product_id = p.id
+    JOIN product_variants pv ON oi.variant_id = pv.id
+    JOIN products p ON pv.product_id = p.id
     WHERE o.id = ?
   `;
 
@@ -186,8 +294,13 @@ exports.getOrderDetailAdmin = (req, res) => {
       total: rows[0].total,
       status: rows[0].status,
       created_at: rows[0].created_at,
+      receiver_name: rows[0].receiver_name,
+      receiver_phone: rows[0].receiver_phone,
+      shipping_address: rows[0].shipping_address,
+      expected_delivery: rows[0].expected_delivery,
       items: rows.map((r) => ({
         name: r.name,
+        variant_name: r.variant_name,
         image: r.image,
         quantity: r.quantity,
         price: r.price,
@@ -215,7 +328,7 @@ exports.updateOrderStatus = (req, res) => {
       if (!result.affectedRows)
         return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
       return res.json({ success: true });
-    }
+    },
   );
 };
 
@@ -248,7 +361,8 @@ exports.getBestSellingProducts = (req, res) => {
       p.image,
       SUM(oi.quantity) AS totalSold
     FROM order_items oi
-    JOIN products p ON oi.product_id = p.id
+    JOIN product_variants pv ON oi.variant_id = pv.id
+    JOIN products p ON pv.product_id = p.id
     JOIN orders o ON oi.order_id = o.id
     WHERE o.status = 'completed'
     GROUP BY p.id

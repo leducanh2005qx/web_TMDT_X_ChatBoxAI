@@ -1,35 +1,150 @@
 .order-detail-page {
-  max-width: 900px;
+  max-width: 1000px;
   margin: 30px auto;
+  padding: 0 20px;
+}
+
+.page-title {
+  margin: 20px 0;
+}
+
+.back-btn {
+  background: #f3f4f6;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.card {
+  background: #fff;
+  border-radius: 14px;
   padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
 }
 
-.order-items {
-  margin-top: 20px;
-}
-
-.order-item {
+/* ===== SUMMARY ===== */
+.order-summary {
   display: grid;
-  grid-template-columns: 80px 1fr 150px;
-  gap: 20px;
-  align-items: center;
-  padding: 15px 0;
-  border-bottom: 1px solid #eee;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
 }
 
-.order-item img {
+.summary-item span {
+  color: #666;
+  font-size: 14px;
+}
+
+.summary-item b {
+  display: block;
+  margin-top: 4px;
+}
+
+/* ===== STATUS ===== */
+.status {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  text-transform: capitalize;
+  width: fit-content;
+}
+
+.status.pending {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status.confirmed {
+  background: #ecfeff;
+  color: #0369a1;
+}
+
+.status.completed {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.status.cancelled {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+/* ===== INFO GRID ===== */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.info-grid .full {
+  grid-column: span 2;
+}
+
+.info-grid span {
+  font-size: 14px;
+  color: #666;
+}
+
+.info-grid b {
+  display: block;
+  margin-top: 4px;
+}
+
+/* ===== PRODUCTS ===== */
+.product-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.product-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 140px;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 12px;
+}
+
+.product-row:last-child {
+  border-bottom: none;
+}
+
+.product-row img {
   width: 80px;
   height: 80px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
-.subtotal {
+.product-info span {
+  color: #555;
+  font-size: 14px;
+}
+
+.product-total {
   font-weight: bold;
   text-align: right;
 }
 
-.order-total {
-  text-align: right;
-  margin-top: 20px;
+/* ===== MOBILE ===== */
+@media (max-width: 768px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .info-grid .full {
+    grid-column: span 1;
+  }
+
+  .product-row {
+    grid-template-columns: 60px 1fr;
+    grid-template-rows: auto auto;
+  }
+
+  .product-total {
+    grid-column: span 2;
+    text-align: right;
+  }
 }

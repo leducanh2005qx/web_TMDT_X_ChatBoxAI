@@ -24,8 +24,8 @@ function ProductList({ cart, setCart }) {
     if (exist) {
       setCart(
         cart.map((i) =>
-          i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i
-        )
+          i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i,
+        ),
       );
     } else {
       setCart([...cart, { ...product, quantity: 1 }]);
@@ -41,34 +41,68 @@ function ProductList({ cart, setCart }) {
     } else {
       setCart(
         cart.map((i) =>
-          i.id === product.id ? { ...i, quantity: i.quantity - 1 } : i
-        )
+          i.id === product.id ? { ...i, quantity: i.quantity - 1 } : i,
+        ),
       );
     }
   };
 
+  const goDetail = (pid) => navigate(`/product/${pid}`);
+
   return (
     <div className="product-grid">
       {products.map((p) => (
-        <div className="product-card" key={p.id}>
-          <div
-            className="product-image"
-            onClick={() => navigate(`/product/${p.id}`)}
-          >
-            <img src={`http://localhost:5000/${p.image}`} alt={p.name} />
+        <div
+          className="product-card"
+          key={p.id}
+          role="button"
+          tabIndex={0}
+          onClick={() => goDetail(p.id)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") goDetail(p.id);
+          }}
+        >
+          <div className="product-image">
+            <img
+              src={`http://localhost:5000/${p.image}`}
+              alt={p.name}
+              onError={(e) => {
+                e.target.src = "/no-image.png";
+              }}
+            />
           </div>
 
           <div className="product-info">
-            <h4 onClick={() => navigate(`/product/${p.id}`)}>{p.name}</h4>
+            <h4 className="product-title">{p.name}</h4>
 
             <p className="product-price">
               {Number(p.price).toLocaleString()} đ
             </p>
 
-            <div className="quantity-control">
-              <button onClick={() => decrease(p)}>−</button>
+            {/* ✅ chặn click lan lên card để không navigate */}
+            <div
+              className="quantity-control"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  decrease(p);
+                }}
+              >
+                −
+              </button>
+
               <span>{getQuantity(p.id)}</span>
-              <button onClick={() => increase(p)}>+</button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  increase(p);
+                }}
+              >
+                +
+              </button>
             </div>
           </div>
         </div>

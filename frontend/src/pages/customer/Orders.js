@@ -5,51 +5,65 @@ import "./Orders.css";
 
 function Orders() {
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     getMyOrders()
-      .then((data) => {
-        setOrders(Array.isArray(data) ? data : []);
-      })
-      .catch((err) => {
-        console.error(err);
-        setOrders([]);
-      });
+      .then((data) => setOrders(data))
+      .catch(() => alert("Không lấy được đơn hàng"))
+      .finally(() => setLoading(false));
   }, []);
+
+  if (loading) return <div className="orders-page">Đang tải...</div>;
 
   return (
     <div className="orders-page">
-      <h2 className="orders-title">📦 Đơn hàng của tôi</h2>
+      <h2 className="page-title">📦 Đơn hàng của tôi</h2>
 
       {orders.length === 0 ? (
-        <p className="empty-orders">Bạn chưa có đơn hàng nào</p>
+        <div className="empty">Bạn chưa có đơn hàng nào</div>
       ) : (
-        <div className="orders-list">
-          {orders.map((order) => (
-            <div className="order-card" key={order.orderId}>
-              <div className="order-header">
-                <span
-                  className="order-id clickable"
-                  onClick={() => navigate(`/orders/${order.orderId}`)}
-                >
-                  Mã đơn #{order.orderId}
-                </span>
+        <div className="orders-table">
+          {/* HEADER */}
+          <div className="orders-row orders-header">
+            <div>Mã đơn</div>
+            <div>Ngày tạo</div>
+            <div>Người nhận</div>
+            <div>Tổng tiền</div>
+            <div>Dự kiến</div>
+            <div>Trạng thái</div>
+            <div></div>
+          </div>
 
-                <span className="order-total">
-                  {Number(order.total).toLocaleString()} đ
-                </span>
+          {/* ROW */}
+          {orders.map((o) => (
+            <div key={o.orderId} className="orders-row">
+              <div className="order-id">#{o.orderId}</div>
+
+              <div>{new Date(o.created_at).toLocaleString("vi-VN")}</div>
+
+              <div>{o.receiver_name || "—"}</div>
+
+              <div className="price">{Number(o.total).toLocaleString()} đ</div>
+
+              <div>
+                {o.expected_delivery
+                  ? new Date(o.expected_delivery).toLocaleDateString("vi-VN")
+                  : "—"}
               </div>
 
-              <div className="order-body">
-                <p>
-                  📅 Ngày tạo:{" "}
-                  {new Date(order.created_at).toLocaleString("vi-VN")}
-                </p>
+              <div>
+                <span className={`status ${o.status}`}>{o.status}</span>
+              </div>
 
-                <p>
-                  📌 Trạng thái: <strong>{order.status}</strong>
-                </p>
+              <div>
+                <button
+                  className="detail-btn"
+                  onClick={() => navigate(`/orders/${o.orderId}`)}
+                >
+                  Xem →
+                </button>
               </div>
             </div>
           ))}

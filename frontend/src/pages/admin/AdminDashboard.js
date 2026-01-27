@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "./AdminDashboard.css";
+import AdminVariantManager from "../../components/admin/AdminVariantManager";
 
 function AdminDashboard() {
   const [products, setProducts] = useState([]);
@@ -159,6 +160,9 @@ function AdminDashboard() {
           </button>
         </form>
       </div>
+
+      {/* ===== VARIANT MANAGER (CHỈ HIỆN KHI SỬA) ===== */}
+      {editing && <AdminVariantManager productId={editing.id} />}
 
       {/* ===== TABLE ===== */}
       <div className="product-table">

@@ -2,16 +2,13 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-// ❌ BỎ hard-code
-// const SECRET_KEY = "SECRET_KEY";
-
 // =======================
 // REGISTER (CHỈ CUSTOMER)
 // =======================
 exports.register = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, phone } = req.body;
 
-  if (!name || !email || !password) {
+  if (!name || !email || !password || !phone) {
     return res.status(400).json({ message: "Thiếu thông tin đăng ký" });
   }
 
@@ -20,6 +17,7 @@ exports.register = async (req, res) => {
   const newUser = {
     name,
     email,
+    phone, // ✅ THÊM
     password: hashedPassword,
     role_id: 5, // CUSTOMER
   };
@@ -57,20 +55,27 @@ exports.login = (req, res) => {
       return res.status(401).json({ message: "Wrong password" });
     }
 
-    // 🔑 TOKEN DÙNG ENV
+    // 🔑 TOKEN DÙNG ENV (GIỮ NGUYÊN)
     const token = jwt.sign(
       {
         id: user.id,
         role: user.role_name, // "ADMIN" | "CUSTOMER"
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1d" },
     );
 
+    // ✅ TRẢ USER CHO FRONTEND DÙNG
     res.json({
       message: "Login successful",
       token,
       role: user.role_name,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+      },
     });
   });
 };

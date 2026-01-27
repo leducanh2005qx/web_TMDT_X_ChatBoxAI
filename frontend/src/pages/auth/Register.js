@@ -6,6 +6,7 @@ import "./Register.css";
 function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState(""); // ✅ THÊM
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -15,7 +16,8 @@ function Register() {
     setError("");
 
     try {
-      await register(name, email, password);
+      // ✅ GỬI THÊM PHONE
+      await register(name, email, password, phone);
       navigate("/login");
     } catch (err) {
       setError(err.message || "Đăng ký thất bại");
@@ -38,6 +40,18 @@ function Register() {
               placeholder="Nhập họ tên"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+
+          {/* ✅ SỐ ĐIỆN THOẠI */}
+          <div className="form-group">
+            <label>Số điện thoại</label>
+            <input
+              type="tel"
+              placeholder="Nhập số điện thoại"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               required
             />
           </div>

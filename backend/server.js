@@ -6,11 +6,14 @@ require("dotenv").config();
 
 /* ================= ROUTES ================= */
 const authRoutes = require("./routes/authRoutes");
-const productRoutes = require("./routes/productRoutes");
+const userRoutes = require("./routes/userRoutes");
+const productRoutes = require("./routes/productRoutes"); // ✅ ĐÃ SỬA LỖI TẠI ĐÂY
 const orderRoutes = require("./routes/orderRoutes");
-const adminOrderRoutes = require("./routes/adminOrderRoutes"); // ADMIN ORDERS
+const adminOrderRoutes = require("./routes/adminOrderRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const variantRoutes = require("./routes/variantRoutes");
+const voucherRoutes = require("./routes/voucherRoutes");
 
 /* ================= SOCKET ================= */
 const { initSocket } = require("./socket");
@@ -26,16 +29,13 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 /* ================= API ROUTES ================= */
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/variants", variantRoutes);
+app.use("/api/vouchers", voucherRoutes);
 
-/**
- * ⚠️ RẤT QUAN TRỌNG
- * admin orders PHẢI đứng TRƯỚC /api/orders
- * nếu không sẽ bị ăn nhầm route
- */
 app.use("/api/orders/admin", adminOrderRoutes);
 app.use("/api/orders", orderRoutes);
-
 app.use("/api/categories", categoryRoutes);
 app.use("/api/chat", chatRoutes);
 
@@ -45,5 +45,5 @@ initSocket(server);
 /* ================= START SERVER ================= */
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 Backend + Socket + Chat running on http://localhost:${PORT}`);
+  console.log(`🚀 Backend running on http://localhost:${PORT}`);
 });

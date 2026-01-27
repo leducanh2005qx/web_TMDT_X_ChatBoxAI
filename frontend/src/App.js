@@ -17,6 +17,7 @@ import OrderDetail from "./pages/customer/OrderDetail";
 import Checkout from "./pages/customer/Checkout";
 import ProductDetail from "./pages/customer/ProductDetail";
 import Cart from "./components/customer/Cart";
+import Profile from "./pages/customer/Profile";
 
 /* ================= ADMIN ================= */
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -24,6 +25,7 @@ import AdminOrders from "./pages/admin/AdminOrders";
 import AdminStats from "./pages/admin/AdminStats";
 import AdminChat from "./pages/admin/AdminChat";
 import AdminCategories from "./pages/admin/AdminCategories";
+import AdminVouchers from "./pages/admin/AdminVouchers"; // ✅ THÊM
 import AdminRoute from "./components/admin/AdminRoute";
 
 /* ================= CHAT ================= */
@@ -114,6 +116,15 @@ function App() {
           }
         />
 
+        <Route
+          path="/profile"
+          element={
+            <Layout cart={cart}>
+              <Profile />
+            </Layout>
+          }
+        />
+
         {/* ================= ADMIN ================= */}
         <Route
           path="/admin/dashboard"
@@ -165,6 +176,18 @@ function App() {
             <AdminRoute>
               <AdminLayout>
                 <AdminStats />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
+
+        {/* ✅ ADMIN VOUCHERS (BẠN ĐANG THIẾU) */}
+        <Route
+          path="/admin/vouchers"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <AdminVouchers />
               </AdminLayout>
             </AdminRoute>
           }

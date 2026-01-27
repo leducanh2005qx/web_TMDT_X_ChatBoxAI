@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getProducts, getCategories } from "../../services/api";
 import { flyToCart } from "../../utils/flyToCart";
 import "./Shop.css";
@@ -11,10 +12,12 @@ function Shop({ cart, setCart, keyword }) {
   const [group, setGroup] = useState("all");
   const [index, setIndex] = useState(0);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     getProducts().then((data) => setProducts(Array.isArray(data) ? data : []));
     getCategories().then((data) =>
-      setCategories(Array.isArray(data) ? data : [])
+      setCategories(Array.isArray(data) ? data : []),
     );
   }, []);
 
@@ -25,12 +28,10 @@ function Shop({ cart, setCart, keyword }) {
   const filtered = useMemo(() => {
     let list = products;
 
-    // filter category
     if (group !== "all") {
       list = list.filter((p) => p.category === group);
     }
 
-    // search
     const k = (keyword || "").toLowerCase();
     if (k) {
       list = list.filter((p) => p.name.toLowerCase().includes(k));
@@ -60,7 +61,8 @@ function Shop({ cart, setCart, keyword }) {
     ];
   }, [filtered, index, total]);
 
-  const addToCart = (p) => {
+  const addToCart = (e, p) => {
+    e.stopPropagation(); // ❌ không chuyển trang
     if (!p) return;
     if (Number(p.stock) <= 0) return alert("Hết hàng ❌");
 
@@ -70,12 +72,16 @@ function Shop({ cart, setCart, keyword }) {
     if (exist) {
       setCart(
         cart.map((i) =>
-          i.id === p.id ? { ...i, quantity: i.quantity + 1 } : i
-        )
+          i.id === p.id ? { ...i, quantity: i.quantity + 1 } : i,
+        ),
       );
     } else {
       setCart([...cart, { ...p, quantity: 1 }]);
     }
+  };
+
+  const goDetail = (id) => {
+    navigate(`/product/${id}`);
   };
 
   return (
@@ -115,6 +121,7 @@ function Shop({ cart, setCart, keyword }) {
               <div
                 key={p.id}
                 className={`product-item ${i === 1 ? "center" : ""}`}
+                onClick={() => goDetail(p.id)} // ✅ CLICK CARD → DETAIL
               >
                 <img
                   src={`http://localhost:5000/${p.image}`}
@@ -132,7 +139,7 @@ function Shop({ cart, setCart, keyword }) {
 
                 <button
                   disabled={Number(p.stock) <= 0}
-                  onClick={() => addToCart(p)}
+                  onClick={(e) => addToCart(e, p)} // ❌ KHÔNG vào detail
                 >
                   {Number(p.stock) <= 0 ? "Hết hàng" : "Thêm vào giỏ"}
                 </button>

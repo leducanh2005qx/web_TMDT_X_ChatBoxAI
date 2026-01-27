@@ -16,8 +16,12 @@ function Login() {
     try {
       const data = await login(email, password);
 
+      // ✅ GIỮ NGUYÊN
       localStorage.setItem("token", data.token);
       localStorage.setItem("role", data.role);
+
+      // ✅ THÊM DUY NHẤT DÒNG NÀY
+      localStorage.setItem("user", JSON.stringify(data.user));
 
       if (data.role === "ADMIN") {
         navigate("/admin/dashboard");

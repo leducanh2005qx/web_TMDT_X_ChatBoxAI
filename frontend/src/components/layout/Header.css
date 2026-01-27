@@ -99,3 +99,17 @@
 .logout-btn:hover {
   background: #dc2626;
 }
+.user-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-name {
+  font-weight: 600;
+  color: #333;
+  background: #f1f1f1;
+  padding: 6px 10px;
+  border-radius: 20px;
+  font-size: 14px;
+}

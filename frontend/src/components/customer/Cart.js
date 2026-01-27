@@ -1,4 +1,3 @@
-// src/components/customer/Cart.js
 import { useNavigate } from "react-router-dom";
 import "./Cart.css";
 
@@ -7,24 +6,29 @@ function Cart({ cart, setCart }) {
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  const inc = (id) => {
+  // 🔑 dùng cartKey thay vì id
+  const inc = (cartKey) => {
     setCart(
-      cart.map((i) => (i.id === id ? { ...i, quantity: i.quantity + 1 } : i))
+      cart.map((i) =>
+        i.cartKey === cartKey ? { ...i, quantity: i.quantity + 1 } : i,
+      ),
     );
   };
 
-  const dec = (id) => {
+  const dec = (cartKey) => {
     setCart(
       cart
         .map((i) =>
-          i.id === id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i
+          i.cartKey === cartKey
+            ? { ...i, quantity: Math.max(1, i.quantity - 1) }
+            : i,
         )
-        .filter(Boolean)
+        .filter(Boolean),
     );
   };
 
-  const remove = (id) => {
-    setCart(cart.filter((i) => i.id !== id));
+  const remove = (cartKey) => {
+    setCart(cart.filter((i) => i.cartKey !== cartKey));
   };
 
   if (!cart || cart.length === 0) {
@@ -52,7 +56,7 @@ function Cart({ cart, setCart }) {
           {/* LEFT: ITEMS */}
           <div className="cart-items">
             {cart.map((item) => (
-              <div className="cart-item" key={item.id}>
+              <div className="cart-item" key={item.cartKey}>
                 <img
                   className="cart-thumb"
                   src={`http://localhost:5000/${item.image}`}
@@ -60,18 +64,27 @@ function Cart({ cart, setCart }) {
                 />
 
                 <div className="cart-info">
-                  <div className="cart-name">{item.name}</div>
+                  <div className="cart-name">
+                    {item.name}
+                    {item.variant_name && (
+                      <span className="cart-variant">
+                        {" "}
+                        ({item.variant_name})
+                      </span>
+                    )}
+                  </div>
+
                   <div className="cart-price">
                     {Number(item.price).toLocaleString()} đ
                   </div>
                 </div>
 
                 <div className="cart-qty">
-                  <button className="qty-btn" onClick={() => dec(item.id)}>
+                  <button className="qty-btn" onClick={() => dec(item.cartKey)}>
                     −
                   </button>
                   <span className="qty-num">{item.quantity}</span>
-                  <button className="qty-btn" onClick={() => inc(item.id)}>
+                  <button className="qty-btn" onClick={() => inc(item.cartKey)}>
                     +
                   </button>
                 </div>
@@ -80,7 +93,10 @@ function Cart({ cart, setCart }) {
                   {Number(item.price * item.quantity).toLocaleString()} đ
                 </div>
 
-                <button className="cart-remove" onClick={() => remove(item.id)}>
+                <button
+                  className="cart-remove"
+                  onClick={() => remove(item.cartKey)}
+                >
                   ✖
                 </button>
               </div>

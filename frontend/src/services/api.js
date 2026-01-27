@@ -1,6 +1,6 @@
 const API_URL = "http://localhost:5000/api";
 
-/* ================= HELPER ================= */
+/* ================= HELPER FUNCTIONS ================= */
 
 const getAuthHeader = () => {
   const token = localStorage.getItem("token");
@@ -14,7 +14,6 @@ const getAuthHeader = () => {
 
 const handleResponse = async (res) => {
   let data = {};
-
   try {
     data = await res.json();
   } catch {
@@ -23,20 +22,17 @@ const handleResponse = async (res) => {
 
   if (!res.ok) {
     if (res.status === 401 || res.status === 403) {
-      throw new Error("Không có quyền truy cập");
+      throw new Error(data.message || "Không có quyền truy cập");
     }
-
     if (res.status >= 500) {
-      throw new Error(data.message || "Lỗi hệ thống");
+      throw new Error(data.message || "Lỗi hệ thống server");
     }
-
     throw new Error(data.message || "Lỗi yêu cầu");
   }
-
   return data;
 };
 
-/* ================= AUTH ================= */
+/* ================= AUTHENTICATION ================= */
 
 export const login = async (email, password) => {
   const res = await fetch(`${API_URL}/auth/login`, {
@@ -44,199 +40,208 @@ export const login = async (email, password) => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-
-  return handleResponse(res);
+  const data = await handleResponse(res);
+  if (data.token) localStorage.setItem("token", data.token);
+  if (data.user) localStorage.setItem("user", JSON.stringify(data.user));
+  return data;
 };
 
-export const register = async (name, email, password) => {
-  const res = await fetch(`${API_URL}/auth/register`, {
+export const register = (name, email, password, phone) =>
+  fetch(`${API_URL}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, email, password }),
-  });
-
-  return handleResponse(res);
-};
+    body: JSON.stringify({ name, email, password, phone }),
+  }).then(handleResponse);
 
 /* ================= PRODUCTS ================= */
 
-export const getProducts = async () => {
-  const res = await fetch(`${API_URL}/products`);
-  return handleResponse(res);
-};
+export const getProducts = () =>
+  fetch(`${API_URL}/products`).then(handleResponse);
 
-export const getProductById = async (id) => {
-  const res = await fetch(`${API_URL}/products/${id}`);
-  return handleResponse(res);
-};
+export const getProductById = (id) =>
+  fetch(`${API_URL}/products/${id}`).then(handleResponse);
 
-export const createProduct = async (formData) => {
-  const res = await fetch(`${API_URL}/products`, {
+export const createProduct = (formData) =>
+  fetch(`${API_URL}/products`, {
     method: "POST",
-    headers: {
-      ...getAuthHeader(),
-    },
+    headers: getAuthHeader(),
     body: formData,
-  });
+  }).then(handleResponse);
 
-  return handleResponse(res);
-};
-
-export const updateProduct = async (id, formData) => {
-  const res = await fetch(`${API_URL}/products/${id}`, {
+export const updateProduct = (id, formData) =>
+  fetch(`${API_URL}/products/${id}`, {
     method: "PUT",
-    headers: {
-      ...getAuthHeader(),
-    },
+    headers: getAuthHeader(),
     body: formData,
-  });
+  }).then(handleResponse);
 
-  return handleResponse(res);
-};
-
-export const deleteProduct = async (id) => {
-  const res = await fetch(`${API_URL}/products/${id}`, {
+export const deleteProduct = (id) =>
+  fetch(`${API_URL}/products/${id}`, {
     method: "DELETE",
-    headers: {
-      ...getAuthHeader(),
-    },
-  });
+    headers: getAuthHeader(),
+  }).then(handleResponse);
 
-  return handleResponse(res);
-};
+/* ================= PRODUCT VARIANTS ================= */
 
-/* ================= ORDERS (USER) ================= */
+export const getVariantsByProductId = (productId) =>
+  fetch(`${API_URL}/variants/product/${productId}`).then(handleResponse);
 
-export const createOrder = async (order) => {
-  const res = await fetch(`${API_URL}/orders`, {
+export const createVariant = (productId, payload) =>
+  fetch(`${API_URL}/variants/product/${productId}`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeader(),
-    },
-    body: JSON.stringify(order),
-  });
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
 
-  return handleResponse(res);
-};
-
-export const getMyOrders = async () => {
-  const res = await fetch(`${API_URL}/orders/my`, {
-    headers: {
-      ...getAuthHeader(),
-    },
-  });
-
-  return handleResponse(res);
-};
-
-export const getOrderById = async (orderId) => {
-  const res = await fetch(`${API_URL}/orders/${orderId}`, {
-    headers: {
-      ...getAuthHeader(),
-    },
-  });
-
-  return handleResponse(res);
-};
-
-/* ================= ADMIN ORDERS (🔥 FIX CHUẨN) ================= */
-
-export const getAllOrdersAdmin = async () => {
-  const res = await fetch(`${API_URL}/orders/admin`, {
-    headers: {
-      ...getAuthHeader(),
-    },
-  });
-
-  return handleResponse(res);
-};
-
-export const updateOrderStatusAdmin = async (orderId, status) => {
-  const res = await fetch(`${API_URL}/orders/admin/${orderId}/status`, {
+export const updateVariant = (variantId, payload) =>
+  fetch(`${API_URL}/variants/${variantId}`, {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeader(),
-    },
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
+
+export const deleteVariant = (variantId) =>
+  fetch(`${API_URL}/variants/${variantId}`, {
+    method: "DELETE",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+/* ================= ORDERS (USER & ADMIN) ================= */
+
+export const createOrder = (order) =>
+  fetch(`${API_URL}/orders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(order),
+  }).then(handleResponse);
+
+export const getMyOrders = () =>
+  fetch(`${API_URL}/orders/my`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const getOrderById = (orderId) =>
+  fetch(`${API_URL}/orders/${orderId}`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const getAllOrdersAdmin = () =>
+  fetch(`${API_URL}/orders/admin`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const updateOrderStatusAdmin = (orderId, status) =>
+  fetch(`${API_URL}/orders/admin/${orderId}/status`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify({ status }),
-  });
-
-  return handleResponse(res);
-};
-
-/* ================= ADMIN STATISTICS ================= */
-
-export const getOrderStatsAdmin = async () => {
-  const res = await fetch(`${API_URL}/orders/admin/stats`, {
-    headers: {
-      ...getAuthHeader(),
-    },
-  });
-
-  return handleResponse(res);
-};
-
-export const getBestSellingProducts = async () => {
-  const res = await fetch(`${API_URL}/orders/admin/best-products`, {
-    headers: {
-      ...getAuthHeader(),
-    },
-  });
-
-  return handleResponse(res);
-};
-
-export const getUncompletedOrders = async () => {
-  const res = await fetch(`${API_URL}/orders/admin/uncompleted`, {
-    headers: {
-      ...getAuthHeader(),
-    },
-  });
-
-  return handleResponse(res);
-};
+  }).then(handleResponse);
 
 /* ================= CATEGORIES ================= */
 
-export const getCategories = async () => {
-  const res = await fetch(`${API_URL}/categories`);
-  return handleResponse(res);
-};
+export const getCategories = () =>
+  fetch(`${API_URL}/categories`).then(handleResponse);
 
-export const createCategory = async (name) => {
-  const res = await fetch(`${API_URL}/categories`, {
+export const createCategory = (name) =>
+  fetch(`${API_URL}/categories`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeader(),
-    },
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify({ name }),
-  });
+  }).then(handleResponse);
 
-  return handleResponse(res);
-};
-
-export const updateCategory = async (id, name) => {
-  const res = await fetch(`${API_URL}/categories/${id}`, {
+export const updateCategory = (id, name) =>
+  fetch(`${API_URL}/categories/${id}`, {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeader(),
-    },
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify({ name }),
-  });
+  }).then(handleResponse);
 
-  return handleResponse(res);
-};
-
-export const deleteCategory = async (id) => {
-  const res = await fetch(`${API_URL}/categories/${id}`, {
+export const deleteCategory = (id) =>
+  fetch(`${API_URL}/categories/${id}`, {
     method: "DELETE",
-    headers: {
-      ...getAuthHeader(),
-    },
-  });
+    headers: getAuthHeader(),
+  }).then(handleResponse);
 
-  return handleResponse(res);
-};
+/* ================= USER PROFILE ================= */
+
+export const getMyProfile = () =>
+  fetch(`${API_URL}/users/me`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const updateMyProfile = (payload) =>
+  fetch(`${API_URL}/users/me`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
+
+/* ================= VOUCHERS (ĐỒNG BỘ MYSQL) ================= */
+
+export const getAvailableVouchers = () =>
+  fetch(`${API_URL}/vouchers`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const applyVoucher = (code, total) =>
+  fetch(`${API_URL}/vouchers/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ code, total }),
+  }).then(handleResponse);
+
+export const getAllVouchersAdmin = () =>
+  fetch(`${API_URL}/vouchers`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const createVoucher = (payload) =>
+  fetch(`${API_URL}/vouchers`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
+
+export const updateVoucher = (id, payload) =>
+  fetch(`${API_URL}/vouchers/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
+
+export const updateVoucherStatusAdmin = (id) =>
+  fetch(`${API_URL}/vouchers/${id}/toggle`, {
+    method: "PUT",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const toggleVoucher = (id) => updateVoucherStatusAdmin(id);
+
+/* ================= CHAT SYSTEM ================= */
+
+export const getChatRooms = () =>
+  fetch(`${API_URL}/chat/rooms`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const getMessagesByRoom = (roomId) =>
+  fetch(`${API_URL}/chat/messages/${roomId}`, {
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+/* ================= ADMIN STATISTICS ================= */
+
+export const getOrderStatsAdmin = () =>
+  fetch(`${API_URL}/orders/admin/stats`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const getBestSellingProducts = () =>
+  fetch(`${API_URL}/orders/admin/best-products`, {
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const getUncompletedOrders = () =>
+  fetch(`${API_URL}/orders/admin/uncompleted`, {
+    headers: getAuthHeader(),
+  }).then(handleResponse);
