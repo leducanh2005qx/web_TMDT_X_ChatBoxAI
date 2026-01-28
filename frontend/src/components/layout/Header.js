@@ -16,7 +16,7 @@ function Header({ cart = [], cartCount = 0, onSearch }) {
     const token = localStorage.getItem("token");
     setIsLogin(!!token);
 
-    // ✅ ĐÚNG LOGIC CỦA BẠN: ROLE LƯU RIÊNG
+    // ✅ GIỮ LOGIC CŨ: ROLE LƯU RIÊNG
     const role = (localStorage.getItem("role") || "").toLowerCase();
     setIsAdmin(role === "admin");
 
@@ -65,7 +65,14 @@ function Header({ cart = [], cartCount = 0, onSearch }) {
           <Link to="/shop">Shop</Link>
           <Link to="/orders">Orders</Link>
 
-          {/* ✅ CHỈ ADMIN MỚI THẤY */}
+          {/* 🎁 CUSTOMER: NHẬN VOUCHER */}
+          {isLogin && !isAdmin && (
+            <Link to="/vouchers" className="voucher-link">
+              🎁 Voucher
+            </Link>
+          )}
+
+          {/* 👑 ADMIN */}
           {isAdmin && (
             <>
               <Link to="/admin/dashboard">Admin</Link>

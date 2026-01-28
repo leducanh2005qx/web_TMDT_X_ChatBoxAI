@@ -8,7 +8,7 @@ const Chat = require("../models/Chat");
 ===================================================== */
 exports.createOrder = (req, res) => {
   const userId = req.user?.id;
-  const { items, total, shipping_address } = req.body;
+  const { items, total, shipping_address, voucher_id } = req.body; // 🔥 thêm voucher_id (optional)
 
   if (!userId) return res.status(401).json({ message: "Unauthorized" });
   if (!Array.isArray(items) || items.length === 0)
@@ -29,7 +29,7 @@ exports.createOrder = (req, res) => {
   db.beginTransaction((err) => {
     if (err) return res.status(500).json({ message: "Lỗi transaction" });
 
-    // ✅ LẤY TÊN + SĐT từ USERS (không demo)
+    // ✅ LẤY TÊN + SĐT từ USERS
     db.query(
       "SELECT name, phone FROM users WHERE id = ?",
       [userId],
@@ -45,7 +45,7 @@ exports.createOrder = (req, res) => {
         const receiver_name = urows[0].name || "";
         const receiver_phone = urows[0].phone || "";
 
-        // ✅ INSERT ORDERS có log giao hàng
+        // ✅ INSERT ORDERS (KHÔNG ĐỤNG)
         db.query(
           `INSERT INTO orders 
             (user_id, total, status, receiver_name, receiver_phone, shipping_address, expected_delivery) 
@@ -67,8 +67,7 @@ exports.createOrder = (req, res) => {
 
             const orderId = result.insertId;
 
-            // ✅ GIỮ LOGIC CỦA BẠN: order_items lưu theo variant
-            // (order_items của bạn đang insert: order_id, variant_id, quantity, price)
+            // ✅ INSERT ORDER_ITEMS (GIỮ NGUYÊN)
             const values = items.map((i) => [
               orderId,
               i.variant_id,
@@ -86,7 +85,7 @@ exports.createOrder = (req, res) => {
                   );
                 }
 
-                // ✅ GIỮ LOGIC CỦA BẠN: trừ kho theo VARIANT
+                // ✅ TRỪ KHO VARIANT (GIỮ NGUYÊN)
                 const stockUpdates = items.map(
                   (i) =>
                     new Promise((resolve, reject) => {
@@ -103,46 +102,85 @@ exports.createOrder = (req, res) => {
 
                 Promise.all(stockUpdates)
                   .then(() => {
-                    db.commit((commitErr) => {
-                      if (commitErr) {
-                        return db.rollback(() =>
-                          res
-                            .status(500)
-                            .json({ message: "Lỗi xác nhận đơn hàng" }),
-                        );
-                      }
+                    /* =====================================================
+                       🔥 VOUCHER (OPTIONAL – KHÔNG ẢNH HƯỞNG LOGIC CŨ)
+                    ===================================================== */
+                    const handleVoucher = (cb) => {
+                      if (!voucher_id) return cb(); // ❗ không dùng voucher → bỏ qua
 
-                      // ✅ AUTO CHAT (không làm fail order) — GIỮ NGUYÊN
-                      Chat.getOrCreateThreadByUserId(userId, (err, thread) => {
-                        if (!err && thread) {
-                          const systemMessage = `
+                      const sql = `
+                        UPDATE user_vouchers uv
+                        JOIN vouchers v ON uv.voucher_id = v.voucher_id
+                        SET 
+                          uv.used = 1,
+                          v.used = v.used + 1
+                        WHERE uv.user_id = ?
+                          AND uv.voucher_id = ?
+                          AND uv.used = 0
+                          AND v.status = 'active'
+                          AND v.quantity > v.used
+                          AND (v.start_date IS NULL OR v.start_date <= CURDATE())
+                          AND (v.end_date IS NULL OR v.end_date >= CURDATE())
+                      `;
+
+                      db.query(sql, [userId, voucher_id], (err, result) => {
+                        if (err || result.affectedRows === 0) {
+                          return db.rollback(() =>
+                            res.status(400).json({
+                              message:
+                                "Voucher không hợp lệ hoặc đã được sử dụng",
+                            }),
+                          );
+                        }
+                        cb();
+                      });
+                    };
+
+                    handleVoucher(() => {
+                      db.commit((commitErr) => {
+                        if (commitErr) {
+                          return db.rollback(() =>
+                            res
+                              .status(500)
+                              .json({ message: "Lỗi xác nhận đơn hàng" }),
+                          );
+                        }
+
+                        // ✅ AUTO CHAT (GIỮ NGUYÊN 100%)
+                        Chat.getOrCreateThreadByUserId(
+                          userId,
+                          (err, thread) => {
+                            if (!err && thread) {
+                              const systemMessage = `
 🎉 Cảm ơn bạn đã đặt hàng!
 🧾 Mã đơn: #${orderId}
 💰 Tổng tiền: ${totalNumber.toLocaleString()} đ
 📦 Trạng thái: Đang xử lý
 🏠 Địa chỉ: ${shipping_address}
 🚚 Dự kiến nhận: ${expected_delivery}
-                          `.trim();
+                            `.trim();
 
-                          Chat.createMessage(
-                            {
-                              threadId: thread.id,
-                              senderRole: "SYSTEM",
-                              senderId: 0,
-                              receiverId: userId,
-                              message: systemMessage,
-                              orderId,
-                              type: "system",
-                            },
-                            () => {},
-                          );
-                        }
-                      });
+                              Chat.createMessage(
+                                {
+                                  threadId: thread.id,
+                                  senderRole: "SYSTEM",
+                                  senderId: 0,
+                                  receiverId: userId,
+                                  message: systemMessage,
+                                  orderId,
+                                  type: "system",
+                                },
+                                () => {},
+                              );
+                            }
+                          },
+                        );
 
-                      return res.json({
-                        success: true,
-                        orderId,
-                        expected_delivery,
+                        return res.json({
+                          success: true,
+                          orderId,
+                          expected_delivery,
+                        });
                       });
                     });
                   })

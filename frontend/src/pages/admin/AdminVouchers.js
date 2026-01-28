@@ -8,191 +8,275 @@ import "./AdminVouchers.css";
 
 function AdminVouchers() {
   const [vouchers, setVouchers] = useState([]);
-  const [form, setForm] = useState({
-    code: "",
-    type: "percent",
-    value: "",
-    min_order_value: "",
-    max_discount: "",
-    quantity: "",
-  });
+  const [loading, setLoading] = useState(true);
 
-  // ✅ CẬP NHẬT: Đảm bảo dữ liệu luôn là mảng để không lỗi .map()
-  const loadVouchers = async () => {
-    try {
-      const data = await getAllVouchersAdmin();
-      setVouchers(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Lỗi khi tải danh sách voucher:", error);
-      setVouchers([]); // Nếu lỗi thì gán mảng rỗng
-    }
+  /* ===== FORM STATE ===== */
+  const [code, setCode] = useState("");
+  const [type, setType] = useState("percent");
+  const [value, setValue] = useState(0);
+  const [maxDiscount, setMaxDiscount] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [minOrder, setMinOrder] = useState(0);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  /* ===== UX STATE ===== */
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  /* ===== LOAD ===== */
+  const loadVouchers = () => {
+    setLoading(true);
+    getAllVouchersAdmin()
+      .then((data) => setVouchers(Array.isArray(data) ? data : []))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     loadVouchers();
   }, []);
 
-  // ✅ CẬP NHẬT: Xử lý bật/tắt trạng thái và load lại danh sách
-  const handleToggleStatus = async (id, currentStatus) => {
-    const newStatus = currentStatus === "active" ? "inactive" : "active";
-    try {
-      await updateVoucherStatusAdmin(id, newStatus);
-      await loadVouchers(); // Load lại để cập nhật giao diện
-    } catch (error) {
-      alert("Không thể cập nhật trạng thái: " + error.message);
-    }
-  };
+  /* ===== CHECK TRÙNG MÃ ===== */
+  const normalizedCode = code.trim().toUpperCase();
 
-  const handleSubmit = async () => {
-    if (!form.code || !form.value || !form.quantity) {
-      alert("Vui lòng nhập đủ thông tin bắt buộc");
+  const isDuplicateCode = vouchers.some(
+    (v) => v.code.trim().toUpperCase() === normalizedCode,
+  );
+
+  /* ===== CREATE ===== */
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+
+    if (!normalizedCode) {
+      setError("⚠️ Vui lòng nhập mã voucher");
       return;
     }
 
-    try {
-      await createVoucher(form);
-      alert("Tạo voucher thành công!");
+    if (isDuplicateCode) {
+      setError("❌ Mã voucher đã tồn tại");
+      return;
+    }
 
-      // Reset form
-      setForm({
-        code: "",
-        type: "percent",
-        value: "",
-        min_order_value: "",
-        max_discount: "",
-        quantity: "",
+    if (quantity <= 0) {
+      setError("⚠️ Số lượng phải lớn hơn 0");
+      return;
+    }
+
+    if (type !== "free_ship" && value <= 0) {
+      setError("⚠️ Giá trị giảm không hợp lệ");
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      await createVoucher({
+        code: normalizedCode,
+        type,
+        value,
+        max_discount: type === "percent" ? maxDiscount || null : null,
+        min_order_value: minOrder || 0,
+        start_date: startDate || null,
+        end_date: endDate || null,
+        quantity,
       });
 
-      // ✅ QUAN TRỌNG: Load lại danh sách ngay lập tức để hiển thị voucher mới
-      await loadVouchers();
-    } catch (error) {
-      alert("Lỗi khi tạo voucher: " + error.message);
+      setSuccess("✅ Tạo voucher thành công");
+
+      /* RESET FORM */
+      setCode("");
+      setType("percent");
+      setValue(0);
+      setMaxDiscount("");
+      setQuantity(1);
+      setMinOrder(0);
+      setStartDate("");
+      setEndDate("");
+
+      loadVouchers();
+    } catch (err) {
+      setError("❌ Lỗi lưu Database");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  return (
-    <div className="voucher-admin">
-      <div className="voucher-header">
-        <h2>🎟 Quản lý Voucher</h2>
-        <p>Tạo và kiểm soát mã giảm giá cho khách hàng</p>
-      </div>
+  /* ===== TOGGLE STATUS ===== */
+  const toggleStatus = async (v) => {
+    await updateVoucherStatusAdmin(v.voucher_id, {
+      status: v.status === "active" ? "inactive" : "active",
+    });
+    loadVouchers();
+  };
 
+  const renderValue = (v) => {
+    if (v.type === "percent") return `${v.value}%`;
+    if (v.type === "fixed") return `${v.value.toLocaleString()} đ`;
+    if (v.type === "free_ship")
+      return `Free ship ${v.value.toLocaleString()} đ`;
+    return "";
+  };
+
+  return (
+    <div className="admin-voucher-page">
+      <h2>🎁 Quản lý Voucher</h2>
+
+      {/* ================= CREATE ================= */}
       <div className="voucher-card">
-        <h3>➕ Tạo voucher mới</h3>
-        <div className="voucher-form">
+        <h3>Tạo voucher</h3>
+
+        <form className="voucher-form" onSubmit={handleCreate}>
           <div className="form-group">
-            <label>Mã voucher *</label>
+            <label>Mã voucher</label>
             <input
-              value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value })}
-              placeholder="VD: SALE50"
+              className={isDuplicateCode ? "input error" : "input"}
+              value={code}
+              onChange={(e) => {
+                setCode(e.target.value);
+                setError("");
+                setSuccess("");
+              }}
+              placeholder="VD: SALE20, FREESHIP"
             />
+            {isDuplicateCode && (
+              <span className="hint error-text">Mã đã tồn tại</span>
+            )}
           </div>
+
           <div className="form-group">
-            <label>Loại</label>
-            <select
-              value={form.type}
-              onChange={(e) => setForm({ ...form, type: e.target.value })}
-            >
+            <label>Loại voucher</label>
+            <select value={type} onChange={(e) => setType(e.target.value)}>
               <option value="percent">Giảm %</option>
               <option value="fixed">Giảm tiền</option>
+              <option value="free_ship">Free ship</option>
             </select>
           </div>
-          <div className="form-group">
-            <label>Giá trị *</label>
-            <input
-              type="number"
-              value={form.value}
-              onChange={(e) => setForm({ ...form, value: e.target.value })}
-            />
-          </div>
+
+          {type !== "free_ship" && (
+            <div className="form-group">
+              <label>Giá trị</label>
+              <input
+                type="number"
+                value={value}
+                onChange={(e) => setValue(Number(e.target.value))}
+              />
+            </div>
+          )}
+
+          {type === "percent" && (
+            <div className="form-group">
+              <label>Giảm tối đa</label>
+              <input
+                type="number"
+                value={maxDiscount}
+                onChange={(e) => setMaxDiscount(e.target.value)}
+              />
+            </div>
+          )}
+
+          {type === "free_ship" && (
+            <div className="form-group">
+              <label>Giảm ship tối đa</label>
+              <input
+                type="number"
+                value={value}
+                onChange={(e) => setValue(Number(e.target.value))}
+              />
+            </div>
+          )}
+
           <div className="form-group">
             <label>Đơn tối thiểu</label>
             <input
               type="number"
-              value={form.min_order_value}
-              onChange={(e) =>
-                setForm({ ...form, min_order_value: e.target.value })
-              }
+              value={minOrder}
+              onChange={(e) => setMinOrder(Number(e.target.value))}
             />
           </div>
+
           <div className="form-group">
-            <label>Giảm tối đa</label>
+            <label>Ngày bắt đầu</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Ngày kết thúc</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Số lượng</label>
             <input
               type="number"
-              value={form.max_discount}
-              onChange={(e) =>
-                setForm({ ...form, max_discount: e.target.value })
-              }
+              value={quantity}
+              onChange={(e) => setQuantity(Number(e.target.value))}
             />
           </div>
-          <div className="form-group">
-            <label>Số lượt dùng *</label>
-            <input
-              type="number"
-              value={form.quantity}
-              onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-            />
-          </div>
-        </div>
-        <button className="primary-btn" onClick={handleSubmit}>
-          Tạo voucher
-        </button>
+
+          <button
+            className="btn-create"
+            disabled={submitting || isDuplicateCode}
+          >
+            {submitting ? "Đang tạo..." : "Tạo voucher"}
+          </button>
+
+          {error && <div className="alert error">{error}</div>}
+          {success && <div className="alert success">{success}</div>}
+        </form>
       </div>
 
+      {/* ================= LIST ================= */}
       <div className="voucher-card">
-        <h3>📋 Danh sách voucher</h3>
-        <table className="voucher-table">
-          <thead>
-            <tr>
-              <th>Mã</th>
-              <th>Loại</th>
-              <th>Giá trị</th>
-              <th>Đã dùng</th>
-              <th>Trạng thái</th>
-              <th>Hành động</th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* ✅ Kiểm tra vouchers có dữ liệu trước khi map */}
-            {vouchers.length > 0 ? (
-              vouchers.map((v) => (
+        <h3>Danh sách voucher</h3>
+
+        {loading ? (
+          <p>Đang tải...</p>
+        ) : (
+          <table className="voucher-table">
+            <thead>
+              <tr>
+                <th>Mã</th>
+                <th>Loại</th>
+                <th>Giá trị</th>
+                <th>Đơn tối thiểu</th>
+                <th>HSD</th>
+                <th>Còn</th>
+                <th>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vouchers.map((v) => (
                 <tr key={v.voucher_id}>
-                  <td className="code">{v.code}</td>
-                  <td>{v.type === "percent" ? "%" : "₫"}</td>
-                  <td>{v.value}</td>
-                  <td>
-                    {v.used || 0}/{v.quantity}
-                  </td>
+                  <td>{v.code}</td>
+                  <td>{v.type}</td>
+                  <td>{renderValue(v)}</td>
+                  <td>{(v.min_order_value || 0).toLocaleString()} đ</td>
+                  <td>{v.end_date || "∞"}</td>
+                  <td>{v.quantity}</td>
                   <td>
                     <span
-                      className={`status ${v.status === "active" ? "active" : "inactive"}`}
+                      className={`status ${v.status}`}
+                      onClick={() => toggleStatus(v)}
                     >
                       {v.status}
                     </span>
                   </td>
-                  <td>
-                    <button
-                      className="toggle-btn"
-                      onClick={() => handleToggleStatus(v.voucher_id, v.status)}
-                    >
-                      Bật / Tắt
-                    </button>
-                  </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan="6"
-                  style={{ textAlign: "center", padding: "20px" }}
-                >
-                  Chưa có voucher nào.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

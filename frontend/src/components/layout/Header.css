@@ -33,6 +33,25 @@
   color: #2563eb;
 }
 
+/* 🎁 VOUCHER LINK */
+.voucher-link {
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+  color: #fff !important;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.voucher-link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.35);
+}
+
 /* ===== CENTER ===== */
 .header-center {
   flex: 1;
@@ -86,19 +105,7 @@
   font-weight: bold;
 }
 
-/* ===== LOGOUT ===== */
-.logout-btn {
-  background: #ef4444;
-  color: #fff;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.logout-btn:hover {
-  background: #dc2626;
-}
+/* ===== USER ===== */
 .user-box {
   display: flex;
   align-items: center;
@@ -112,4 +119,25 @@
   padding: 6px 10px;
   border-radius: 20px;
   font-size: 14px;
+}
+
+/* ===== LOGOUT ===== */
+.logout-btn {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.logout-btn:hover {
+  background: #dc2626;
+}
+
+/* ===== LOGIN ===== */
+.login-link {
+  text-decoration: none;
+  font-weight: 600;
+  color: #2563eb;
 }

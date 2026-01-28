@@ -217,6 +217,27 @@ export const updateVoucherStatusAdmin = (id) =>
 
 export const toggleVoucher = (id) => updateVoucherStatusAdmin(id);
 
+/* ================= NEW: USER VOUCHERS (NHẬN & DÙNG) ================= */
+
+// voucher có thể nhận (customer)
+export const getAvailableVouchersToReceive = () =>
+  fetch(`${API_URL}/user-vouchers/available`, {
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+// nhận voucher (customer)
+export const receiveUserVoucher = (voucherId) =>
+  fetch(`${API_URL}/user-vouchers/receive/${voucherId}`, {
+    method: "POST",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+// voucher của tôi (chưa dùng) để checkout
+export const getMyVouchers = () =>
+  fetch(`${API_URL}/user-vouchers/my`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
 /* ================= CHAT SYSTEM ================= */
 
 export const getChatRooms = () =>

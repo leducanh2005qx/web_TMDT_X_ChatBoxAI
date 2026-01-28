@@ -1,144 +1,153 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { createOrder } from "../../services/api";
+import { useEffect, useState } from "react";
+import { createOrder, getMyVouchers } from "../../services/api";
 import "./Checkout.css";
 
 function Checkout({ cart, setCart }) {
-  const navigate = useNavigate();
-
-  // ✅ lấy user từ localStorage (login sẽ lưu)
-  const user = useMemo(() => {
-    try {
-      const raw = localStorage.getItem("user");
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  }, []);
-
   const [address, setAddress] = useState("");
+  const [vouchers, setVouchers] = useState([]);
+  const [selectedVoucher, setSelectedVoucher] = useState(null);
+  const [discount, setDiscount] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState("cod");
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
-  const expectedDateText = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 3);
-    return d.toLocaleDateString("vi-VN");
+  const finalTotal = Math.max(subtotal - discount, 0);
+
+  useEffect(() => {
+    getMyVouchers().then((data) =>
+      setVouchers(Array.isArray(data) ? data : []),
+    );
   }, []);
 
-  const handleCreateOrder = async () => {
-    if (!user) {
-      alert("Bạn cần đăng nhập trước khi thanh toán");
-      navigate("/login");
+  const handleApplyVoucher = (id) => {
+    const v = vouchers.find((x) => x.voucher_id === Number(id));
+    if (!v) {
+      setSelectedVoucher(null);
+      setDiscount(0);
       return;
     }
 
-    if (!cart || cart.length === 0) {
-      alert("Giỏ hàng trống");
-      return;
+    let d = 0;
+    if (v.type === "percent") {
+      d = Math.floor((subtotal * v.value) / 100);
+      if (v.max_discount) d = Math.min(d, v.max_discount);
+    } else {
+      d = v.value;
     }
 
-    if (!address.trim()) {
-      alert("Vui lòng nhập địa chỉ nhận hàng");
-      return;
-    }
-
-    // ✅ BẮT BUỘC: backend của bạn order_items + trừ kho theo VARIANT
-    const invalid = cart.find((i) => !i.variant_id);
-    if (invalid) {
-      alert("Sản phẩm chưa chọn biến thể (size/màu). Vui lòng chọn lại!");
-      return;
-    }
-
-    try {
-      await createOrder({
-        shipping_address: address, // ✅ backend bắt buộc
-        items: cart.map((i) => ({
-          variant_id: i.variant_id, // ✅ backend dùng để insert order_items + trừ kho
-          variant_name: i.variant_name || null, // (không bắt buộc, backend ignore cũng ok)
-          quantity: i.quantity,
-          price: i.price,
-        })),
-        total,
-      });
-
-      alert("🎉 Đặt hàng thành công");
-      setCart([]);
-      navigate("/orders");
-    } catch (err) {
-      console.error(err);
-      // ✅ hiện đúng lỗi backend trả về (vd: "Không đủ tồn kho cho biến thể")
-      alert(err?.message || "❌ Lỗi tạo đơn");
-    }
+    setSelectedVoucher(v);
+    setDiscount(d);
   };
 
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=Thanh toan ${total} VND`;
+  const handleCheckout = async () => {
+    if (!address.trim()) return alert("Nhập địa chỉ giao hàng");
+
+    await createOrder({
+      items: cart,
+      total: finalTotal,
+      shipping_address: address,
+      voucher_id: selectedVoucher?.voucher_id || null,
+    });
+
+    alert("🎉 Đặt hàng thành công");
+    setCart([]);
+  };
+
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=Thanh toan ${finalTotal}`;
 
   return (
-    <div className="checkout-wrapper">
-      <div className="checkout-box">
-        <h2>💳 Thanh toán</h2>
+    <div className="checkout-page">
+      <h2>🧾 Thanh toán</h2>
 
-        <div className="checkout-section">
-          <h3>👤 Thông tin người nhận</h3>
-          <p>
-            Tên: <b>{user?.name || "(chưa có)"}</b>
-          </p>
-          <p>
-            SĐT: <b>{user?.phone || "(chưa có)"}</b>
-          </p>
+      <div className="checkout-layout">
+        <div className="checkout-left">
+          <div className="box">
+            <h3>🛒 Sản phẩm</h3>
+            {cart.map((i) => (
+              <div key={i.variant_id} className="checkout-item">
+                <img src={i.image} alt="" />
+                <div>
+                  <b>{i.name}</b>
+                  <div>{i.variant_name}</div>
+                  <div>x{i.quantity}</div>
+                </div>
+                <div>{(i.price * i.quantity).toLocaleString()} đ</div>
+              </div>
+            ))}
+          </div>
 
-          <div style={{ marginTop: 10 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>
-              Địa chỉ nhận hàng
-            </div>
+          <div className="box">
+            <h3>📦 Địa chỉ</h3>
             <textarea
-              placeholder="Nhập địa chỉ nhận hàng..."
               value={address}
               onChange={(e) => setAddress(e.target.value)}
             />
           </div>
-
-          <p style={{ marginTop: 10 }}>
-            Ngày nhận dự kiến: <b>{expectedDateText}</b>
-          </p>
         </div>
 
-        <div className="checkout-section">
-          <h3>📦 Sản phẩm</h3>
-          {cart.map((item) => (
-            <div key={item.cartKey || item.id} className="checkout-item">
-              <img
-                src={`http://localhost:5000/${item.image}`}
-                alt={item.name}
-                onError={(e) => (e.target.src = "/no-image.png")}
-              />
-              <div>
-                <p>
-                  <b>{item.name}</b>
-                  {item.variant_name ? ` (${item.variant_name})` : ""}
-                </p>
-                <p>
-                  {Number(item.price).toLocaleString()} đ × {item.quantity}
-                </p>
-              </div>
+        <div className="checkout-right">
+          <div className="box">
+            <h3>🎁 Voucher</h3>
+            <select
+              onChange={(e) => handleApplyVoucher(e.target.value)}
+              value={selectedVoucher?.voucher_id || ""}
+            >
+              <option value="">-- Không dùng --</option>
+              {vouchers.map((v) => (
+                <option
+                  key={v.voucher_id}
+                  value={v.voucher_id}
+                  disabled={subtotal < v.min_order_value || v.quantity <= 0}
+                >
+                  {v.code}
+                  {subtotal < v.min_order_value && " (chưa đủ đơn)"}
+                  {v.quantity <= 0 && " (hết)"}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="box">
+            <div className="row">
+              <span>Tạm tính</span>
+              <span>{subtotal.toLocaleString()} đ</span>
             </div>
-          ))}
+            <div className="row discount">
+              <span>Giảm voucher</span>
+              <span>- {discount.toLocaleString()} đ</span>
+            </div>
+            <div className="row total">
+              <b>Tổng thanh toán</b>
+              <b>{finalTotal.toLocaleString()} đ</b>
+            </div>
+          </div>
+
+          <div className="box">
+            <label>
+              <input
+                type="radio"
+                checked={paymentMethod === "cod"}
+                onChange={() => setPaymentMethod("cod")}
+              />
+              Thanh toán khi nhận hàng
+            </label>
+
+            <label>
+              <input
+                type="radio"
+                checked={paymentMethod === "qr"}
+                onChange={() => setPaymentMethod("qr")}
+              />
+              Thanh toán QR
+            </label>
+
+            {paymentMethod === "qr" && <img src={qrUrl} alt="QR" />}
+          </div>
+
+          <button className="checkout-btn" onClick={handleCheckout}>
+            Xác nhận đặt hàng
+          </button>
         </div>
-
-        <p className="total">
-          Tổng tiền: <strong>{total.toLocaleString()} đ</strong>
-        </p>
-
-        <img src={qrUrl} alt="QR Thanh toán" className="qr-img" />
-
-        <button className="confirm-btn" onClick={handleCreateOrder}>
-          ✅ Xác nhận đặt hàng
-        </button>
-
-        <button className="back-btn" onClick={() => navigate("/cart")}>
-          ⬅ Quay lại giỏ hàng
-        </button>
       </div>
     </div>
   );
