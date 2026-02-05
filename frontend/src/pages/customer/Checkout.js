@@ -14,10 +14,17 @@ function Checkout({ cart, setCart }) {
 
   const [address, setAddress] = useState("");
   const [vouchers, setVouchers] = useState([]);
-  const [selectedVoucher, setSelectedVoucher] = useState(null);
-  const [discount, setDiscount] = useState(0);
+
+  // ✅ Quản lý đồng thời 2 loại Voucher
+  const [selectedVouchers, setSelectedVouchers] = useState({
+    item: null, // Lưu voucher giảm giá (percent/fixed)
+    shipping: null, // Lưu voucher freeship
+  });
+
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [city, setCity] = useState("");
+
+  /* ================= CALCULATION LOGIC ================= */
 
   const subtotal = useMemo(() => {
     return checkoutItems.reduce(
@@ -26,14 +33,45 @@ function Checkout({ cart, setCart }) {
     );
   }, [checkoutItems]);
 
-  const shippingFee = useMemo(() => {
+  const originalShippingFee = useMemo(() => {
     if (!city || subtotal === 0) return 0;
     if (subtotal > 1000000) return 0;
     const rates = { "Hà Nội": 20000, "TP Hồ Chí Minh": 35000, Khác: 45000 };
     return rates[city] || rates["Khác"];
   }, [city, subtotal]);
 
-  const finalTotal = Math.max(subtotal + shippingFee - discount, 0);
+  // ✅ Logic tính toán giảm giá cộng dồn
+  const { itemDiscount, shippingDiscount } = useMemo(() => {
+    let iDiscount = 0;
+    let sDiscount = 0;
+
+    // 1. Tính giảm giá hàng
+    if (selectedVouchers.item) {
+      const v = selectedVouchers.item;
+      if (v.type === "percent") {
+        iDiscount = Math.min(
+          Math.floor((subtotal * Number(v.value || 0)) / 100),
+          Number(v.max_discount || Infinity),
+        );
+      } else {
+        iDiscount = Number(v.value || 0);
+      }
+    }
+
+    // 2. Tính giảm phí ship
+    if (selectedVouchers.shipping) {
+      const v = selectedVouchers.shipping;
+      sDiscount = Math.min(originalShippingFee, Number(v.value || 0));
+    }
+
+    return { itemDiscount: iDiscount, shippingDiscount: sDiscount };
+  }, [selectedVouchers, subtotal, originalShippingFee]);
+
+  const finalShippingFee = Math.max(originalShippingFee - shippingDiscount, 0);
+  const finalSubtotal = Math.max(subtotal - itemDiscount, 0);
+  const finalTotal = finalSubtotal + finalShippingFee;
+
+  /* ================= EFFECTS & HANDLERS ================= */
 
   useEffect(() => {
     getMyVouchers().then((data) =>
@@ -42,21 +80,19 @@ function Checkout({ cart, setCart }) {
   }, []);
 
   const handleApplyVoucher = (id) => {
+    if (!id) return;
     const v = vouchers.find((x) => x.voucher_id === Number(id));
-    if (!v) {
-      setSelectedVoucher(null);
-      setDiscount(0);
-      return;
+    if (!v) return;
+
+    if (v.type === "free_ship") {
+      setSelectedVouchers((prev) => ({ ...prev, shipping: v }));
+    } else {
+      setSelectedVouchers((prev) => ({ ...prev, item: v }));
     }
-    let d =
-      v.type === "percent"
-        ? Math.min(
-            Math.floor((subtotal * Number(v.value || 0)) / 100),
-            Number(v.max_discount || Infinity),
-          )
-        : Number(v.value || 0);
-    setSelectedVoucher(v);
-    setDiscount(d);
+  };
+
+  const removeVoucher = (type) => {
+    setSelectedVouchers((prev) => ({ ...prev, [type]: null }));
   };
 
   const handleCheckout = async () => {
@@ -65,12 +101,18 @@ function Checkout({ cart, setCart }) {
     if (!address.trim() || !city)
       return alert("Vui lòng nhập địa chỉ và chọn Tỉnh/Thành phố");
 
+    // Lấy danh sách ID các voucher được sử dụng
+    const appliedVoucherIds = [
+      selectedVouchers.item?.voucher_id,
+      selectedVouchers.shipping?.voucher_id,
+    ].filter(Boolean);
+
     try {
       await createOrder({
         items: checkoutItems,
         total: finalTotal,
         shipping_address: `${address.trim()}, ${city}`,
-        voucher_id: selectedVoucher?.voucher_id || null,
+        voucher_ids: appliedVoucherIds, // Gửi mảng ID thay vì 1 ID duy nhất
         payment_method: paymentMethod,
       });
       alert("🎉 Đặt hàng thành công!");
@@ -96,7 +138,7 @@ function Checkout({ cart, setCart }) {
           <h1 className="premium-title">
             THANH TOÁN <span>PREMIUM</span>
           </h1>
-          <p className="subtitle">Hoàn tất đơn hàng của bạn với Tiger Shop</p>
+          <p className="subtitle">Áp dụng voucher cộng dồn ưu đãi tối đa</p>
         </header>
 
         <div className="checkout-grid">
@@ -130,10 +172,10 @@ function Checkout({ cart, setCart }) {
               </div>
             </section>
 
-            {/* Danh sách sản phẩm */}
+            {/* Sản phẩm */}
             <section className="glass-section">
               <h3 className="section-title">
-                📦 Sản phẩm của bạn ({checkoutItems.length})
+                📦 Sản phẩm ({checkoutItems.length})
               </h3>
               <div className="checkout-items-scroll">
                 {checkoutItems.map((i) => (
@@ -141,7 +183,6 @@ function Checkout({ cart, setCart }) {
                     <img
                       src={`http://localhost:5000/${i.image}`}
                       alt={i.name}
-                      onError={(e) => (e.target.src = "/no-image.png")}
                     />
                     <div className="item-info">
                       <h4>{i.name}</h4>
@@ -164,31 +205,103 @@ function Checkout({ cart, setCart }) {
 
           <div className="checkout-right-panel">
             <div className="sticky-checkout-summary">
-              {/* Mã giảm giá */}
+              {/* ✅ VOUCHER SELECTION (CHỌN CỘNG DỒN) */}
               <section className="glass-section mini">
-                <h3 className="section-title">🎁 Voucher giảm giá</h3>
+                <h3 className="section-title">🎁 Voucher ưu đãi</h3>
+
+                {/* Hiển thị các mã đã áp dụng */}
+                <div
+                  style={{
+                    marginBottom: "12px",
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "8px",
+                  }}
+                >
+                  {selectedVouchers.item && (
+                    <div
+                      style={{
+                        background: "#2563eb",
+                        color: "white",
+                        padding: "4px 10px",
+                        borderRadius: "8px",
+                        fontSize: "0.8rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      🎟️ Giảm giá: {selectedVouchers.item.code}
+                      <span
+                        onClick={() => removeVoucher("item")}
+                        style={{
+                          cursor: "pointer",
+                          fontWeight: "bold",
+                          padding: "0 4px",
+                        }}
+                      >
+                        ×
+                      </span>
+                    </div>
+                  )}
+                  {selectedVouchers.shipping && (
+                    <div
+                      style={{
+                        background: "#10b981",
+                        color: "white",
+                        padding: "4px 10px",
+                        borderRadius: "8px",
+                        fontSize: "0.8rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      🚚 Freeship: {selectedVouchers.shipping.code}
+                      <span
+                        onClick={() => removeVoucher("shipping")}
+                        style={{
+                          cursor: "pointer",
+                          fontWeight: "bold",
+                          padding: "0 4px",
+                        }}
+                      >
+                        ×
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 <select
                   className="premium-input voucher"
                   onChange={(e) => handleApplyVoucher(e.target.value)}
-                  value={selectedVoucher?.voucher_id || ""}
+                  value=""
                 >
-                  <option value="">Chọn mã ưu đãi</option>
-                  {vouchers.map((v) => (
-                    <option
-                      key={v.voucher_id}
-                      value={v.voucher_id}
-                      disabled={subtotal < Number(v.min_order_value || 0)}
-                    >
-                      {v.code} (Đơn từ{" "}
-                      {Number(v.min_order_value || 0).toLocaleString()}đ)
-                    </option>
-                  ))}
+                  <option value="">+ Thêm mã ưu đãi / Freeship</option>
+                  {vouchers.map((v) => {
+                    const isApplied =
+                      selectedVouchers.item?.voucher_id === v.voucher_id ||
+                      selectedVouchers.shipping?.voucher_id === v.voucher_id;
+                    return (
+                      <option
+                        key={v.voucher_id}
+                        value={v.voucher_id}
+                        disabled={
+                          isApplied || subtotal < Number(v.min_order_value || 0)
+                        }
+                      >
+                        {isApplied
+                          ? `[Đã áp dụng] ${v.code}`
+                          : `${v.code} (${v.type === "free_ship" ? "Freeship" : "Giảm hàng"})`}
+                      </option>
+                    );
+                  })}
                 </select>
               </section>
 
               {/* Thanh toán */}
               <section className="glass-section mini">
-                <h3 className="section-title">💳 Hình thức thanh toán</h3>
+                <h3 className="section-title">💳 Thanh toán</h3>
                 <div className="payment-grid">
                   <button
                     className={`pay-btn ${paymentMethod === "cod" ? "active" : ""}`}
@@ -203,19 +316,6 @@ function Checkout({ cart, setCart }) {
                     Banking QR
                   </button>
                 </div>
-
-                {paymentMethod === "qr" && (
-                  <div className="qr-reveal-box">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=TigerShop_Payment_${finalTotal}`}
-                      alt="QR"
-                    />
-                    <p>
-                      Quét để thanh toán{" "}
-                      <span>{finalTotal.toLocaleString()}đ</span>
-                    </p>
-                  </div>
-                )}
               </section>
 
               {/* Tổng kết tiền */}
@@ -224,18 +324,36 @@ function Checkout({ cart, setCart }) {
                   <span>Tạm tính</span>
                   <span>{subtotal.toLocaleString()} đ</span>
                 </div>
+
                 <div className="calc-row">
                   <span>Phí vận chuyển</span>
-                  <span>
-                    {shippingFee === 0
-                      ? "Miễn phí"
-                      : `+ ${shippingFee.toLocaleString()} đ`}
-                  </span>
+                  <div style={{ textAlign: "right" }}>
+                    {shippingDiscount > 0 && (
+                      <div
+                        style={{
+                          fontSize: "0.85rem",
+                          color: "#60a5fa",
+                          textDecoration: "line-through",
+                        }}
+                      >
+                        {originalShippingFee.toLocaleString()} đ
+                      </div>
+                    )}
+                    <span>
+                      {finalShippingFee === 0
+                        ? "Miễn phí"
+                        : `${finalShippingFee.toLocaleString()} đ`}
+                    </span>
+                  </div>
                 </div>
-                <div className="calc-row discount">
-                  <span>Giảm giá</span>
-                  <span>- {discount.toLocaleString()} đ</span>
-                </div>
+
+                {itemDiscount > 0 && (
+                  <div className="calc-row discount">
+                    <span>Giảm giá hàng</span>
+                    <span>- {itemDiscount.toLocaleString()} đ</span>
+                  </div>
+                )}
+
                 <div className="total-divider"></div>
                 <div className="calc-row total">
                   <span>Tổng cộng</span>

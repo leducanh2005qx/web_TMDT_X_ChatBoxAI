@@ -1,210 +1,210 @@
-/* ================= PAGE ================= */
 .admin-orders-page {
-  padding: 30px 40px;
-  background: linear-gradient(135deg, #f8fafc, #eef2ff);
-  min-height: calc(100vh - 70px);
+  padding: 30px;
+  background: #f8fafc;
+  min-height: 100vh;
 }
 
-/* ================= TOP ================= */
-.admin-top {
-  position: relative;
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+.header-left {
   display: flex;
   align-items: center;
-  height: 60px;
-  margin-bottom: 26px;
+  gap: 20px;
 }
 
-/* ===== BACK BUTTON (NHỎ – GỌN – GÓC TRÁI) ===== */
-.back-btn {
-  width: 120px; /* ~5cm */
-  height: 44px; /* ~3cm */
-  background: #f1f5f9;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-
-  font-size: 13px;
-  color: #334155;
+.back-btn-premium {
+  padding: 8px 18px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  font-weight: 700;
   cursor: pointer;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-
-  transition: all 0.2s ease;
+  transition: 0.3s;
 }
 
-.back-btn:hover {
-  background: #e0e7ff;
-  border-color: #c7d2fe;
-  color: #1e40af;
+.stat-card {
+  background: white;
+  padding: 10px 25px;
+  border-radius: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+.stat-card strong {
+  font-size: 22px;
+  color: #2563eb;
+  display: block;
 }
 
-/* ===== TITLE – CHÍNH GIỮA ===== */
-.admin-top h2 {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 24px;
-  font-weight: bold;
-  color: #1e293b;
-  margin: 0;
-  pointer-events: none;
+.order-list-container {
+  background: white;
+  border-radius: 20px;
+  padding: 25px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
 }
 
-/* ================= EMPTY ================= */
-.empty {
-  text-align: center;
-  color: #64748b;
-  font-style: italic;
-  margin-top: 40px;
-}
-
-/* ================= TABLE ================= */
-.order-table {
+.premium-table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0 14px;
+  border-collapse: collapse;
 }
-
-.order-table thead th {
+.premium-table th {
   text-align: left;
-  padding: 14px;
+  padding: 15px;
+  color: #94a3b8;
+  font-size: 12px;
+  text-transform: uppercase;
+  border-bottom: 1px solid #f1f5f9;
+}
+.premium-table td {
+  padding: 18px 15px;
+  border-bottom: 1px solid #f8fafc;
   font-size: 14px;
-  color: #475569;
 }
 
-.order-table tbody tr {
-  background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.07);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+.order-id {
+  font-weight: 800;
+  color: #2563eb;
 }
-
-.order-table tbody tr:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 16px 35px rgba(0, 0, 0, 0.12);
-}
-
-.order-table td {
-  padding: 16px;
-  vertical-align: middle;
-}
-
-/* ================= STATUS BADGE ================= */
 .badge {
-  padding: 6px 14px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: bold;
-  text-transform: capitalize;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
 }
-
 .badge.pending {
-  background: #fef3c7;
-  color: #b45309;
+  background: #fff7ed;
+  color: #c2410c;
 }
-
 .badge.confirmed {
-  background: #dbeafe;
+  background: #eff6ff;
   color: #1d4ed8;
 }
-
 .badge.completed {
-  background: #dcfce7;
+  background: #f0fdf4;
   color: #15803d;
 }
-
 .badge.cancelled {
-  background: #fee2e2;
+  background: #fef2f2;
   color: #b91c1c;
 }
 
-/* ================= ACTION ================= */
-.actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-/* BASE BUTTON */
-.btn {
-  border: none;
-  padding: 8px 14px;
+.btn-action {
+  padding: 6px 14px;
   border-radius: 8px;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: bold;
-  transition: all 0.2s ease;
+  border: none;
+  transition: 0.2s;
+  margin-left: 5px;
 }
-
-/* CONFIRM */
-.btn.confirm {
+.btn-action.confirm {
   background: #2563eb;
-  color: #fff;
+  color: white;
+}
+.btn-action.complete {
+  background: #10b981;
+  color: white;
+}
+.btn-action.delete {
+  background: #fff1f2;
+  color: #e11d48;
 }
 
-.btn.confirm:hover {
-  background: #1e40af;
+/* ✅ CSS CHO CUSTOM MODAL */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
 }
 
-/* COMPLETE */
-.btn.complete {
-  background: #16a34a;
-  color: #fff;
+.modal-box {
+  background: white;
+  padding: 35px;
+  border-radius: 24px;
+  width: 400px;
+  text-align: center;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: modalScale 0.3s ease-out;
 }
 
-.btn.complete:hover {
-  background: #15803d;
-}
-
-/* CANCEL */
-.btn.cancel {
-  background: #dc2626;
-  color: #fff;
-}
-
-.btn.cancel:hover {
-  background: #b91c1c;
-}
-
-/* ================= TEXT STATUS ================= */
-.done-text {
-  color: #16a34a;
-  font-weight: bold;
-}
-
-.cancel-text {
-  color: #dc2626;
-  font-weight: bold;
-}
-
-/* ================= RESPONSIVE ================= */
-@media (max-width: 900px) {
-  .admin-orders-page {
-    padding: 20px;
+@keyframes modalScale {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
   }
-
-  .admin-top h2 {
-    font-size: 20px;
+  to {
+    transform: scale(1);
+    opacity: 1;
   }
+}
 
-  .order-table thead {
-    display: none;
-  }
+.modal-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 30px;
+  font-weight: 800;
+}
+.modal-icon.info {
+  background: #eff6ff;
+  color: #2563eb;
+}
+.modal-icon.warn {
+  background: #fef2f2;
+  color: #e11d48;
+}
 
-  .order-table tbody tr {
-    display: block;
-    padding: 16px;
-  }
+.modal-box h3 {
+  font-size: 20px;
+  color: #1e293b;
+  margin-bottom: 12px;
+}
+.modal-box p {
+  color: #64748b;
+  margin-bottom: 25px;
+  line-height: 1.5;
+}
 
-  .order-table td {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-  }
-
-  .actions {
-    justify-content: flex-end;
-  }
+.modal-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.btn-confirm {
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-confirm.confirmed,
+.btn-confirm.completed {
+  background: #2563eb;
+}
+.btn-confirm.cancelled {
+  background: #e11d48;
+}
+.btn-close {
+  padding: 12px;
+  background: #f1f5f9;
+  border: none;
+  border-radius: 12px;
+  color: #475569;
+  font-weight: 600;
+  cursor: pointer;
 }

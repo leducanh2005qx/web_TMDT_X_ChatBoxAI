@@ -1,84 +1,182 @@
-.admin-categories {
-  padding: 24px;
-  background: #f8fafc;
+.admin-categories-page {
+  padding: 30px;
+  background-color: #f8fafc;
   min-height: 100vh;
 }
 
-.admin-categories h1 {
-  font-size: 26px;
-  font-weight: 900;
-  margin-bottom: 20px;
-}
-
-.category-form,
-.category-list {
-  background: #fff;
-  padding: 20px;
-  border-radius: 20px;
-  margin-bottom: 28px;
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
-}
-
-.category-form h2,
-.category-list h2 {
-  margin-bottom: 14px;
-  font-size: 18px;
-  font-weight: 800;
-}
-
-.category-form form {
+/* Page Header */
+.page-header {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.page-header h1 {
+  font-size: 24px;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.stat-card {
+  background: white;
+  padding: 10px 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.stat-card span {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.stat-card strong {
+  font-size: 22px;
+  color: #2563eb;
+}
+
+/* Grid Layout */
+.admin-grid-layout {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 25px;
+  align-items: start;
+}
+
+/* Cards */
+.glass-card {
+  background: white;
+  border-radius: 20px;
+  padding: 25px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  border: 1px solid #f1f5f9;
+}
+
+.glass-card h3 {
+  font-size: 18px;
+  margin-bottom: 20px;
+  color: #334155;
+  display: flex;
+  align-items: center;
   gap: 10px;
 }
 
-.category-form input {
-  flex: 1;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
+/* Form Styles */
+.form-group-premium {
+  margin-bottom: 20px;
 }
 
-.category-form button {
-  padding: 12px 18px;
-  border-radius: 12px;
+.form-group-premium label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.form-group-premium input {
+  width: 100%;
+  padding: 12px 15px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  background: #fcfcfc;
+  transition: 0.3s;
+}
+
+.form-group-premium input:focus {
+  border-color: #2563eb;
+  outline: none;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.btn-main-submit {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
   border: none;
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-  color: #022c22;
-  font-weight: 800;
+  background: #2563eb;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.btn-main-submit:hover {
+  background: #1d4ed8;
+  transform: translateY(-2px);
+}
+
+.btn-cancel {
+  width: 100%;
+  margin-top: 10px;
+  background: transparent;
+  color: #64748b;
+  border: none;
+  font-size: 13px;
   cursor: pointer;
 }
 
-.category-table {
+/* Table Styles */
+.premium-table {
   width: 100%;
   border-collapse: collapse;
 }
 
-.category-table th,
-.category-table td {
-  padding: 14px;
-  border-bottom: 1px solid #e5e7eb;
+.premium-table th {
+  text-align: left;
+  padding: 15px;
+  color: #94a3b8;
+  font-size: 12px;
+  text-transform: uppercase;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-.category-actions button {
-  margin-right: 8px;
-  padding: 6px 12px;
-  border-radius: 10px;
-  border: none;
+.premium-table td {
+  padding: 18px 15px;
+  border-bottom: 1px solid #f8fafc;
+}
+
+.category-name {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.text-right {
+  text-align: right;
+}
+
+/* Buttons Action */
+.btn-action {
+  padding: 6px 15px;
+  border-radius: 6px;
+  font-size: 13px;
   font-weight: 600;
+  cursor: pointer;
+  border: none;
+  margin-left: 8px;
+  transition: 0.2s;
 }
 
-.edit-btn {
-  background: #e0f2fe;
-  color: #0369a1;
+.btn-action.edit {
+  background: #eff6ff;
+  color: #2563eb;
 }
 
-.delete-btn {
-  background: #fee2e2;
-  color: #b91c1c;
+.btn-action.delete {
+  background: #fff1f2;
+  color: #e11d48;
 }
 
-.category-empty {
-  text-align: center;
-  color: #64748b;
-  font-style: italic;
+.btn-action:hover {
+  filter: brightness(0.95);
+  transform: scale(1.05);
+}
+
+@media (max-width: 900px) {
+  .admin-grid-layout {
+    grid-template-columns: 1fr;
+  }
 }

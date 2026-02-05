@@ -37,42 +37,59 @@ function Profile() {
     }
   };
 
-  if (loading) return <p style={{ padding: 40 }}>Đang tải...</p>;
-  if (!user) return <p style={{ padding: 40 }}>Không có dữ liệu</p>;
+  // Màn hình loading sắc nét hơn
+  if (loading)
+    return (
+      <div className="profile-page">
+        <div
+          className="profile-card"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <p style={{ color: "#ffffff", fontWeight: 600 }}>
+            🔍 Đang lấy dữ liệu...
+          </p>
+        </div>
+      </div>
+    );
 
   return (
     <div className="profile-page">
       <div className="profile-card">
-        {/* Avatar */}
+        {/* Avatar với chữ cái đầu của tên */}
         <div className="profile-avatar">
           <span>{user.name?.charAt(0).toUpperCase()}</span>
         </div>
 
-        <h2 className="profile-title">Tài khoản của tôi</h2>
-        <p className="profile-sub">Quản lý thông tin cá nhân</p>
+        <h2 className="profile-title">Tài khoản</h2>
+        <p className="profile-sub">Quản lý và bảo mật thông tin cá nhân</p>
 
         <div className="profile-form">
           <div className="form-group">
-            <label>Họ tên</label>
+            <label>Họ và tên</label>
             <input value={user.name} disabled />
           </div>
 
           <div className="form-group">
-            <label>Email</label>
+            <label>Địa chỉ Email</label>
             <input value={user.email} disabled />
           </div>
 
           <div className="form-group">
             <label>Số điện thoại</label>
             <input
-              placeholder="Nhập số điện thoại"
+              type="tel"
+              placeholder="Nhập số điện thoại liên lạc"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
           </div>
 
           <button className="save-btn" onClick={handleSave} disabled={saving}>
-            {saving ? "Đang lưu..." : "💾 Lưu thay đổi"}
+            {saving ? <>⏳ Đang xử lý...</> : <>💾 Lưu thay đổi</>}
           </button>
         </div>
       </div>

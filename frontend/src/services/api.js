@@ -176,7 +176,13 @@ export const updateMyProfile = (payload) =>
     body: JSON.stringify(payload),
   }).then(handleResponse);
 
-/* ================= VOUCHERS (ĐỒNG BỘ MYSQL) ================= */
+/* ================= VOUCHERS (ADMIN & PUBLIC) ================= */
+
+// ✅ Lấy voucher công khai cho khách (Không cần nhấn nhận thủ công)
+export const getPublicVouchers = () =>
+  fetch(`${API_URL}/vouchers/public`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
 
 export const getAvailableVouchers = () =>
   fetch(`${API_URL}/vouchers`, { headers: getAuthHeader() }).then(
@@ -217,22 +223,19 @@ export const updateVoucherStatusAdmin = (id) =>
 
 export const toggleVoucher = (id) => updateVoucherStatusAdmin(id);
 
-/* ================= NEW: USER VOUCHERS (NHẬN & DÙNG) ================= */
+/* ================= USER VOUCHERS (KHO CÁ NHÂN) ================= */
 
-// voucher có thể nhận (customer)
 export const getAvailableVouchersToReceive = () =>
   fetch(`${API_URL}/user-vouchers/available`, {
     headers: getAuthHeader(),
   }).then(handleResponse);
 
-// nhận voucher (customer)
 export const receiveUserVoucher = (voucherId) =>
   fetch(`${API_URL}/user-vouchers/receive/${voucherId}`, {
     method: "POST",
     headers: getAuthHeader(),
   }).then(handleResponse);
 
-// voucher của tôi (chưa dùng) để checkout
 export const getMyVouchers = () =>
   fetch(`${API_URL}/user-vouchers/my`, { headers: getAuthHeader() }).then(
     handleResponse,

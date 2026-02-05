@@ -7,70 +7,75 @@ function AdminChat() {
   const [selectedUser, setSelectedUser] = useState(null);
 
   return (
-    <div className="admin-chat-premium-page">
-      {/* Các thành phần trang trí nền */}
-      <div className="dynamic-blobs">
-        <div className="blob cb-blue"></div>
-        <div className="blob cb-purple"></div>
-      </div>
+    <div className="admin-chat-dashboard">
+      {/* Header trang đồng bộ Dashboard */}
+      <header className="page-header">
+        <div className="header-left">
+          <h1>💬 Trung tâm hỗ trợ TIGER SHOP</h1>
+        </div>
+        <div className="stat-card">
+          <span>TỔNG TIN NHẮN</span>
+          <strong>24</strong>
+        </div>
+      </header>
 
-      <div className="admin-chat-wrapper">
-        <div className="admin-chat-main-container">
-          {/* CỘT 1: SIDEBAR DANH SÁCH */}
-          <aside className="chat-sidebar-section">
-            <div className="sidebar-header-premium">
-              <h3>Hội thoại</h3>
-              <span className="count-label">5 khách đang online</span>
+      <div className="admin-chat-grid-container">
+        {/* Ô 1: DANH SÁCH KHÁCH HÀNG (Dạng thẻ đứng bên trái) */}
+        <aside className="glass-card chat-sidebar-box">
+          <div className="box-header">
+            <h3>Hội thoại gần đây</h3>
+          </div>
+          <div className="sidebar-list">
+            <UserList
+              selectedUser={selectedUser}
+              onSelectUser={setSelectedUser}
+            />
+          </div>
+        </aside>
+
+        {/* Ô 2: KHUNG NỘI DUNG TIN NHẮN (Dạng thẻ lớn ở giữa) */}
+        <main className="glass-card chat-main-box">
+          {selectedUser ? (
+            <ChatPanel user={selectedUser} />
+          ) : (
+            <div className="chat-empty-state">
+              <div className="empty-icon">✉️</div>
+              <h3>Chưa chọn hội thoại</h3>
+              <p>Chọn một khách hàng bên trái để xem tin nhắn</p>
             </div>
-            <div className="sidebar-scrollable">
-              {/* Truyền props vào component UserList hiện tại của bạn */}
-              <UserList
-                selectedUser={selectedUser}
-                onSelectUser={setSelectedUser}
-              />
-            </div>
-          </aside>
+          )}
+        </main>
 
-          {/* CỘT 2: KHUNG CHAT TRUNG TÂM */}
-          <main className="chat-content-section">
-            {selectedUser ? (
-              <ChatPanel user={selectedUser} />
-            ) : (
-              <div className="chat-placeholder-full">
-                <div className="placeholder-content">
-                  <div className="icon-pulse">💬</div>
-                  <h2>Tiger Shop Admin</h2>
-                  <p>
-                    Chọn một khách hàng từ danh sách bên trái
-                    <br />
-                    để bắt đầu hỗ trợ.
-                  </p>
-                </div>
-              </div>
-            )}
-          </main>
-
-          {/* CỘT 3: THÔNG TIN KHÁCH HÀNG (Chỉ hiện khi đã chọn user) */}
-          {selectedUser && (
-            <aside className="chat-info-section">
-              <div className="user-profile-mini">
-                <div className="avatar-large">
+        {/* Ô 3: THÔNG TIN CHI TIẾT (Dạng thẻ nhỏ bên phải) */}
+        <aside className="glass-card chat-info-box">
+          {selectedUser ? (
+            <div className="info-box-content">
+              <div className="user-profile-summary">
+                <div className="avatar-circle">
                   {selectedUser.email?.charAt(0).toUpperCase()}
                 </div>
                 <h4>{selectedUser.email}</h4>
-                <span className="tag-status">Khách hàng hệ thống</span>
+                <span className="user-tag">Customer</span>
               </div>
 
-              <div className="quick-actions-admin">
-                <p className="label">Ghi chú quản trị</p>
-                <textarea placeholder="Nhập nhanh thông tin cần lưu ý về khách hàng này..." />
-                <button className="btn-view-order">
-                  📋 Xem lịch sử đơn hàng
-                </button>
+              <div className="info-sections">
+                <div className="info-item">
+                  <label>Ghi chú khách hàng</label>
+                  <textarea placeholder="Nhập lưu ý nội bộ..." />
+                </div>
               </div>
-            </aside>
+
+              <div className="info-footer-actions">
+                <button className="btn-order-history">📜 Xem đơn hàng</button>
+                <button className="btn-finish">Đóng hội thoại</button>
+              </div>
+            </div>
+          ) : (
+            <div className="info-empty">
+              <p>Thông tin khách hàng sẽ hiển thị tại đây</p>
+            </div>
           )}
-        </div>
+        </aside>
       </div>
     </div>
   );

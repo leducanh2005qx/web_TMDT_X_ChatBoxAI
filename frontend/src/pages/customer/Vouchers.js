@@ -30,16 +30,24 @@ function Vouchers() {
     }
   };
 
+  /* ✅ FIX LOGIC HIỂN THỊ SỐ TIỀN */
   const renderValue = (v) => {
-    if (v.type === "percent") return `${v.value}%`;
-    if (v.type === "fixed") return `${v.value / 1000}k`;
-    if (v.type === "free_ship") return `FREE`;
-    return "";
+    if (v.type === "percent") {
+      return `${v.value}%`;
+    }
+    if (v.type === "fixed" || v.type === "free_ship") {
+      const val = Number(v.value);
+      if (v.type === "free_ship" && val === 0) return "FREE";
+
+      // Nếu số tiền >= 1000 thì hiển thị dạng 'k' (ví dụ 10k, 20k)
+      // Nếu < 1000 thì hiển thị số nguyên gốc
+      return val >= 1000 ? `${val / 1000}k` : `${val}đ`;
+    }
+    return v.value;
   };
 
   return (
     <div className="vouchers-premium-page">
-      {/* Nền động đồng bộ hệ thống */}
       <div className="dynamic-blobs">
         <div className="blob vb-blue"></div>
         <div className="blob vb-purple"></div>
@@ -93,13 +101,17 @@ function Vouchers() {
 
                     {v.type === "percent" && v.max_discount && (
                       <p className="max-info">
-                        Giảm tối đa: <b>{v.max_discount.toLocaleString()}đ</b>
+                        Giảm tối đa:{" "}
+                        <b>{Number(v.max_discount).toLocaleString()}đ</b>
                       </p>
                     )}
 
                     <div className="ticket-footer">
                       <span className="expiry">
-                        HSD: {v.end_date ? v.end_date : "Vô thời hạn"}
+                        HSD:{" "}
+                        {v.end_date
+                          ? new Date(v.end_date).toLocaleDateString("vi-VN")
+                          : "Vô thời hạn"}
                       </span>
                       <span className="stock">Còn lại: {v.quantity}</span>
                     </div>

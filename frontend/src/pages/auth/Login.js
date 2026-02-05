@@ -16,11 +16,9 @@ function Login() {
     try {
       const data = await login(email, password);
 
-      // ✅ GIỮ NGUYÊN
+      // ✅ GIỮ NGUYÊN LOGIC CŨ
       localStorage.setItem("token", data.token);
       localStorage.setItem("role", data.role);
-
-      // ✅ THÊM DUY NHẤT DÒNG NÀY
       localStorage.setItem("user", JSON.stringify(data.user));
 
       if (data.role === "ADMIN") {
@@ -36,8 +34,11 @@ function Login() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <h2>🔐 Đăng nhập</h2>
-        <p className="subtitle">Chào mừng bạn quay trở lại</p>
+        {/* Logo hoặc Icon trang trí */}
+        <div style={{ fontSize: "3rem", marginBottom: "10px" }}>🐯</div>
+
+        <h2>Đăng nhập</h2>
+        <p className="subtitle">Chào mừng bạn quay trở lại Tiger Shop</p>
 
         {error && <div className="error-msg">{error}</div>}
 
@@ -46,7 +47,7 @@ function Login() {
             <label>Email</label>
             <input
               type="email"
-              placeholder="Nhập email"
+              placeholder="Nhập email của bạn..."
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -57,18 +58,20 @@ function Login() {
             <label>Mật khẩu</label>
             <input
               type="password"
-              placeholder="Nhập mật khẩu"
+              placeholder="Nhập mật khẩu bí mật..."
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
           </div>
 
-          <button className="login-btn">Đăng nhập</button>
+          <button className="login-btn" type="submit">
+            Xác nhận đăng nhập
+          </button>
         </form>
 
         <p className="register-text">
-          Chưa có tài khoản? <Link to="/register">Đăng ký ngay</Link>
+          Chưa có tài khoản? <Link to="/register">Đăng ký thành viên ngay</Link>
         </p>
       </div>
     </div>
