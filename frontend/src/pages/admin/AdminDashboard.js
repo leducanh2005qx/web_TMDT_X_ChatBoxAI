@@ -7,28 +7,32 @@ function AdminDashboard() {
   const [categories, setCategories] = useState([]);
   const [editing, setEditing] = useState(null);
   const [image, setImage] = useState(null);
-
   const [form, setForm] = useState({
     name: "",
     price: "",
-    stock: "",
     category_id: "",
     description: "",
   });
-
   const token = localStorage.getItem("token");
 
-  /* ===== LOAD DATA ===== */
   const loadProducts = () => {
     fetch("http://localhost:5000/api/products")
-      .then((res) => res.json())
-      .then(setProducts);
+      .then((res) => {
+        if (!res.ok) throw new Error("Lỗi hệ thống server");
+        return res.json();
+      })
+      .then((data) => setProducts(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        console.error("Lỗi:", err);
+        setProducts([]);
+      });
   };
 
   const loadCategories = () => {
     fetch("http://localhost:5000/api/categories")
       .then((res) => res.json())
-      .then(setCategories);
+      .then((data) => setCategories(Array.isArray(data) ? data : []))
+      .catch((err) => console.error("Lỗi:", err));
   };
 
   useEffect(() => {
@@ -36,14 +40,11 @@ function AdminDashboard() {
     loadCategories();
   }, []);
 
-  /* ===== FORM ===== */
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
 
   const submit = (e) => {
     e.preventDefault();
-
     const formData = new FormData();
     Object.keys(form).forEach((k) => formData.append(k, form[k]));
     if (image) formData.append("image", image);
@@ -55,22 +56,38 @@ function AdminDashboard() {
 
     fetch(url, {
       method,
-      headers: {
-        Authorization: "Bearer " + token,
-      },
+      headers: { Authorization: "Bearer " + token },
       body: formData,
-    }).then(() => {
-      setForm({
-        name: "",
-        price: "",
-        stock: "",
-        category_id: "",
-        description: "",
-      });
-      setImage(null);
-      setEditing(null);
-      loadProducts();
-    });
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Thất bại");
+        setForm({ name: "", price: "", category_id: "", description: "" });
+        setImage(null);
+        setEditing(null);
+        loadProducts();
+        alert("Thành công!");
+      })
+      .catch((err) => alert(err.message));
+  };
+
+  const deleteProduct = (id) => {
+    if (
+      !window.confirm(
+        "Xoá sản phẩm này sẽ xóa tất cả các Size liên quan. Bạn chắc chắn?",
+      )
+    )
+      return;
+    fetch(`http://localhost:5000/api/products/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: "Bearer " + token },
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Lỗi xóa");
+        loadProducts();
+        alert("Đã xóa xong!");
+      })
+      .catch((err) => alert(err.message));
   };
 
   const editProduct = (p) => {
@@ -78,141 +95,176 @@ function AdminDashboard() {
     setForm({
       name: p.name,
       price: p.price,
-      stock: p.stock,
       category_id: p.category_id,
       description: p.description,
     });
-  };
-
-  const deleteProduct = (id) => {
-    if (!window.confirm("Xoá sản phẩm này?")) return;
-
-    fetch(`http://localhost:5000/api/products/${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: "Bearer " + token,
-      },
-    }).then(loadProducts);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
-    <div className="admin-dashboard">
-      <h1 className="dashboard-title">🛠 Quản lý sản phẩm</h1>
-
-      {/* ===== FORM ===== */}
-      <div className="product-form">
-        <h2>{editing ? "✏️ Sửa sản phẩm" : "➕ Thêm sản phẩm"}</h2>
-
-        <form onSubmit={submit}>
-          <input
-            name="name"
-            placeholder="Tên sản phẩm"
-            value={form.name}
-            onChange={handleChange}
-            required
-          />
-
-          <input
-            name="price"
-            placeholder="Giá"
-            value={form.price}
-            onChange={handleChange}
-            required
-          />
-
-          <input
-            name="stock"
-            placeholder="Số lượng"
-            value={form.stock}
-            onChange={handleChange}
-            required
-          />
-
-          <select
-            name="category_id"
-            value={form.category_id}
-            onChange={handleChange}
-            required
-          >
-            <option value="">-- Chọn danh mục --</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-
-          <textarea
-            name="description"
-            placeholder="Mô tả sản phẩm"
-            value={form.description}
-            onChange={handleChange}
-          />
-
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setImage(e.target.files[0])}
-          />
-
-          <button type="submit">
-            {editing ? "Cập nhật sản phẩm" : "Thêm sản phẩm"}
-          </button>
-        </form>
+    <div className="admin-dashboard-container">
+      <div className="dashboard-top-bar">
+        <div className="header-info">
+          <h1 className="main-title">📦 Quản trị kho TIGER SHOP</h1>
+        </div>
+        <div className="stat-card-mini">
+          <span className="stat-label">Tổng sản phẩm</span>
+          <span className="stat-value">{products.length}</span>
+        </div>
       </div>
 
-      {/* ===== VARIANT MANAGER (CHỈ HIỆN KHI SỬA) ===== */}
-      {editing && <AdminVariantManager productId={editing.id} />}
-
-      {/* ===== TABLE ===== */}
-      <div className="product-table">
-        <h2>📦 Danh sách sản phẩm</h2>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Ảnh</th>
-              <th>Tên</th>
-              <th>Danh mục</th>
-              <th>Giá</th>
-              <th>Tồn</th>
-              <th>Hành động</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {products.map((p) => (
-              <tr key={p.id}>
-                <td>
-                  <img
-                    src={`http://localhost:5000/${p.image}`}
-                    alt={p.name}
-                    className="thumb"
+      <div className="dashboard-layout-grid">
+        <div className="editor-aside">
+          <div className="card glass-card">
+            <h2 className="card-title">
+              {editing ? "✏️ Hiệu chỉnh" : "➕ Thêm mới"}
+            </h2>
+            <form className="modern-form" onSubmit={submit}>
+              <div className="form-group">
+                <label>Tên sản phẩm</label>
+                <input
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Giá</label>
+                  <input
+                    name="price"
+                    type="number"
+                    value={form.price}
+                    onChange={handleChange}
+                    required
                   />
-                </td>
-                <td>{p.name}</td>
-                <td>{p.category_name}</td>
-                <td>{p.price} đ</td>
-                <td>{p.stock}</td>
-                <td className="actions">
-                  <button onClick={() => editProduct(p)}>Sửa</button>
-                  <button
-                    className="danger"
-                    onClick={() => deleteProduct(p.id)}
+                </div>
+                <div className="form-group">
+                  <label>Danh mục</label>
+                  <select
+                    name="category_id"
+                    value={form.category_id}
+                    onChange={handleChange}
+                    required
                   >
-                    Xoá
+                    <option value="">Chọn nhóm</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Mô tả</label>
+                <textarea
+                  name="description"
+                  rows="3"
+                  value={form.description}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="form-group">
+                <label>Ảnh</label>
+                <input
+                  type="file"
+                  onChange={(e) => setImage(e.target.files[0])}
+                />
+              </div>
+              <div className="action-bar">
+                <button type="submit" className="btn-save">
+                  Lưu
+                </button>
+                {editing && (
+                  <button
+                    type="button"
+                    className="btn-discard"
+                    onClick={() => setEditing(null)}
+                  >
+                    Hủy
                   </button>
-                </td>
-              </tr>
-            ))}
+                )}
+              </div>
+            </form>
+          </div>
+          {editing && (
+            <AdminVariantManager
+              productId={editing.id}
+              onUpdate={loadProducts}
+            />
+          )}
+        </div>
 
-            {products.length === 0 && (
-              <tr>
-                <td colSpan="6">Chưa có sản phẩm</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <div className="table-main">
+          <div className="card table-card">
+            <h2 className="card-title">📦 Danh sách hàng tồn</h2>
+            <table className="modern-table">
+              <thead>
+                <tr>
+                  <th>Ảnh</th>
+                  <th>Thông tin</th>
+                  <th>Size & Kho</th>
+                  <th className="text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((p) => (
+                  <tr key={p.id} className="table-row">
+                    <td>
+                      <img
+                        src={`http://localhost:5000/${p.image}`}
+                        className="product-avatar"
+                        alt=""
+                      />
+                    </td>
+                    <td className="info-cell">
+                      <span className="p-name">{p.name}</span>
+                      <span className="p-cat">{p.category_name}</span>
+                      <span className="p-price">
+                        {Number(p.price).toLocaleString()}đ
+                      </span>
+                    </td>
+                    <td className="stock-cell">
+                      <div className="variant-badges-container">
+                        {p.variants?.length > 0 ? (
+                          p.variants.map((v, i) => (
+                            <div
+                              key={i}
+                              className={`size-badge ${v.stock === 0 ? "out" : ""}`}
+                            >
+                              {v.variant_name}:{" "}
+                              <span className="qty">{v.stock}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <span className="empty-stock-text">
+                            Chưa cấu hình Size
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="action-cell text-right">
+                      <button
+                        className="icon-btn edit"
+                        onClick={() => editProduct(p)}
+                      >
+                        Sửa
+                      </button>
+                      <button
+                        className="icon-btn delete"
+                        onClick={() => deleteProduct(p.id)}
+                      >
+                        Xoá
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );

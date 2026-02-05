@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
+import "./ChatPanel.css";
 
 const socket = io("http://localhost:5000");
 
@@ -14,14 +15,17 @@ function ChatPanel({ user }) {
 
     socket.emit("join_thread", user.threadId);
 
-    socket.on("new_message", (msg) => {
-      if (msg.threadId === user.threadId) {
+    const handleNewMessage = (msg) => {
+      // Ép kiểu String để so sánh chính xác threadId
+      if (String(msg.threadId) === String(user.threadId)) {
         setMessages((prev) => [...prev, msg]);
       }
-    });
+    };
+
+    socket.on("new_message", handleNewMessage);
 
     return () => {
-      socket.off("new_message");
+      socket.off("new_message", handleNewMessage);
     };
   }, [user]);
 
@@ -37,7 +41,8 @@ function ChatPanel({ user }) {
       .then((res) => res.json())
       .then((data) => {
         setMessages(Array.isArray(data) ? data : []);
-      });
+      })
+      .catch(() => setMessages([]));
   }, [user]);
 
   /* AUTO SCROLL */
@@ -48,64 +53,101 @@ function ChatPanel({ user }) {
   const sendMessage = () => {
     if (!text.trim()) return;
 
+    const currentText = text;
+    setText(""); // Clear ngay lập tức để UX mượt hơn
+
     fetch(`http://localhost:5000/api/chat/admin/messages/${user.threadId}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: "Bearer " + localStorage.getItem("token"),
       },
-      body: JSON.stringify({ content: text }),
+      body: JSON.stringify({ content: currentText }),
     }).then(() => {
-      // ✅ APPEND NGAY (KHÔNG ĐỢI SOCKET)
+      // Local append để Admin thấy tin nhắn của mình ngay
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now(),
           sender_role: "ADMIN",
-          message: text,
+          message: currentText,
           threadId: user.threadId,
         },
       ]);
-      setText("");
     });
   };
 
   if (!user) {
-    return <div className="chat-panel">👈 Chọn khách để chat</div>;
+    return (
+      <div className="chat-panel-empty">
+        <div className="empty-content">
+          <span>💬</span>
+          <p>Chọn một khách hàng để bắt đầu</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="chat-panel">
-      <div className="chat-header">
-        💬 Chat với <strong>{user.email}</strong>
+    <div className="chat-panel-premium">
+      {/* Header Panel */}
+      <div className="chat-header-premium">
+        <div className="user-avatar-mini">
+          {user.email?.charAt(0).toUpperCase()}
+        </div>
+        <div className="user-info-mini">
+          <h4>{user.email}</h4>
+          <span className="status-online">Đang trực tuyến</span>
+        </div>
       </div>
 
-      <div className="chat-messages">
-        {messages.length === 0 && (
-          <p style={{ color: "#6b7280" }}>Chưa có tin nhắn</p>
-        )}
+      {/* Messages Area */}
+      <div className="chat-messages-premium">
+        {messages.length === 0 ? (
+          <div className="no-chat-msg">Hãy bắt đầu cuộc hội thoại</div>
+        ) : (
+          messages.map((m) => {
+            // Xác định loại tin nhắn để render style tương ứng
+            const isSystem = m.sender_role === "SYSTEM";
+            const isAdmin = m.sender_role === "ADMIN";
 
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className={`chat-message ${
-              m.sender_role === "ADMIN" ? "admin" : "user"
-            }`}
-          >
-            {m.message}
-          </div>
-        ))}
+            return (
+              <div
+                key={m.id}
+                className={`msg-wrapper ${
+                  isSystem
+                    ? "system-side"
+                    : isAdmin
+                      ? "admin-side"
+                      : "user-side"
+                }`}
+              >
+                <div className="msg-bubble">
+                  {isSystem && (
+                    <span className="system-icon">🔔 Thông báo đơn hàng</span>
+                  )}
+                  <pre className="msg-text">{m.message}</pre>
+                </div>
+              </div>
+            );
+          })
+        )}
         <div ref={bottomRef} />
       </div>
 
-      <div className="chat-input">
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Nhập tin nhắn..."
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-        />
-        <button onClick={sendMessage}>Gửi</button>
+      {/* Input Area */}
+      <div className="chat-input-premium">
+        <div className="input-glass-box">
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Nhập nội dung phản hồi..."
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          />
+          <button className="btn-send-premium" onClick={sendMessage}>
+            GỬI
+          </button>
+        </div>
       </div>
     </div>
   );

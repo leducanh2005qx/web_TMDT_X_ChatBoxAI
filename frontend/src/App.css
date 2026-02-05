@@ -36,3 +36,19 @@
     transform: rotate(360deg);
   }
 }
+@keyframes bumpEffect {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3) rotate(-10deg);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.cart-icon-nav.bump {
+  animation: bumpEffect 0.3s ease-out;
+  color: #ee4d2d; /* Đổi màu nhẹ khi có đồ bay vào */
+}

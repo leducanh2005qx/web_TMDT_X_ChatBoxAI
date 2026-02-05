@@ -7,8 +7,9 @@ function ChatButton() {
 
   return (
     <>
-      <button className="chat-button" onClick={() => setOpen(!open)}>
-        💬
+      {/* Sử dụng class chat-fab để khớp với CSS Premium mới */}
+      <button className="chat-fab" onClick={() => setOpen(!open)}>
+        {open ? "✖" : "💬"}
       </button>
 
       {open && <ChatBox onClose={() => setOpen(false)} />}

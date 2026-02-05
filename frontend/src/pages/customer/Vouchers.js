@@ -21,75 +21,103 @@ function Vouchers() {
   }, []);
 
   const handleReceive = async (voucherId) => {
-    await receiveUserVoucher(voucherId);
-    alert("🎉 Nhận voucher thành công");
-    loadVouchers();
+    try {
+      await receiveUserVoucher(voucherId);
+      alert("🎉 Nhận voucher thành công! Mã đã được lưu vào kho của bạn.");
+      loadVouchers();
+    } catch (error) {
+      alert("Không thể nhận mã lúc này.");
+    }
   };
 
   const renderValue = (v) => {
-    if (v.type === "percent") return `Giảm ${v.value}%`;
-    if (v.type === "fixed") return `Giảm ${v.value.toLocaleString()} đ`;
-    if (v.type === "free_ship")
-      return `Free ship ${v.value.toLocaleString()} đ`;
+    if (v.type === "percent") return `${v.value}%`;
+    if (v.type === "fixed") return `${v.value / 1000}k`;
+    if (v.type === "free_ship") return `FREE`;
     return "";
   };
 
   return (
-    <div className="voucher-page">
-      <h2>🎁 Kho Voucher</h2>
+    <div className="vouchers-premium-page">
+      {/* Nền động đồng bộ hệ thống */}
+      <div className="dynamic-blobs">
+        <div className="blob vb-blue"></div>
+        <div className="blob vb-purple"></div>
+      </div>
 
-      {loading ? (
-        <p>Đang tải...</p>
-      ) : vouchers.length === 0 ? (
-        <p>Không có voucher khả dụng</p>
-      ) : (
-        <div className="voucher-grid">
-          {vouchers.map((v) => (
-            <div key={v.voucher_id} className={`voucher-card ${v.type}`}>
-              {/* LEFT */}
-              <div className="voucher-left">
-                <div className="voucher-value">{renderValue(v)}</div>
-                <div className="voucher-type">
-                  {v.type === "free_ship" ? "🚚 Free ship" : "🎁 Giảm giá"}
-                </div>
-              </div>
+      <div className="vouchers-wrapper">
+        <header className="vouchers-header-top">
+          <h2 className="premium-title">
+            KHO <span>VOUCHER</span>
+          </h2>
+          <p className="subtitle">Săn mã ưu đãi, mua sắm không lo về giá</p>
+        </header>
 
-              {/* RIGHT */}
-              <div className="voucher-right">
-                <div className="voucher-code">{v.code}</div>
-
-                <div className="voucher-info">
-                  <div>
-                    Đơn tối thiểu:{" "}
-                    <b>{(v.min_order_value || 0).toLocaleString()} đ</b>
+        {loading ? (
+          <div className="premium-loader-container">
+            <div className="premium-spinner"></div>
+            <p>Đang tìm kiếm ưu đãi...</p>
+          </div>
+        ) : vouchers.length === 0 ? (
+          <div className="empty-vouchers-glass">
+            <div className="empty-icon">🎟️</div>
+            <h3>Hiện chưa có mã giảm giá mới</h3>
+            <p>Tiger Shop sẽ sớm cập nhật thêm các chương trình khuyến mãi.</p>
+          </div>
+        ) : (
+          <div className="vouchers-grid-premium">
+            {vouchers.map((v) => (
+              <div
+                key={v.voucher_id}
+                className={`voucher-ticket-card ${v.type}`}
+              >
+                {/* LEFT: VALUE */}
+                <div className="ticket-left">
+                  <div className="value-box">
+                    <span className="val-text">{renderValue(v)}</span>
+                    <span className="off-text">
+                      {v.type === "free_ship" ? "SHIP" : "OFF"}
+                    </span>
                   </div>
+                  <div className="ticket-cut-circles"></div>
+                </div>
 
-                  {v.type === "percent" && v.max_discount && (
-                    <div>
-                      Giảm tối đa: <b>{v.max_discount.toLocaleString()} đ</b>
+                {/* RIGHT: DETAILS */}
+                <div className="ticket-right">
+                  <div className="ticket-content">
+                    <div className="code-badge">{v.code}</div>
+                    <p className="min-order">
+                      Đơn tối thiểu:{" "}
+                      <b>{(v.min_order_value || 0).toLocaleString()}đ</b>
+                    </p>
+
+                    {v.type === "percent" && v.max_discount && (
+                      <p className="max-info">
+                        Giảm tối đa: <b>{v.max_discount.toLocaleString()}đ</b>
+                      </p>
+                    )}
+
+                    <div className="ticket-footer">
+                      <span className="expiry">
+                        HSD: {v.end_date ? v.end_date : "Vô thời hạn"}
+                      </span>
+                      <span className="stock">Còn lại: {v.quantity}</span>
                     </div>
-                  )}
-
-                  <div>
-                    Hạn sử dụng:{" "}
-                    <b>{v.end_date ? v.end_date : "Không giới hạn"}</b>
                   </div>
 
-                  <div>Còn lại: {v.quantity}</div>
+                  <button
+                    className="btn-receive-voucher"
+                    disabled={v.quantity === 0}
+                    onClick={() => handleReceive(v.voucher_id)}
+                  >
+                    {v.quantity === 0 ? "HẾT MÃ" : "LƯU MÃ"}
+                  </button>
                 </div>
-
-                <button
-                  className="voucher-btn"
-                  disabled={v.quantity === 0}
-                  onClick={() => handleReceive(v.voucher_id)}
-                >
-                  {v.quantity === 0 ? "Hết" : "Nhận"}
-                </button>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

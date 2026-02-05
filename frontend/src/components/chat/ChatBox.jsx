@@ -6,58 +6,116 @@ import "./Chat.css";
 const socket = io("http://localhost:5000");
 
 function ChatBox({ onClose }) {
-  const userId = Number(localStorage.getItem("userId")); // 👈 lưu khi login
-  const role = localStorage.getItem("role");
-  const adminId = 1; // 👈 ID admin (cố định)
-  const receiverId = role === "ADMIN" ? userId : adminId;
-
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
+  const [threadId, setThreadId] = useState(null);
   const messagesEndRef = useRef(null);
 
+  // 1. Lấy thông tin Thread của riêng khách hàng này khi mở Chat
   useEffect(() => {
-    socket.emit("join", userId);
+    fetch(`http://localhost:5000/api/chat/my-thread`, {
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.id) {
+          setThreadId(data.id);
+          loadOldMessages(data.id);
+        }
+      })
+      .catch((err) => console.error("Lỗi lấy thread:", err));
+  }, []);
 
-    socket.on("receiveMessage", (msg) => {
-      setMessages((prev) => [...prev, msg]);
-    });
+  // 2. Load lịch sử tin nhắn (Bao gồm tin nhắn SYSTEM đơn hàng cũ)
+  const loadOldMessages = (id) => {
+    fetch(`http://localhost:5000/api/chat/messages/${id}`, {
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setMessages(Array.isArray(data) ? data : []);
+      });
+  };
 
-    return () => socket.off("receiveMessage");
-  }, [userId]);
+  // 3. Socket: Join Thread và lắng nghe tin nhắn mới Real-time
+  useEffect(() => {
+    if (!threadId) return;
 
+    // Join vào phòng chat riêng để nhận thông báo đơn hàng
+    socket.emit("join_thread", threadId);
+
+    const handleNewMessage = (msg) => {
+      // Chỉ nhận tin nhắn nếu đúng mã thread
+      if (String(msg.threadId) === String(threadId)) {
+        setMessages((prev) => [...prev, msg]);
+      }
+    };
+
+    socket.on("new_message", handleNewMessage);
+
+    return () => {
+      socket.off("new_message", handleNewMessage);
+    };
+  }, [threadId]);
+
+  // Tự động cuộn xuống cuối
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const sendMessage = () => {
-    if (!text.trim()) return;
+    if (!text.trim() || !threadId) return;
 
-    const msg = {
-      senderId: userId,
-      receiverId,
-      message: text,
-    };
-
-    socket.emit("sendMessage", msg);
-    setMessages((prev) => [...prev, msg]);
+    const currentText = text;
     setText("");
+
+    fetch(`http://localhost:5000/api/chat/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+      body: JSON.stringify({ threadId, content: currentText }),
+    }).then(() => {
+      // Local append để giao diện mượt mà hơn
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          sender_role: "USER",
+          message: currentText,
+          threadId: threadId,
+        },
+      ]);
+    });
   };
 
   return (
-    <div className="chat-box">
+    <div className="chat-panel">
       <div className="chat-header">
-        <span>💬 Chat với Shop</span>
-        <button onClick={onClose}>✖</button>
+        <div className="chat-title">
+          <span>🐯</span> Tiger Support
+        </div>
+        <div className="chat-sub">Chúng tôi thường phản hồi ngay lập tức</div>
+        <button className="close-btn" onClick={onClose}>
+          ✖
+        </button>
       </div>
 
-      <div className="chat-messages">
-        {messages.map((m, i) => (
-          <ChatMessage
-            key={i}
-            message={m.message}
-            isMe={m.senderId === userId}
-          />
-        ))}
+      <div className="chat-body">
+        {messages.length === 0 ? (
+          <div className="no-chat-msg">
+            Bắt đầu cuộc trò chuyện với chúng tôi...
+          </div>
+        ) : (
+          messages.map((m, i) => (
+            <ChatMessage
+              key={m.id || i}
+              message={m.message}
+              senderRole={m.sender_role} // Truyền role để xử lý hiển thị SYSTEM
+            />
+          ))
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -65,9 +123,10 @@ function ChatBox({ onClose }) {
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Nhập tin nhắn..."
+          placeholder="Nhập nội dung cần hỗ trợ..."
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
         />
-        <button onClick={sendMessage}>Gửi</button>
+        <button onClick={sendMessage}>GỬI</button>
       </div>
     </div>
   );

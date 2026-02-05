@@ -1,162 +1,214 @@
-/* ===== LAYOUT TỔNG ===== */
-.admin-chat-page {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  height: calc(100vh - 64px);
-  background: #f4f6fb;
+/* AdminChat.css */
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap");
+
+.admin-chat-premium-page {
+  min-height: 100vh;
+  background: #0f172a; /* Nền tối sâu */
+  font-family: "Plus Jakarta Sans", sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
 }
 
-/* ===== SIDEBAR ===== */
-.chat-sidebar {
-  background: #0f172a;
-  color: #e5e7eb;
-  padding: 16px;
-  overflow-y: auto;
+/* Các đốm màu chạy nền tạo chiều sâu */
+.dynamic-blobs .blob {
+  position: absolute;
+  filter: blur(80px);
+  z-index: 0;
+  border-radius: 50%;
+  opacity: 0.4;
+}
+.cb-blue {
+  width: 400px;
+  height: 400px;
+  background: #3b82f6;
+  top: -100px;
+  left: -100px;
+}
+.cb-purple {
+  width: 350px;
+  height: 350px;
+  background: #8b5cf6;
+  bottom: -50px;
+  right: -50px;
 }
 
-.user-list > div {
-  padding: 12px 14px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 14px;
-  margin-bottom: 8px;
-  transition: 0.2s;
-}
-
-.user-list > div:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.user-list > div.active {
-  background: #22c55e;
-  color: #022c22;
-  font-weight: 600;
-}
-
-/* ===== MAIN ===== */
-.chat-main {
+.admin-chat-wrapper {
   width: 100%;
-  height: 100%;
+  max-width: 1400px;
+  height: 85vh;
+  z-index: 10;
+  animation: fadeIn 0.8s ease-out;
 }
 
-/* ===== CHAT PANEL ===== */
-.chat-panel {
+.admin-chat-main-container {
   display: grid;
-  grid-template-columns: 1fr 360px; /* CHAT | ORDERS */
-  gap: 16px;
+  grid-template-columns: 320px 1fr 300px;
   height: 100%;
-  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
-/* ===== LEFT CHAT ===== */
-.chat-left {
+/* SIDEBAR - DANH SÁCH */
+.chat-sidebar-section {
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
 }
 
-/* HEADER */
-.chat-header {
-  font-size: 16px;
-  font-weight: 600;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e5e7eb;
+.sidebar-header-premium {
+  padding: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* MESSAGES */
-.chat-messages {
-  flex: 1;
-  background: #f8fafc;
-  margin: 12px 0;
-  padding: 12px;
-  border-radius: 12px;
-  overflow-y: auto;
+.sidebar-header-premium h3 {
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0;
 }
 
-.chat-message {
-  max-width: 70%;
-  padding: 10px 14px;
-  border-radius: 14px;
-  margin-bottom: 8px;
-  font-size: 14px;
-}
-
-.chat-message.user {
-  background: #e0f2fe;
-  border-bottom-left-radius: 4px;
-}
-
-.chat-message.admin {
-  background: #22c55e;
-  color: #022c22;
-  margin-left: auto;
-  border-bottom-right-radius: 4px;
-}
-
-/* INPUT */
-.chat-input {
-  display: flex;
-  gap: 10px;
-}
-
-.chat-input input {
-  flex: 1;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid #d1d5db;
-}
-
-.chat-input button {
-  padding: 10px 18px;
-  border-radius: 10px;
-  border: none;
-  background: #22c55e;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* ===== RIGHT ORDERS ===== */
-.chat-orders {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 16px;
-  overflow-y: auto;
-}
-
-.chat-orders h4 {
-  margin-bottom: 12px;
-}
-
-/* ORDER CARD */
-.order-card {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 12px;
-  margin-bottom: 10px;
-  background: #f9fafb;
-}
-
-.order-thumb {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  object-fit: cover;
-}
-
-.status {
+.count-label {
   display: inline-block;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+/* KHUNG CHAT CHÍNH */
+.chat-content-section {
+  display: flex;
+  flex-direction: column;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+/* INFO PANEL - PROFILE */
+.chat-info-section {
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.01);
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.user-profile-mini {
+  text-align: center;
+}
+
+.avatar-large {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 16px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 24px; /* Bo vuông kiểu iOS */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+}
+
+.user-profile-mini h4 {
+  color: #fff;
+  margin: 0 0 6px 0;
+  font-size: 1rem;
+}
+
+.tag-status {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.quick-actions-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quick-actions-admin .label {
+  color: #94a3b8;
+  font-size: 0.8rem;
   font-weight: 600;
 }
 
-.status.pending {
-  background: #fef3c7;
-  color: #92400e;
+.quick-actions-admin textarea {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px;
+  color: #fff;
+  font-family: inherit;
+  resize: none;
+  height: 100px;
+  outline: none;
+}
+
+.btn-view-order {
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  padding: 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.btn-view-order:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+}
+
+/* TRẠNG THÁI TRỐNG */
+.chat-placeholder-full {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #64748b;
+}
+
+.icon-pulse {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

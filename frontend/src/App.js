@@ -19,6 +19,7 @@ import ProductDetail from "./pages/customer/ProductDetail";
 import Cart from "./components/customer/Cart";
 import Profile from "./pages/customer/Profile";
 import Vouchers from "./pages/customer/Vouchers";
+import Wishlist from "./pages/customer/Wishlist"; // ✅ Thêm trang Wishlist
 
 /* ================= ADMIN ================= */
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -35,6 +36,18 @@ import ChatWidget from "./components/chat/ChatWidget";
 function App() {
   const [cart, setCart] = useState([]);
   const [search, setSearch] = useState("");
+
+  // ✅ LOGIC YÊU THÍCH SẢN PHẨM
+  const [wishlist, setWishlist] = useState([]);
+
+  const toggleWishlist = (product) => {
+    const isExist = wishlist.find((item) => item.id === product.id);
+    if (isExist) {
+      setWishlist(wishlist.filter((item) => item.id !== product.id));
+    } else {
+      setWishlist([...wishlist, product]);
+    }
+  };
 
   const location = useLocation();
   const path = location.pathname;
@@ -58,7 +71,12 @@ function App() {
           path="/home"
           element={
             <Layout cart={cart} onSearch={setSearch}>
-              <Home cart={cart} setCart={setCart} />
+              <Home
+                cart={cart}
+                setCart={setCart}
+                wishlist={wishlist}
+                toggleWishlist={toggleWishlist}
+              />
             </Layout>
           }
         />
@@ -67,7 +85,13 @@ function App() {
           path="/shop"
           element={
             <Layout cart={cart} onSearch={setSearch}>
-              <Shop cart={cart} setCart={setCart} keyword={search} />
+              <Shop
+                cart={cart}
+                setCart={setCart}
+                keyword={search}
+                wishlist={wishlist}
+                toggleWishlist={toggleWishlist}
+              />
             </Layout>
           }
         />
@@ -76,7 +100,12 @@ function App() {
           path="/product/:id"
           element={
             <Layout cart={cart} onSearch={setSearch}>
-              <ProductDetail cart={cart} setCart={setCart} />
+              <ProductDetail
+                cart={cart}
+                setCart={setCart}
+                wishlist={wishlist}
+                toggleWishlist={toggleWishlist}
+              />
             </Layout>
           }
         />
@@ -126,12 +155,21 @@ function App() {
           }
         />
 
-        {/* ✅ CUSTOMER VOUCHERS (NHẬN VOUCHER) */}
         <Route
           path="/vouchers"
           element={
             <Layout cart={cart}>
               <Vouchers />
+            </Layout>
+          }
+        />
+
+        {/* ✅ ROUTE DANH SÁCH YÊU THÍCH */}
+        <Route
+          path="/wishlist"
+          element={
+            <Layout cart={cart}>
+              <Wishlist wishlist={wishlist} toggleWishlist={toggleWishlist} />
             </Layout>
           }
         />
@@ -192,7 +230,6 @@ function App() {
           }
         />
 
-        {/* ✅ ADMIN VOUCHERS */}
         <Route
           path="/admin/vouchers"
           element={

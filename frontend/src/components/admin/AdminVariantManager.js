@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import "./AdminVariantManager.css";
 
-function AdminVariantManager({ productId }) {
+function AdminVariantManager({ productId, onUpdate }) {
+  // ✅ Nhận thêm onUpdate từ props
   const [variants, setVariants] = useState([]);
   const [variantName, setVariantName] = useState("");
   const [price, setPrice] = useState("");
@@ -42,7 +43,8 @@ function AdminVariantManager({ productId }) {
       setVariantName("");
       setPrice("");
       setStock("");
-      loadVariants();
+      loadVariants(); // Tải lại danh sách biến thể trong component này
+      if (onUpdate) onUpdate(); // ✅ QUAN TRỌNG: Báo cho AdminDashboard tải lại bảng sản phẩm
     });
   };
 
@@ -55,7 +57,10 @@ function AdminVariantManager({ productId }) {
       headers: {
         Authorization: "Bearer " + token,
       },
-    }).then(loadVariants);
+    }).then(() => {
+      loadVariants();
+      if (onUpdate) onUpdate(); // ✅ QUAN TRỌNG: Tải lại bảng sau khi xóa size
+    });
   };
 
   return (

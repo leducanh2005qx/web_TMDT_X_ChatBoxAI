@@ -1,4 +1,3 @@
-// frontend/src/services/chatApi.js
 const API = "http://localhost:5000/api";
 
 function authHeaders() {
@@ -9,27 +8,32 @@ function authHeaders() {
   };
 }
 
+// --- CUSTOMER APIs ---
+
 export async function getMyThread() {
-  const res = await fetch(`${API}/chat/thread`, { headers: authHeaders() });
+  const res = await fetch(`${API}/chat/my-thread`, { headers: authHeaders() });
   return res.json();
 }
 
-export async function getMyMessages() {
-  const res = await fetch(`${API}/chat/messages?limit=80`, {
-    headers: authHeaders(),
-  });
+export async function getMyMessages(threadId) {
+  // Nếu dùng ChatWidget cũ không truyền threadId, ta lấy mặc định của user
+  const url = threadId
+    ? `${API}/chat/admin/messages/${threadId}`
+    : `${API}/chat/messages`;
+  const res = await fetch(url, { headers: authHeaders() });
   return res.json();
 }
 
-export async function sendMyMessage(message, orderId = null) {
+export async function sendMyMessage(content, threadId) {
   const res = await fetch(`${API}/chat/messages`, {
     method: "POST",
     headers: authHeaders(),
-    body: JSON.stringify({ message, orderId }),
+    body: JSON.stringify({ content, threadId }),
   });
   return res.json();
 }
 
+// 🔥 Hàm bị thiếu gây ra lỗi Compile
 export async function getMyOrdersSummary() {
   const res = await fetch(`${API}/chat/orders-summary`, {
     headers: authHeaders(),
@@ -37,7 +41,8 @@ export async function getMyOrdersSummary() {
   return res.json();
 }
 
-// ADMIN
+// --- ADMIN APIs ---
+
 export async function adminListThreads() {
   const res = await fetch(`${API}/chat/admin/threads`, {
     headers: authHeaders(),
@@ -46,26 +51,24 @@ export async function adminListThreads() {
 }
 
 export async function adminGetThreadMessages(threadId) {
-  const res = await fetch(
-    `${API}/chat/admin/threads/${threadId}/messages?limit=120`,
-    {
-      headers: authHeaders(),
-    }
-  );
-  return res.json();
-}
-
-export async function adminSendMessage(threadId, message, orderId = null) {
-  const res = await fetch(`${API}/chat/admin/threads/${threadId}/messages`, {
-    method: "POST",
+  const res = await fetch(`${API}/chat/admin/messages/${threadId}`, {
     headers: authHeaders(),
-    body: JSON.stringify({ message, orderId }),
   });
   return res.json();
 }
 
+export async function adminSendMessage(threadId, content) {
+  const res = await fetch(`${API}/chat/admin/messages/${threadId}`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ content }),
+  });
+  return res.json();
+}
+
+// Hàm lấy tóm tắt đơn hàng cho Admin Panel
 export async function adminGetUserOrdersSummary(userId) {
-  const res = await fetch(`${API}/chat/admin/users/${userId}/orders-summary`, {
+  const res = await fetch(`${API}/chat/admin/orders/${userId}`, {
     headers: authHeaders(),
   });
   return res.json();

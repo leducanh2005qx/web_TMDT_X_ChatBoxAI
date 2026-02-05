@@ -7,15 +7,13 @@ require("dotenv").config();
 /* ================= ROUTES ================= */
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
-const productRoutes = require("./routes/productRoutes"); // ✅ ĐÃ SỬA LỖI TẠI ĐÂY
+const productRoutes = require("./routes/productRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const adminOrderRoutes = require("./routes/adminOrderRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const variantRoutes = require("./routes/variantRoutes");
 const voucherRoutes = require("./routes/voucherRoutes");
-
-// ✅ NEW: customer nhận voucher
 const userVoucherRoutes = require("./routes/userVoucherRoutes");
 
 /* ================= SOCKET ================= */
@@ -36,17 +34,16 @@ app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/variants", variantRoutes);
 app.use("/api/vouchers", voucherRoutes);
-
-// ✅ NEW: user vouchers (receive / my)
 app.use("/api/user-vouchers", userVoucherRoutes);
-
 app.use("/api/orders/admin", adminOrderRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/chat", chatRoutes);
 
 /* ================= SOCKET INIT ================= */
-initSocket(server);
+// Chỉnh sửa tại đây: Lưu io vào global
+const io = initSocket(server);
+global.io = io;
 
 /* ================= START SERVER ================= */
 const PORT = process.env.PORT || 5000;

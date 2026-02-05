@@ -141,3 +141,52 @@
   font-weight: 600;
   color: #2563eb;
 }
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Wishlist Badge */
+.wishlist-btn {
+  position: relative;
+  text-decoration: none;
+  font-size: 22px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.wishlist-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #ff4d4f;
+  color: white;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 50%;
+  font-weight: bold;
+}
+
+/* Cart Icon Transition cho hiệu ứng bay */
+.cart-icon-nav {
+  display: inline-block;
+  will-change: transform;
+}
+
+/* Reuse hiệu ứng rung bump đã viết trước đó */
+@keyframes bumpEffect {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3) rotate(-10deg);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.cart-icon-nav.bump {
+  animation: bumpEffect 0.3s ease-out;
+}

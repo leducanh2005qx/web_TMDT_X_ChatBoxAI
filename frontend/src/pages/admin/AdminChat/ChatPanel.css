@@ -1,109 +1,182 @@
-.chat-container {
-  display: flex;
-  height: 100%;
-  background: #f9fafb;
-}
-
-/* ===== CHAT ===== */
-.chat-panel {
-  flex: 1;
+.chat-panel-premium {
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #ddd;
+  height: 100%;
+  width: 100% !important; /* Quan trọng: Xóa bỏ giới hạn cũ */
+  background: transparent;
 }
 
-.chat-header {
-  padding: 12px;
-  font-weight: bold;
-  background: #2563eb;
-  color: white;
-}
-
-.chat-messages {
-  flex: 1;
-  padding: 12px;
-  overflow-y: auto;
-}
-
-.message {
-  max-width: 70%;
-  margin-bottom: 10px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  white-space: pre-line;
-}
-
-.message.me {
-  background: #2563eb;
-  color: white;
-  margin-left: auto;
-}
-
-.message.other {
-  background: #e5e7eb;
-  color: #111;
-}
-
-.message.system {
-  background: #fef3c7;
-  color: #92400e;
-  text-align: center;
-  margin: 10px auto;
-  font-size: 14px;
-}
-
-/* ===== INPUT ===== */
-.chat-input {
+/* --- HEADER --- */
+.chat-header-premium {
+  padding: 20px 30px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
-  padding: 10px;
-  border-top: 1px solid #ddd;
+  align-items: center;
+  gap: 15px;
 }
 
-.chat-input input {
+.user-avatar-mini {
+  width: 45px;
+  height: 45px;
+  background: #3b82f6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.2rem;
+}
+
+.user-info-mini h4 {
+  font-size: 1rem;
+  margin: 0;
+}
+.status-online {
+  font-size: 0.7rem;
+  color: #10b981;
+}
+
+/* --- MESSAGES AREA --- */
+.chat-messages-premium {
   flex: 1;
-  padding: 8px;
+  overflow-y: auto;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
-.chat-input button {
-  margin-left: 8px;
-  padding: 8px 16px;
-  background: #16a34a;
+.msg-wrapper {
+  display: flex;
+  width: 100%;
+}
+.msg-wrapper.admin-side {
+  justify-content: flex-end;
+}
+.msg-wrapper.user-side {
+  justify-content: flex-start;
+}
+
+.msg-bubble {
+  max-width: 60%;
+  padding: 12px 20px;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.admin-side .msg-bubble {
+  background: #3b82f6;
+  color: white;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 10px 20px rgba(59, 130, 246, 0.2);
+}
+
+.user-side .msg-bubble {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  border-bottom-left-radius: 4px;
+  backdrop-filter: blur(10px);
+}
+
+/* --- INPUT AREA --- */
+.chat-input-premium {
+  padding: 25px 30px;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.input-glass-box {
+  display: flex;
+  gap: 15px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px 8px 8px 20px;
+  border-radius: 100px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.input-glass-box input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: white;
+  outline: none;
+  font-size: 0.95rem;
+}
+
+.btn-send-premium {
+  background: #3b82f6;
   color: white;
   border: none;
+  padding: 10px 25px;
+  border-radius: 100px;
+  font-weight: 800;
   cursor: pointer;
+  transition: 0.3s;
 }
 
-/* ===== ORDERS ===== */
-.chat-orders {
-  width: 260px;
-  padding: 12px;
-  background: #fff;
+.btn-send-premium:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
 }
 
-.order-item {
-  border-bottom: 1px solid #eee;
-  padding: 8px 0;
-  font-size: 14px;
+.no-chat-msg {
+  text-align: center;
+  color: #64748b;
+  margin-top: 50px;
+  font-style: italic;
 }
 
-.order-item .status {
-  font-weight: bold;
+/* Tùy chỉnh thanh cuộn */
+.chat-messages-premium::-webkit-scrollbar {
+  width: 5px;
+}
+.chat-messages-premium::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+/* Container tin nhắn hệ thống (Căn giữa) */
+.msg-wrapper.system-side {
+  justify-content: center;
+  margin: 15px 0;
 }
 
-.status.pending {
-  color: orange;
-}
-.status.confirmed {
-  color: blue;
-}
-.status.completed {
-  color: green;
-}
-.status.cancelled {
-  color: red;
+.system-side .msg-bubble {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px dashed rgba(59, 130, 246, 0.4);
+  color: #93c5fd;
+  max-width: 80%;
+  text-align: left;
+  border-radius: 15px;
+  padding: 15px;
+  backdrop-filter: blur(5px);
 }
 
-.empty {
-  color: #777;
-  font-size: 14px;
+.system-icon {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #3b82f6;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Giữ định dạng xuống dòng của tin nhắn (Rất quan trọng cho đơn hàng) */
+.msg-text {
+  white-space: pre-wrap;
+  font-family: inherit;
+  margin: 0;
+}
+
+/* Các tin nhắn Admin/User giữ nguyên logic cũ của bạn */
+.admin-side .msg-bubble {
+  background: #3b82f6;
+  color: white;
+}
+
+.user-side .msg-bubble {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
 }

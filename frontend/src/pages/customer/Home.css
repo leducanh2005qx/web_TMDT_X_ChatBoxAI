@@ -1,54 +1,203 @@
-.home-hero {
-  height: 70vh;
-  background: linear-gradient(135deg, #3498db, #6dd5fa);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap");
+
+.home-premium-page {
+  min-height: 100vh;
+  background: #0f172a;
+  font-family: "Plus Jakarta Sans", sans-serif;
   color: white;
+  padding: 0 20px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.hero-content {
+/* --- DYNAMIC BACKGROUND --- */
+.dynamic-blobs .blob {
+  position: absolute;
+  filter: blur(140px);
+  z-index: 0;
+  opacity: 0.2;
+  animation: blobFloat 10s infinite alternate;
+}
+.hb-blue {
+  width: 600px;
+  height: 600px;
+  background: #3b82f6;
+  top: -10%;
+  left: -5%;
+}
+.hb-purple {
+  width: 500px;
+  height: 500px;
+  background: #a855f7;
+  bottom: -5%;
+  right: -5%;
+}
+
+@keyframes blobFloat {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(30px, 50px) scale(1.1);
+  }
+}
+
+/* --- HERO SECTION --- */
+.home-hero-section {
+  position: relative;
+  z-index: 10;
+  margin-top: 100px;
+  width: 100%;
+  max-width: 1000px;
   text-align: center;
 }
 
-.hero-content h1 {
-  font-size: 42px;
-  margin-bottom: 10px;
+.glass-hero-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 80px 40px;
+  border-radius: 50px;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.4);
 }
 
-.hero-content p {
-  font-size: 18px;
+.hero-badge {
+  display: inline-block;
+  padding: 8px 20px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #3b82f6;
+  border-radius: 100px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  margin-bottom: 25px;
+}
+
+.hero-main-title {
+  font-size: 5rem;
+  font-weight: 800;
+  letter-spacing: -3px;
   margin-bottom: 20px;
+  line-height: 0.9;
+}
+.hero-main-title span {
+  color: #3b82f6;
+  text-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
 }
 
-.hero-btn {
-  padding: 14px 28px;
-  font-size: 16px;
-  background: white;
-  color: #3498db;
-  border: none;
-  border-radius: 30px;
-  cursor: pointer;
-  font-weight: 600;
+.hero-subtitle {
+  color: #94a3b8;
+  font-size: 1.2rem;
+  max-width: 600px;
+  margin: 0 auto 40px;
+  line-height: 1.6;
 }
 
-.hero-btn:hover {
-  background: #ecf0f1;
-}
-
-/* ===== INFO ===== */
-.home-info {
+/* --- BUTTONS --- */
+.hero-actions {
   display: flex;
-  justify-content: center;
   gap: 20px;
-  padding: 40px;
-  background: #f4f6f9;
+  justify-content: center;
 }
 
-.info-card {
+.btn-primary-glow {
   background: white;
-  padding: 20px 30px;
-  border-radius: 10px;
-  font-size: 16px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  color: black;
+  border: none;
+  padding: 18px 40px;
+  border-radius: 20px;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: 0.4s;
+}
+.btn-primary-glow:hover {
+  background: #3b82f6;
+  color: white;
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(59, 130, 246, 0.4);
+}
+
+.btn-secondary-glass {
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 18px 40px;
+  border-radius: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.3s;
+}
+.btn-secondary-glass:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* --- INFO GRID --- */
+.home-info-grid {
+  position: relative;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 60px 0 100px;
+}
+
+.info-glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 30px;
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transition: 0.4s;
+}
+.info-glass-card:hover {
+  transform: translateY(-10px);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.info-icon {
+  font-size: 2.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  width: 70px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+}
+
+.info-text h4 {
+  font-size: 1.1rem;
+  margin-bottom: 5px;
+  font-weight: 700;
+}
+.info-text p {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 968px) {
+  .home-info-grid {
+    grid-template-columns: 1fr;
+  }
+  .hero-main-title {
+    font-size: 3.5rem;
+  }
+  .hero-actions {
+    flex-direction: column;
+  }
+  .glass-hero-card {
+    padding: 50px 20px;
+  }
 }

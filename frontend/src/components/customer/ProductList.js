@@ -19,8 +19,14 @@ function ProductList({ cart, setCart }) {
   };
 
   const increase = (product) => {
-    const exist = cart.find((i) => i.id === product.id);
+    // Kiểm tra tồn kho trước khi cho phép tăng
+    const currentQty = getQuantity(product.id);
+    if (currentQty >= product.stock) {
+      alert("Đã đạt giới hạn tồn kho!");
+      return;
+    }
 
+    const exist = cart.find((i) => i.id === product.id);
     if (exist) {
       setCart(
         cart.map((i) =>
@@ -50,63 +56,68 @@ function ProductList({ cart, setCart }) {
   const goDetail = (pid) => navigate(`/product/${pid}`);
 
   return (
-    <div className="product-grid">
-      {products.map((p) => (
-        <div
-          className="product-card"
-          key={p.id}
-          role="button"
-          tabIndex={0}
-          onClick={() => goDetail(p.id)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") goDetail(p.id);
-          }}
-        >
-          <div className="product-image">
-            <img
-              src={`http://localhost:5000/${p.image}`}
-              alt={p.name}
-              onError={(e) => {
-                e.target.src = "/no-image.png";
-              }}
-            />
-          </div>
+    <div className="product-list-container">
+      <div className="product-grid">
+        {products.map((p) => {
+          const qty = getQuantity(p.id);
+          const isOut = p.stock <= 0;
 
-          <div className="product-info">
-            <h4 className="product-title">{p.name}</h4>
-
-            <p className="product-price">
-              {Number(p.price).toLocaleString()} đ
-            </p>
-
-            {/* ✅ chặn click lan lên card để không navigate */}
+          return (
             <div
-              className="quantity-control"
-              onClick={(e) => e.stopPropagation()}
+              key={p.id}
+              className={`product-card ${isOut ? "sold-out" : ""}`}
             >
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  decrease(p);
-                }}
-              >
-                −
-              </button>
+              {/* IMAGE SECTION */}
+              <div className="card-media" onClick={() => goDetail(p.id)}>
+                <img
+                  src={`http://localhost:5000/${p.image}`}
+                  alt={p.name}
+                  onError={(e) => (e.target.src = "/no-image.png")}
+                />
+                {isOut && <div className="media-overlay">Hết hàng</div>}
+                {qty > 0 && <div className="qty-badge">{qty}</div>}
+              </div>
 
-              <span>{getQuantity(p.id)}</span>
+              {/* INFO SECTION */}
+              <div className="card-body">
+                <h4 className="card-title" onClick={() => goDetail(p.id)}>
+                  {p.name}
+                </h4>
+                <div className="card-price">
+                  {Number(p.price).toLocaleString()} <small>đ</small>
+                </div>
 
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  increase(p);
-                }}
-              >
-                +
-              </button>
+                {/* QUANTITY CONTROL */}
+                <div
+                  className="card-actions"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {qty === 0 ? (
+                    <button
+                      className="btn-add-initial"
+                      disabled={isOut}
+                      onClick={() => increase(p)}
+                    >
+                      {isOut ? "Tạm hết" : "Thêm vào giỏ"}
+                    </button>
+                  ) : (
+                    <div className="qty-stepper">
+                      <button onClick={() => decrease(p)}>−</button>
+                      <span className="qty-val">{qty}</span>
+                      <button
+                        onClick={() => increase(p)}
+                        disabled={qty >= p.stock}
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      ))}
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -1,157 +1,248 @@
-/* ================= PAGE ================= */
-.voucher-page {
-  padding: 32px;
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap");
+
+.vouchers-premium-page {
+  min-height: 100vh;
+  background: #0f172a;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  color: white;
+  padding: 80px 20px;
+  position: relative;
+  overflow: hidden;
 }
 
-.voucher-page h2 {
-  font-size: 26px;
+/* Hiệu ứng nền đồng bộ các trang khác */
+.dynamic-blobs .blob {
+  position: absolute;
+  filter: blur(120px);
+  z-index: 0;
+  opacity: 0.15;
+}
+.vb-blue {
+  width: 500px;
+  height: 500px;
+  background: #3b82f6;
+  top: -10%;
+  left: -5%;
+}
+.vb-purple {
+  width: 450px;
+  height: 450px;
+  background: #a855f7;
+  bottom: 5%;
+  right: -5%;
+}
+
+.vouchers-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 10;
+}
+
+.vouchers-header-top {
+  text-align: center;
+  margin-bottom: 50px;
+}
+.premium-title {
+  font-size: 2.8rem;
   font-weight: 800;
-  margin-bottom: 24px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  letter-spacing: -1px;
+}
+.premium-title span {
+  color: #3b82f6;
+}
+.subtitle {
+  color: #94a3b8;
+  margin-top: 5px;
 }
 
-/* ================= GRID ================= */
-.voucher-grid {
+/* Grid Layout */
+.vouchers-grid-premium {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-  gap: 24px;
+  gap: 25px;
 }
 
-/* ================= CARD ================= */
-.voucher-card {
+/* Voucher Ticket Design */
+.voucher-ticket-card {
   display: flex;
-  background: #ffffff;
-  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  height: 160px;
   overflow: hidden;
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.08);
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: 0.3s;
 }
 
-.voucher-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+.voucher-ticket-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(59, 130, 246, 0.4);
 }
 
-/* ================= LEFT ================= */
-.voucher-left {
-  width: 150px;
-  color: #ffffff;
-  padding: 18px;
+/* Left side (Coupon Value) */
+.ticket-left {
+  width: 120px;
+  background: #3b82f6;
   display: flex;
-  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 10px;
+  position: relative;
+}
+
+.voucher-ticket-card.free_ship .ticket-left {
+  background: #10b981;
+}
+.voucher-ticket-card.fixed .ticket-left {
+  background: #f59e0b;
+}
+
+.value-box {
   text-align: center;
+  color: white;
+}
+.val-text {
+  display: block;
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+.off-text {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 2px;
 }
 
-.voucher-value {
-  font-size: 22px;
-  font-weight: 900;
-  line-height: 1.2;
-}
-
-.voucher-type {
-  font-size: 14px;
-  font-weight: 600;
-  opacity: 0.95;
-}
-
-/* ================= RIGHT ================= */
-.voucher-right {
-  flex: 1;
-  padding: 18px 20px;
+/* Các đường cắt hình bán nguyệt của ticket */
+.ticket-cut-circles {
+  position: absolute;
+  right: -8px;
+  top: 0;
+  bottom: 0;
+  width: 16px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: space-around;
+}
+.ticket-cut-circles::before,
+.ticket-cut-circles::after {
+  content: "";
+  width: 16px;
+  height: 16px;
+  background: #0f172a;
+  border-radius: 50%;
 }
 
-.voucher-code {
-  font-size: 18px;
-  font-weight: 800;
-  color: #111827;
-}
-
-.voucher-info {
-  margin-top: 8px;
-  font-size: 13px;
-  color: #4b5563;
-  line-height: 1.7;
-}
-
-.voucher-info div {
+/* Right side (Details) */
+.ticket-right {
+  flex: 1;
+  padding: 20px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
 }
 
-.voucher-info b {
-  color: #111827;
+.ticket-content {
+  flex: 1;
+}
+.code-badge {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #3b82f6;
+  display: inline-block;
+  margin-bottom: 10px;
 }
 
-/* ================= BUTTON ================= */
-.voucher-btn {
-  align-self: flex-end;
-  padding: 9px 20px;
-  border-radius: 999px;
+.min-order,
+.max-info {
+  font-size: 0.85rem;
+  color: #cbd5e1;
+  margin-bottom: 4px;
+}
+.min-order b,
+.max-info b {
+  color: white;
+}
+
+.ticket-footer {
+  display: flex;
+  gap: 15px;
+  margin-top: 10px;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+/* Button Lưu Mã */
+.btn-receive-voucher {
+  background: white;
+  color: black;
   border: none;
+  padding: 10px 20px;
+  border-radius: 12px;
   font-weight: 800;
-  font-size: 14px;
+  font-size: 0.8rem;
   cursor: pointer;
-  transition:
-    background 0.2s ease,
-    transform 0.15s ease;
+  transition: 0.3s;
 }
-
-.voucher-btn:hover:not(:disabled) {
-  transform: scale(1.05);
+.btn-receive-voucher:hover {
+  background: #3b82f6;
+  color: white;
+  box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
 }
-
-.voucher-btn:disabled {
-  background: #e5e7eb !important;
-  color: #9ca3af !important;
+.btn-receive-voucher:disabled {
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
-/* ================= TYPES ================= */
-
-/* 🎁 GIẢM GIÁ (%) + FIXED */
-.voucher-card.percent .voucher-left,
-.voucher-card.fixed .voucher-left {
-  background: linear-gradient(135deg, #2563eb, #1e40af);
-}
-
-.voucher-card.percent .voucher-btn,
-.voucher-card.fixed .voucher-btn {
-  background: #2563eb;
-  color: #ffffff;
-}
-
-.voucher-card.percent .voucher-btn:hover,
-.voucher-card.fixed .voucher-btn:hover {
-  background: #1e40af;
-}
-
-/* 🚚 FREESHIP */
-.voucher-card.free_ship .voucher-left {
-  background: linear-gradient(135deg, #16a34a, #15803d);
-}
-
-.voucher-card.free_ship .voucher-btn {
-  background: #16a34a;
-  color: #ffffff;
-}
-
-.voucher-card.free_ship .voucher-btn:hover {
-  background: #15803d;
-}
-
-/* ================= EMPTY ================= */
-.voucher-empty {
-  font-size: 15px;
-  color: #6b7280;
+/* Empty State */
+.empty-vouchers-glass {
   text-align: center;
-  padding: 40px 0;
+  padding: 80px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border-radius: 30px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+.empty-icon {
+  font-size: 5rem;
+  margin-bottom: 20px;
+}
+
+/* Loading */
+.premium-loader-container {
+  text-align: center;
+  padding: 100px;
+}
+.premium-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(59, 130, 246, 0.1);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 600px) {
+  .vouchers-grid-premium {
+    grid-template-columns: 1fr;
+  }
+  .voucher-ticket-card {
+    height: auto;
+    flex-direction: column;
+  }
+  .ticket-left {
+    width: 100%;
+    height: 60px;
+  }
+  .ticket-cut-circles {
+    display: none;
+  }
 }
