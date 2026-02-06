@@ -7,6 +7,13 @@ function Checkout({ cart, setCart }) {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // ✅ Thông tin ngân hàng MB của bạn đã được cập nhật
+  const MY_BANK = {
+    BANK_ID: "MB",
+    ACCOUNT_NO: "3616042005888",
+    ACCOUNT_NAME: "LE DINH DUC ANH",
+  };
+
   const checkoutItems = useMemo(() => {
     const items = location.state?.checkoutItems || cart || [];
     return Array.isArray(items) ? items : [];
@@ -14,17 +21,12 @@ function Checkout({ cart, setCart }) {
 
   const [address, setAddress] = useState("");
   const [vouchers, setVouchers] = useState([]);
-
-  // ✅ Quản lý đồng thời 2 loại Voucher
   const [selectedVouchers, setSelectedVouchers] = useState({
-    item: null, // Lưu voucher giảm giá (percent/fixed)
-    shipping: null, // Lưu voucher freeship
+    item: null,
+    shipping: null,
   });
-
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [city, setCity] = useState("");
-
-  /* ================= CALCULATION LOGIC ================= */
 
   const subtotal = useMemo(() => {
     return checkoutItems.reduce(
@@ -40,30 +42,25 @@ function Checkout({ cart, setCart }) {
     return rates[city] || rates["Khác"];
   }, [city, subtotal]);
 
-  // ✅ Logic tính toán giảm giá cộng dồn
   const { itemDiscount, shippingDiscount } = useMemo(() => {
-    let iDiscount = 0;
-    let sDiscount = 0;
-
-    // 1. Tính giảm giá hàng
+    let iDiscount = 0,
+      sDiscount = 0;
     if (selectedVouchers.item) {
       const v = selectedVouchers.item;
-      if (v.type === "percent") {
-        iDiscount = Math.min(
-          Math.floor((subtotal * Number(v.value || 0)) / 100),
-          Number(v.max_discount || Infinity),
-        );
-      } else {
-        iDiscount = Number(v.value || 0);
-      }
+      iDiscount =
+        v.type === "percent"
+          ? Math.min(
+              Math.floor((subtotal * Number(v.value || 0)) / 100),
+              Number(v.max_discount || Infinity),
+            )
+          : Number(v.value || 0);
     }
-
-    // 2. Tính giảm phí ship
     if (selectedVouchers.shipping) {
-      const v = selectedVouchers.shipping;
-      sDiscount = Math.min(originalShippingFee, Number(v.value || 0));
+      sDiscount = Math.min(
+        originalShippingFee,
+        Number(selectedVouchers.shipping.value || 0),
+      );
     }
-
     return { itemDiscount: iDiscount, shippingDiscount: sDiscount };
   }, [selectedVouchers, subtotal, originalShippingFee]);
 
@@ -71,7 +68,8 @@ function Checkout({ cart, setCart }) {
   const finalSubtotal = Math.max(subtotal - itemDiscount, 0);
   const finalTotal = finalSubtotal + finalShippingFee;
 
-  /* ================= EFFECTS & HANDLERS ================= */
+  // ✅ Tạo link QR tự động điền số tiền và nội dung chuyển khoản
+  const qrCodeUrl = `https://img.vietqr.io/image/${MY_BANK.BANK_ID}-${MY_BANK.ACCOUNT_NO}-compact2.png?amount=${finalTotal}&addInfo=TigerShop%20ThanhToan&accountName=${MY_BANK.ACCOUNT_NAME}`;
 
   useEffect(() => {
     getMyVouchers().then((data) =>
@@ -82,18 +80,13 @@ function Checkout({ cart, setCart }) {
   const handleApplyVoucher = (id) => {
     if (!id) return;
     const v = vouchers.find((x) => x.voucher_id === Number(id));
-    if (!v) return;
-
-    if (v.type === "free_ship") {
-      setSelectedVouchers((prev) => ({ ...prev, shipping: v }));
-    } else {
-      setSelectedVouchers((prev) => ({ ...prev, item: v }));
-    }
+    if (v?.type === "free_ship")
+      setSelectedVouchers((p) => ({ ...p, shipping: v }));
+    else setSelectedVouchers((p) => ({ ...p, item: v }));
   };
 
-  const removeVoucher = (type) => {
-    setSelectedVouchers((prev) => ({ ...prev, [type]: null }));
-  };
+  const removeVoucher = (type) =>
+    setSelectedVouchers((p) => ({ ...p, [type]: null }));
 
   const handleCheckout = async () => {
     if (checkoutItems.length === 0)
@@ -101,7 +94,6 @@ function Checkout({ cart, setCart }) {
     if (!address.trim() || !city)
       return alert("Vui lòng nhập địa chỉ và chọn Tỉnh/Thành phố");
 
-    // Lấy danh sách ID các voucher được sử dụng
     const appliedVoucherIds = [
       selectedVouchers.item?.voucher_id,
       selectedVouchers.shipping?.voucher_id,
@@ -112,7 +104,7 @@ function Checkout({ cart, setCart }) {
         items: checkoutItems,
         total: finalTotal,
         shipping_address: `${address.trim()}, ${city}`,
-        voucher_ids: appliedVoucherIds, // Gửi mảng ID thay vì 1 ID duy nhất
+        voucher_ids: appliedVoucherIds,
         payment_method: paymentMethod,
       });
       alert("🎉 Đặt hàng thành công!");
@@ -136,24 +128,23 @@ function Checkout({ cart, setCart }) {
       <div className="checkout-wrapper">
         <header className="checkout-main-header">
           <h1 className="premium-title">
-            THANH TOÁN <span>PREMIUM</span>
+            THANH TOÁN <span>TIGER SHOP</span>
           </h1>
-          <p className="subtitle">Áp dụng voucher cộng dồn ưu đãi tối đa</p>
+          <p className="subtitle">Hệ thống quét mã chuyển khoản nhanh 24/7</p>
         </header>
 
         <div className="checkout-grid">
           <div className="checkout-left-panel">
-            {/* Địa chỉ */}
             <section className="glass-section">
-              <h3 className="section-title">📍 Thông tin nhận hàng</h3>
+              <h3 className="section-title">📍 Địa chỉ nhận hàng</h3>
               <div className="form-group-premium">
-                <label>Tỉnh / Thành phố</label>
+                <label>Khu vực vận chuyển</label>
                 <select
                   className="premium-input"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                 >
-                  <option value="">-- Chọn khu vực tính phí ship --</option>
+                  <option value="">-- Chọn Tỉnh / Thành phố --</option>
                   <option value="Hà Nội">Hà Nội (Ship 20k)</option>
                   <option value="TP Hồ Chí Minh">
                     TP Hồ Chí Minh (Ship 35k)
@@ -162,20 +153,19 @@ function Checkout({ cart, setCart }) {
                 </select>
               </div>
               <div className="form-group-premium">
-                <label>Địa chỉ chi tiết</label>
+                <label>Số nhà, tên đường</label>
                 <textarea
                   className="premium-input"
-                  placeholder="Số nhà, tên đường, phường/xã..."
+                  placeholder="Ví dụ: 123 Đường ABC, Phường X..."
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                 />
               </div>
             </section>
 
-            {/* Sản phẩm */}
             <section className="glass-section">
               <h3 className="section-title">
-                📦 Sản phẩm ({checkoutItems.length})
+                📦 Danh sách sản phẩm ({checkoutItems.length})
               </h3>
               <div className="checkout-items-scroll">
                 {checkoutItems.map((i) => (
@@ -192,9 +182,7 @@ function Checkout({ cart, setCart }) {
                       <p className="qty-tag">Số lượng: {i.quantity}</p>
                     </div>
                     <div className="item-price">
-                      {(
-                        Number(i.price || 0) * Number(i.quantity || 0)
-                      ).toLocaleString()}{" "}
+                      {(Number(i.price) * Number(i.quantity)).toLocaleString()}{" "}
                       đ
                     </div>
                   </div>
@@ -205,167 +193,104 @@ function Checkout({ cart, setCart }) {
 
           <div className="checkout-right-panel">
             <div className="sticky-checkout-summary">
-              {/* ✅ VOUCHER SELECTION (CHỌN CỘNG DỒN) */}
               <section className="glass-section mini">
-                <h3 className="section-title">🎁 Voucher ưu đãi</h3>
-
-                {/* Hiển thị các mã đã áp dụng */}
-                <div
-                  style={{
-                    marginBottom: "12px",
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "8px",
-                  }}
-                >
+                <h3 className="section-title">🎁 Voucher áp dụng</h3>
+                <div className="v-applied-container">
                   {selectedVouchers.item && (
-                    <div
-                      style={{
-                        background: "#2563eb",
-                        color: "white",
-                        padding: "4px 10px",
-                        borderRadius: "8px",
-                        fontSize: "0.8rem",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      🎟️ Giảm giá: {selectedVouchers.item.code}
-                      <span
-                        onClick={() => removeVoucher("item")}
-                        style={{
-                          cursor: "pointer",
-                          fontWeight: "bold",
-                          padding: "0 4px",
-                        }}
-                      >
-                        ×
-                      </span>
+                    <div className="v-tag item">
+                      🎟️ {selectedVouchers.item.code}{" "}
+                      <span onClick={() => removeVoucher("item")}>×</span>
                     </div>
                   )}
                   {selectedVouchers.shipping && (
-                    <div
-                      style={{
-                        background: "#10b981",
-                        color: "white",
-                        padding: "4px 10px",
-                        borderRadius: "8px",
-                        fontSize: "0.8rem",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      🚚 Freeship: {selectedVouchers.shipping.code}
-                      <span
-                        onClick={() => removeVoucher("shipping")}
-                        style={{
-                          cursor: "pointer",
-                          fontWeight: "bold",
-                          padding: "0 4px",
-                        }}
-                      >
-                        ×
-                      </span>
+                    <div className="v-tag ship">
+                      🚚 {selectedVouchers.shipping.code}{" "}
+                      <span onClick={() => removeVoucher("shipping")}>×</span>
                     </div>
                   )}
                 </div>
-
                 <select
                   className="premium-input voucher"
                   onChange={(e) => handleApplyVoucher(e.target.value)}
                   value=""
                 >
-                  <option value="">+ Thêm mã ưu đãi / Freeship</option>
-                  {vouchers.map((v) => {
-                    const isApplied =
-                      selectedVouchers.item?.voucher_id === v.voucher_id ||
-                      selectedVouchers.shipping?.voucher_id === v.voucher_id;
-                    return (
-                      <option
-                        key={v.voucher_id}
-                        value={v.voucher_id}
-                        disabled={
-                          isApplied || subtotal < Number(v.min_order_value || 0)
-                        }
-                      >
-                        {isApplied
-                          ? `[Đã áp dụng] ${v.code}`
-                          : `${v.code} (${v.type === "free_ship" ? "Freeship" : "Giảm hàng"})`}
-                      </option>
-                    );
-                  })}
+                  <option value="">+ Chọn mã giảm giá hoặc Freeship</option>
+                  {vouchers.map((v) => (
+                    <option
+                      key={v.voucher_id}
+                      value={v.voucher_id}
+                      disabled={subtotal < Number(v.min_order_value || 0)}
+                    >
+                      {v.code} -{" "}
+                      {v.type === "free_ship"
+                        ? "Miễn phí vận chuyển"
+                        : "Giảm giá đơn hàng"}
+                    </option>
+                  ))}
                 </select>
               </section>
 
-              {/* Thanh toán */}
-              <section className="glass-section mini">
-                <h3 className="section-title">💳 Thanh toán</h3>
+              <section className="glass-section mini payment-box">
+                <h3 className="section-title">💳 Phương thức thanh toán</h3>
                 <div className="payment-grid">
                   <button
                     className={`pay-btn ${paymentMethod === "cod" ? "active" : ""}`}
                     onClick={() => setPaymentMethod("cod")}
                   >
-                    COD
+                    Tiền mặt (COD)
                   </button>
                   <button
                     className={`pay-btn ${paymentMethod === "qr" ? "active" : ""}`}
                     onClick={() => setPaymentMethod("qr")}
                   >
-                    Banking QR
+                    Chuyển khoản QR
                   </button>
                 </div>
+
+                {paymentMethod === "qr" && (
+                  <div className="qr-display-area">
+                    <div className="qr-card">
+                      <img src={qrCodeUrl} alt="Mã QR VietQR" />
+                      <div className="scan-line"></div>
+                    </div>
+                    <p className="qr-hint">Quét bằng App Ngân hàng hoặc MoMo</p>
+                    <div className="qr-total-amount">
+                      Cần thanh toán: {finalTotal.toLocaleString()} đ
+                    </div>
+                  </div>
+                )}
               </section>
 
-              {/* Tổng kết tiền */}
               <section className="glass-section final-summary">
                 <div className="calc-row">
                   <span>Tạm tính</span>
                   <span>{subtotal.toLocaleString()} đ</span>
                 </div>
-
                 <div className="calc-row">
-                  <span>Phí vận chuyển</span>
-                  <div style={{ textAlign: "right" }}>
-                    {shippingDiscount > 0 && (
-                      <div
-                        style={{
-                          fontSize: "0.85rem",
-                          color: "#60a5fa",
-                          textDecoration: "line-through",
-                        }}
-                      >
-                        {originalShippingFee.toLocaleString()} đ
-                      </div>
-                    )}
-                    <span>
-                      {finalShippingFee === 0
-                        ? "Miễn phí"
-                        : `${finalShippingFee.toLocaleString()} đ`}
-                    </span>
-                  </div>
+                  <span>Vận chuyển</span>
+                  <span>
+                    {finalShippingFee === 0
+                      ? "Miễn phí"
+                      : `${finalShippingFee.toLocaleString()} đ`}
+                  </span>
                 </div>
-
                 {itemDiscount > 0 && (
                   <div className="calc-row discount">
                     <span>Giảm giá hàng</span>
                     <span>- {itemDiscount.toLocaleString()} đ</span>
                   </div>
                 )}
-
                 <div className="total-divider"></div>
                 <div className="calc-row total">
-                  <span>Tổng cộng</span>
+                  <span>Tổng thanh toán</span>
                   <span className="price">{finalTotal.toLocaleString()} đ</span>
                 </div>
-
                 <button
                   className="btn-confirm-order"
                   onClick={handleCheckout}
                   disabled={checkoutItems.length === 0}
                 >
-                  XÁC NHẬN ĐẶT HÀNG
+                  HOÀN TẤT ĐẶT HÀNG
                 </button>
               </section>
             </div>

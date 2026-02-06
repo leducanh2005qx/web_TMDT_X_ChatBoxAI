@@ -284,3 +284,87 @@ textarea.premium-input {
     position: static;
   }
 }
+/* ... giữ nguyên các phần CSS cũ ... */
+
+.qr-display-area {
+  margin-top: 15px;
+  text-align: center;
+  background: #fcfcfc;
+  padding: 15px;
+  border-radius: 12px;
+  border: 1px solid #edf2f7;
+}
+
+.qr-card {
+  position: relative;
+  width: 170px;
+  margin: 0 auto;
+  padding: 8px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.qr-card img {
+  width: 100%;
+  display: block;
+}
+
+.scan-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #2563eb;
+  animation: qr-scan 2.5s infinite linear;
+  box-shadow: 0 0 8px #2563eb;
+}
+
+@keyframes qr-scan {
+  0% {
+    top: 0;
+  }
+  100% {
+    top: 100%;
+  }
+}
+
+.qr-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 10px 0 5px;
+}
+
+.qr-total-amount {
+  font-weight: 800;
+  color: #2563eb;
+  font-size: 16px;
+}
+
+.v-applied-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.v-tag {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  color: white;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.v-tag.item {
+  background: #2563eb;
+}
+.v-tag.ship {
+  background: #10b981;
+}
+.v-tag span {
+  cursor: pointer;
+}
