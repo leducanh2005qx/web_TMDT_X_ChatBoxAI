@@ -2,12 +2,13 @@ const db = require("../config/db");
 const Chat = require("../models/Chat");
 
 /* =====================================================
-    USER – CREATE ORDER (✅ HỖ TRỢ CỘNG DỒN NHIỀU VOUCHER)
+    USER – CREATE ORDER (HỖ TRỢ VOUCHER + PAYMENT METHOD)
 ===================================================== */
 exports.createOrder = (req, res) => {
   const userId = req.user?.id;
-  // Nhận voucher_ids dạng mảng từ Frontend gửi lên
-  const { items, total, shipping_address, voucher_ids } = req.body;
+  // Nhận payment_method từ Frontend
+  const { items, total, shipping_address, voucher_ids, payment_method } =
+    req.body;
 
   if (!userId) return res.status(401).json({ message: "Unauthorized" });
   if (!Array.isArray(items) || items.length === 0)
@@ -44,11 +45,11 @@ exports.createOrder = (req, res) => {
         const receiver_name = urows[0].name || "";
         const receiver_phone = urows[0].phone || "";
 
-        // ✅ INSERT ORDERS
+        // ✅ INSERT ORDERS (Đã thêm payment_method)
         db.query(
           `INSERT INTO orders 
-            (user_id, total, status, receiver_name, receiver_phone, shipping_address, expected_delivery) 
-           VALUES (?, ?, 'pending', ?, ?, ?, ?)`,
+            (user_id, total, status, receiver_name, receiver_phone, shipping_address, expected_delivery, payment_method) 
+           VALUES (?, ?, 'pending', ?, ?, ?, ?, ?)`,
           [
             userId,
             totalNumber,
@@ -56,11 +57,14 @@ exports.createOrder = (req, res) => {
             receiver_phone,
             shipping_address,
             expected_delivery,
+            payment_method || "cod", // Mặc định là cod nếu frontend không gửi
           ],
           (err, result) => {
             if (err) {
               return db.rollback(() =>
-                res.status(500).json({ message: "Lỗi tạo đơn hàng" }),
+                res
+                  .status(500)
+                  .json({ message: "Lỗi tạo đơn hàng: " + err.message }),
               );
             }
 
@@ -84,7 +88,7 @@ exports.createOrder = (req, res) => {
                   );
                 }
 
-                // ✅ TRỪ KHO VARIANT (FIX: Bọc Promise chuẩn)
+                // ✅ TRỪ KHO VARIANT
                 const stockUpdates = items.map(
                   (i) =>
                     new Promise((resolve, reject) => {
@@ -94,7 +98,9 @@ exports.createOrder = (req, res) => {
                         (err, resultStock) => {
                           if (err) return reject(err);
                           if (resultStock.affectedRows === 0)
-                            return reject(new Error("Hết hàng"));
+                            return reject(
+                              new Error("Hết hàng hoặc ID variant sai"),
+                            );
                           resolve();
                         },
                       );
@@ -103,9 +109,8 @@ exports.createOrder = (req, res) => {
 
                 Promise.all(stockUpdates)
                   .then(() => {
-                    // ✅ VOUCHER LOGIC (HỖ TRỢ TRỪ NHIỀU MÃ CÙNG LÚC)
+                    // ✅ VOUCHER LOGIC (HỖ TRỢ NHIỀU MÃ)
                     const handleVoucher = (cb) => {
-                      // Nếu không có voucher nào được áp dụng
                       if (
                         !voucher_ids ||
                         !Array.isArray(voucher_ids) ||
@@ -129,13 +134,11 @@ exports.createOrder = (req, res) => {
                       `;
 
                       db.query(sql, [userId, voucher_ids], (err, resultV) => {
-                        // resultV.affectedRows phải bằng số lượng voucher gửi lên
                         if (err || resultV.affectedRows < voucher_ids.length) {
                           return db.rollback(() =>
-                            res.status(400).json({
-                              message:
-                                "Một hoặc nhiều mã Voucher không khả dụng",
-                            }),
+                            res
+                              .status(400)
+                              .json({ message: "Voucher không khả dụng" }),
                           );
                         }
                         cb();
@@ -150,12 +153,12 @@ exports.createOrder = (req, res) => {
                           );
                         }
 
-                        // ✅ LOGIC AUTO CHAT REAL-TIME
+                        // ✅ LOGIC AUTO CHAT REAL-TIME (Thông báo đơn hàng)
                         Chat.getOrCreateThreadByUserId(
                           userId,
                           (errT, thread) => {
                             if (!errT && thread) {
-                              const systemMessage = `🎉 Đơn hàng #${orderId} thành công!\n💰 Tổng: ${totalNumber.toLocaleString()} đ\n🚚 Tiger Shop đang chuẩn bị hàng cho bạn!`;
+                              const systemMessage = `🎉 Đơn hàng #${orderId} thành công!\n💰 Tổng: ${totalNumber.toLocaleString()} đ\n💳 PTTT: ${payment_method === "qr" ? "Chuyển khoản QR" : "Tiền mặt"}\n🚚 Tiger Shop đang chuẩn bị hàng cho bạn!`;
 
                               Chat.createMessage(
                                 {
@@ -195,9 +198,7 @@ exports.createOrder = (req, res) => {
                   })
                   .catch((err) => {
                     db.rollback(() =>
-                      res
-                        .status(400)
-                        .json({ message: err.message || "Không đủ tồn kho" }),
+                      res.status(400).json({ message: err.message }),
                     );
                   });
               },
@@ -210,11 +211,12 @@ exports.createOrder = (req, res) => {
 };
 
 /* =====================================================
-    USER – GET ORDERS (GIỮ NGUYÊN 100% LOGIC CŨ)
+    USER – GET ORDERS & DETAIL (CẬP NHẬT TRƯỜNG THANH TOÁN)
 ===================================================== */
 exports.getOrdersByUser = (req, res) => {
   const sql = `
-    SELECT id AS orderId, total, status, created_at, receiver_name, receiver_phone, shipping_address, expected_delivery
+    SELECT id AS orderId, total, status, created_at, receiver_name, receiver_phone, 
+           shipping_address, expected_delivery, payment_method
     FROM orders WHERE user_id = ? ORDER BY created_at DESC
   `;
   db.query(sql, [req.user.id], (err, rows) => {
@@ -225,14 +227,19 @@ exports.getOrdersByUser = (req, res) => {
 
 exports.getOrderDetail = (req, res) => {
   const sql = `
-    SELECT o.id AS orderId, o.total, o.status, o.created_at, o.receiver_name, o.receiver_phone, o.shipping_address, o.expected_delivery,
-    p.name, p.image, pv.variant_name, oi.quantity, oi.price
-    FROM orders o JOIN order_items oi ON o.id = oi.order_id JOIN product_variants pv ON oi.variant_id = pv.id
-    JOIN products p ON pv.product_id = p.id WHERE o.id = ? AND o.user_id = ?
+    SELECT o.id AS orderId, o.total, o.status, o.created_at, o.receiver_name, o.receiver_phone, 
+           o.shipping_address, o.expected_delivery, o.payment_method,
+           p.name, p.image, pv.variant_name, oi.quantity, oi.price
+    FROM orders o 
+    JOIN order_items oi ON o.id = oi.order_id 
+    JOIN product_variants pv ON oi.variant_id = pv.id
+    JOIN products p ON pv.product_id = p.id 
+    WHERE o.id = ? AND o.user_id = ?
   `;
   db.query(sql, [req.params.id, req.user.id], (err, rows) => {
     if (err || !rows?.length)
       return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+
     res.json({
       orderId: rows[0].orderId,
       total: rows[0].total,
@@ -242,6 +249,7 @@ exports.getOrderDetail = (req, res) => {
       receiver_phone: rows[0].receiver_phone,
       shipping_address: rows[0].shipping_address,
       expected_delivery: rows[0].expected_delivery,
+      payment_method: rows[0].payment_method,
       items: rows.map((r) => ({
         name: r.name,
         variant_name: r.variant_name,
@@ -254,10 +262,16 @@ exports.getOrderDetail = (req, res) => {
 };
 
 /* =====================================================
-    ADMIN – ORDER MANAGEMENT (GIỮ NGUYÊN 100% LOGIC CŨ)
+    ADMIN – MANAGEMENT (CẬP NHẬT TRƯỜNG THANH TOÁN)
 ===================================================== */
 exports.getAllOrdersAdmin = (req, res) => {
-  const sql = `SELECT o.id AS orderId, o.total, o.status, o.created_at, o.receiver_name, o.receiver_phone, o.shipping_address, o.expected_delivery, u.email FROM orders o LEFT JOIN users u ON o.user_id = u.id ORDER BY o.created_at DESC`;
+  const sql = `
+    SELECT o.id AS orderId, o.total, o.status, o.created_at, o.receiver_name, o.receiver_phone, 
+           o.shipping_address, o.expected_delivery, o.payment_method, u.email 
+    FROM orders o 
+    LEFT JOIN users u ON o.user_id = u.id 
+    ORDER BY o.created_at DESC
+  `;
   db.query(sql, (err, rows) => {
     if (err) return res.status(500).json({ message: "Lỗi admin orders" });
     res.json(rows);
@@ -266,13 +280,20 @@ exports.getAllOrdersAdmin = (req, res) => {
 
 exports.getOrderDetailAdmin = (req, res) => {
   const sql = `
-    SELECT o.id AS orderId, o.total, o.status, o.created_at, o.receiver_name, o.receiver_phone, o.shipping_address, o.expected_delivery, u.email, p.name, p.image, pv.variant_name, oi.quantity, oi.price
-    FROM orders o LEFT JOIN users u ON o.user_id = u.id JOIN order_items oi ON o.id = oi.order_id JOIN product_variants pv ON oi.variant_id = pv.id JOIN products p ON pv.product_id = p.id
+    SELECT o.id AS orderId, o.total, o.status, o.created_at, o.receiver_name, o.receiver_phone, 
+           o.shipping_address, o.expected_delivery, o.payment_method, u.email, 
+           p.name, p.image, pv.variant_name, oi.quantity, oi.price
+    FROM orders o 
+    LEFT JOIN users u ON o.user_id = u.id 
+    JOIN order_items oi ON o.id = oi.order_id 
+    JOIN product_variants pv ON oi.variant_id = pv.id 
+    JOIN products p ON pv.product_id = p.id
     WHERE o.id = ?
   `;
   db.query(sql, [req.params.id], (err, rows) => {
     if (err || !rows?.length)
       return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+
     res.json({
       orderId: rows[0].orderId,
       email: rows[0].email,
@@ -283,6 +304,7 @@ exports.getOrderDetailAdmin = (req, res) => {
       receiver_phone: rows[0].receiver_phone,
       shipping_address: rows[0].shipping_address,
       expected_delivery: rows[0].expected_delivery,
+      payment_method: rows[0].payment_method,
       items: rows.map((r) => ({
         name: r.name,
         variant_name: r.variant_name,
@@ -306,7 +328,7 @@ exports.updateOrderStatus = (req, res) => {
 };
 
 /* =====================================================
-    STATISTICS (GIỮ NGUYÊN 100% LOGIC CŨ)
+    STATISTICS (GIỮ NGUYÊN)
 ===================================================== */
 exports.getStatistics = (req, res) => {
   db.query(
@@ -319,7 +341,16 @@ exports.getStatistics = (req, res) => {
 };
 
 exports.getBestSellingProducts = (req, res) => {
-  const sql = `SELECT p.id, p.name, p.image, SUM(oi.quantity) AS totalSold FROM order_items oi JOIN product_variants pv ON oi.variant_id = pv.id JOIN products p ON pv.product_id = p.id JOIN orders o ON oi.order_id = o.id WHERE o.status = 'completed' GROUP BY p.id ORDER BY totalSold DESC LIMIT 5`;
+  const sql = `
+    SELECT p.id, p.name, p.image, SUM(oi.quantity) AS totalSold 
+    FROM order_items oi 
+    JOIN product_variants pv ON oi.variant_id = pv.id 
+    JOIN products p ON pv.product_id = p.id 
+    JOIN orders o ON oi.order_id = o.id 
+    WHERE o.status = 'completed' 
+    GROUP BY p.id 
+    ORDER BY totalSold DESC LIMIT 5
+  `;
   db.query(sql, (err, rows) => {
     if (err) return res.status(500).json({ message: "Lỗi sản phẩm bán chạy" });
     res.json(rows);

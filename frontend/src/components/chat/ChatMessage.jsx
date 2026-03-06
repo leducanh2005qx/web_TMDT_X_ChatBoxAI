@@ -6,28 +6,38 @@ function ChatMessage({ message, senderRole }) {
   const isStaff = senderRole === "ADMIN";
 
   return (
-    <div className={`chat-msg ${isSystem ? "sys" : isMe ? "me" : "other"}`}>
-      <div className="chat-bubble">
-        {/* Nhãn cho tin nhắn hệ thống (Đơn hàng) */}
-        {isSystem && <div className="system-tag">🔔 THÔNG BÁO TỰ ĐỘNG</div>}
-
-        {/* Nhãn cho nhân viên hỗ trợ nếu cần phân biệt */}
-        {isStaff && (
-          <div
-            className="staff-tag"
-            style={{ fontSize: "10px", opacity: 0.7, marginBottom: "4px" }}
-          >
-            Nhân viên hỗ trợ
+    <div
+      className={`chat-msg-wrapper ${isSystem ? "sys-row" : isMe ? "me-row" : "other-row"}`}
+    >
+      <div
+        className={`chat-bubble ${isSystem ? "sys" : isMe ? "me" : "other"}`}
+      >
+        {/* Nhãn cho Trợ lý ảo / Thông báo hệ thống */}
+        {isSystem && (
+          <div className="system-tag">
+            <span className="bot-icon">🤖</span> TRỢ LÝ TIGER
           </div>
         )}
 
-        {/* Nội dung tin nhắn: Dùng thẻ pre hoặc style white-space để giữ định dạng xuống hàng */}
+        {/* Nhãn cho nhân viên hỗ trợ (Admin) */}
+        {isStaff && (
+          <div className="staff-tag">
+            <span className="staff-icon">🛡️</span> Quản trị viên
+          </div>
+        )}
+
+        {/* Nội dung tin nhắn xử lý xuống dòng và giữ định dạng */}
         <div
           className="chat-text"
           style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
         >
           {message}
         </div>
+      </div>
+
+      {/* Hiển thị thời gian nhỏ bên dưới nếu cần (Tùy chọn) */}
+      <div className="chat-meta">
+        {isMe ? "Bạn" : isSystem ? "Tự động" : "Shop"}
       </div>
     </div>
   );

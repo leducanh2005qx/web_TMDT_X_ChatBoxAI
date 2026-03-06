@@ -250,3 +250,79 @@
     order: 1;
   }
 }
+/* ... Giữ nguyên các phần CSS cũ của bạn ... */
+
+/* Style mới cho phần Payment */
+.payment-status-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 5px 0;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info-row label {
+  font-size: 0.9rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.method-val {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.payment-badge {
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Đã thanh toán - Màu xanh lá (Dùng cho QR) */
+.payment-badge.paid {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1.5px solid #bbf7d0;
+}
+
+/* Chưa thanh toán - Màu cam (Dùng cho COD) */
+.payment-badge.unpaid {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1.5px solid #fed7aa;
+}
+
+/* Animation cho loader */
+.premium-loader {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-weight: 900;
+  color: #2563eb;
+  letter-spacing: 3px;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.5;
+    transform: scale(0.95);
+  }
+}
