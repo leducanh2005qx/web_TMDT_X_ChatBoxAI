@@ -17,6 +17,7 @@ export default function ChatWidget() {
 
   const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");
+  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const bottomRef = useRef(null);
 
   // ✅ Khởi tạo Socket
@@ -64,12 +65,12 @@ export default function ChatWidget() {
   // ✅ Fix hàm gửi tin nhắn: Gửi qua Socket để kích hoạt AI trả lời tự động ngay lập tức
   const onSend = () => {
     const m = text.trim();
-    if (!m || !threadId) return;
+    if (!m || !threadId || !currentUser.id) return;
 
     const payload = {
       threadId: threadId,
       senderRole: "CUSTOMER",
-      senderId: 1, // ID người dùng thực tế
+      senderId: currentUser.id, // ID người dùng thực tế
       message: m,
       orderId: orderId ? Number(orderId) : null,
     };

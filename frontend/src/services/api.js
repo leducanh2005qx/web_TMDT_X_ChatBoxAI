@@ -61,6 +61,16 @@ export const getProducts = () =>
 export const getProductById = (id) =>
   fetch(`${API_URL}/products/${id}`).then(handleResponse);
 
+export const getProductReviews = (id) =>
+  fetch(`${API_URL}/products/${id}/reviews`).then(handleResponse);
+
+export const submitProductReview = (id, formData) =>
+  fetch(`${API_URL}/products/${id}/reviews`, {
+    method: "POST",
+    headers: getAuthHeader(),
+    body: formData,
+  }).then(handleResponse);
+
 export const createProduct = (formData) =>
   fetch(`${API_URL}/products`, {
     method: "POST",
@@ -174,6 +184,159 @@ export const updateMyProfile = (payload) =>
     method: "PUT",
     headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify(payload),
+  }).then(handleResponse);
+
+/* ================= STAFF MANAGEMENT ================= */
+
+export const getManagerCreatedStaff = () =>
+  fetch(`${API_URL}/users/staff/created`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const getAdminPendingStaff = () =>
+  fetch(`${API_URL}/users/staff/pending`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const createStaffByManager = (payload) =>
+  fetch(`${API_URL}/users/staff`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
+
+export const approveStaff = (userId) =>
+  fetch(`${API_URL}/users/staff/${userId}/approve`, {
+    method: "PATCH",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const rejectStaff = (userId) =>
+  fetch(`${API_URL}/users/staff/${userId}/reject`, {
+    method: "PATCH",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const getActiveStaff = () =>
+  fetch(`${API_URL}/users/staff/active`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const addInventoryStock = (payload) =>
+  fetch(`${API_URL}/users/inventory/restock`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
+
+export const getInventoryLogs = () =>
+  fetch(`${API_URL}/users/inventory/logs`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const addStaffWorkLog = (payload) =>
+  fetch(`${API_URL}/users/staff/work-logs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
+
+export const getStaffPayroll = (month) =>
+  fetch(`${API_URL}/users/staff/payroll?month=${encodeURIComponent(month)}`, {
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const getProbationStaff = () =>
+  fetch(`${API_URL}/users/staff/probation`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const approveOfficialStaff = (userId) =>
+  fetch(`${API_URL}/users/staff/${userId}/official`, {
+    method: "PATCH",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const getMyAttendanceStatus = () =>
+  fetch(`${API_URL}/users/attendance/me`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const staffClockIn = () =>
+  fetch(`${API_URL}/users/attendance/clock-in`, {
+    method: "POST",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const staffClockOut = () =>
+  fetch(`${API_URL}/users/attendance/clock-out`, {
+    method: "POST",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const getMyPayroll = (month) =>
+  fetch(`${API_URL}/users/staff/payroll/me?month=${encodeURIComponent(month)}`, {
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const createStaffRequest = (payload) =>
+  fetch(`${API_URL}/users/staff/requests`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
+
+export const getMyStaffRequests = () =>
+  fetch(`${API_URL}/users/staff/requests/my`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const registerShift = (payload) =>
+  fetch(`${API_URL}/users/staff/shifts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
+
+export const getMyShifts = () =>
+  fetch(`${API_URL}/users/staff/shifts/my`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const getPendingStaffRequests = () =>
+  fetch(`${API_URL}/users/staff/requests/pending`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const decideStaffRequest = (requestId, payload) =>
+  fetch(`${API_URL}/users/staff/requests/${requestId}/decision`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
+
+export const getPendingShifts = () =>
+  fetch(`${API_URL}/users/staff/shifts/pending`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const decideShift = (shiftId, payload) =>
+  fetch(`${API_URL}/users/staff/shifts/${shiftId}/decision`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
+
+export const getAttendanceIssues = () =>
+  fetch(`${API_URL}/users/attendance/issues`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
+export const fixAttendanceCheckout = (sessionId, check_out_at) =>
+  fetch(`${API_URL}/users/attendance/sessions/${sessionId}/fix-checkout`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ check_out_at }),
   }).then(handleResponse);
 
 /* ================= VOUCHERS (ADMIN & PUBLIC) ================= */

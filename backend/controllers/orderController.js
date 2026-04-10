@@ -229,7 +229,7 @@ exports.getOrderDetail = (req, res) => {
   const sql = `
     SELECT o.id AS orderId, o.total, o.status, o.created_at, o.receiver_name, o.receiver_phone, 
            o.shipping_address, o.expected_delivery, o.payment_method,
-           p.name, p.image, pv.variant_name, oi.quantity, oi.price
+           p.id AS product_id, p.name, p.image, pv.variant_name, oi.quantity, oi.price
     FROM orders o 
     JOIN order_items oi ON o.id = oi.order_id 
     JOIN product_variants pv ON oi.variant_id = pv.id
@@ -251,6 +251,7 @@ exports.getOrderDetail = (req, res) => {
       expected_delivery: rows[0].expected_delivery,
       payment_method: rows[0].payment_method,
       items: rows.map((r) => ({
+        product_id: r.product_id,
         name: r.name,
         variant_name: r.variant_name,
         image: r.image,

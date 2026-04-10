@@ -178,3 +178,87 @@ exports.deleteProduct = (req, res) => {
     });
   });
 };
+
+exports.getProductReviews = (req, res) => {
+  const { id } = req.params;
+  const sql = `
+    SELECT r.id, r.rating, r.comment, r.image_url, r.created_at, u.name AS user_name
+    FROM product_reviews r
+    JOIN users u ON u.id = r.user_id
+    WHERE r.product_id = ?
+    ORDER BY r.id DESC
+  `;
+  db.query(sql, [id], (err, rows) => {
+    if (err) return res.status(500).json({ message: "Không thể lấy đánh giá sản phẩm" });
+    return res.json(rows);
+  });
+};
+
+exports.createOrUpdateProductReview = (req, res) => {
+  const { id } = req.params;
+  const { rating, comment } = req.body;
+  const imageUrl = req.file ? `uploads/${req.file.filename}` : null;
+  const score = Number(rating);
+  if (!score || score < 1 || score > 5) {
+    return res.status(400).json({ message: "Rating phải từ 1 đến 5" });
+  }
+
+  db.query(
+    "SELECT role_id, status FROM users WHERE id = ?",
+    [req.user.id],
+    (roleErr, rows) => {
+      if (roleErr) return res.status(500).json({ message: "Lỗi kiểm tra người dùng" });
+      if (!rows.length) return res.status(401).json({ message: "Người dùng không hợp lệ" });
+      const roleId = Number(rows[0].role_id);
+      if (![4, 5].includes(roleId)) {
+        return res.status(403).json({ message: "Chỉ khách hàng mới được đánh giá sản phẩm" });
+      }
+      if (rows[0].status !== "active") {
+        return res.status(403).json({ message: "Tài khoản chưa active" });
+      }
+
+      const verifySql = `
+        SELECT 1
+        FROM orders o
+        JOIN order_items oi ON oi.order_id = o.id
+        JOIN product_variants pv ON pv.id = oi.variant_id
+        WHERE o.user_id = ?
+          AND pv.product_id = ?
+          AND (
+            o.payment_method = 'qr'
+            OR o.status = 'completed'
+          )
+        LIMIT 1
+      `;
+      db.query(verifySql, [req.user.id, id], (verifyErr, verifyRows) => {
+        if (verifyErr) {
+          return res.status(500).json({ message: "Không thể kiểm tra lịch sử mua hàng" });
+        }
+        if (!verifyRows.length) {
+          return res.status(403).json({
+            message:
+              "Đánh giá chỉ khả dụng khi đơn đã hoàn tất hoặc thanh toán chuyển khoản QR",
+          });
+        }
+
+        const sql = `
+          INSERT INTO product_reviews (product_id, user_id, rating, comment, image_url)
+          VALUES (?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            rating = VALUES(rating),
+            comment = VALUES(comment),
+            image_url = COALESCE(VALUES(image_url), image_url),
+            updated_at = CURRENT_TIMESTAMP
+        `;
+        db.query(
+          sql,
+          [id, req.user.id, score, comment || null, imageUrl],
+          (err) => {
+            if (err) return res.status(500).json({ message: "Không thể gửi đánh giá" });
+            return res.json({ message: "Đã lưu đánh giá sản phẩm" });
+          },
+        );
+      });
+    },
+  );
+};

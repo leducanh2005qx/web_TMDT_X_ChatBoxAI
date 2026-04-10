@@ -2,9 +2,9 @@
 
 .home-premium-page {
   min-height: 100vh;
-  background: #0f172a;
+  background: #f8fafc;
   font-family: "Plus Jakarta Sans", sans-serif;
-  color: white;
+  color: #0f172a;
   padding: 0 20px;
   position: relative;
   overflow: hidden;
@@ -56,12 +56,12 @@
 }
 
 .glass-hero-card {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 0, 0, 0.03);
   backdrop-filter: blur(30px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   padding: 80px 40px;
   border-radius: 50px;
-  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.08);
 }
 
 .hero-badge {
@@ -105,8 +105,8 @@
 }
 
 .btn-primary-glow {
-  background: white;
-  color: black;
+  background: #0f172a;
+  color: white;
   border: none;
   padding: 18px 40px;
   border-radius: 20px;
@@ -117,15 +117,15 @@
 }
 .btn-primary-glow:hover {
   background: #3b82f6;
-  color: white;
+  color: #0f172a;
   transform: translateY(-5px);
   box-shadow: 0 20px 40px rgba(59, 130, 246, 0.4);
 }
 
 .btn-secondary-glass {
-  background: rgba(255, 255, 255, 0.05);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.05);
+  color: #0f172a;
+  border: 1px solid rgba(0, 0, 0, 0.1);
   padding: 18px 40px;
   border-radius: 20px;
   font-weight: 700;
@@ -133,7 +133,7 @@
   transition: 0.3s;
 }
 .btn-secondary-glass:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.1);
 }
 
 /* --- INFO GRID --- */
@@ -149,9 +149,9 @@
 }
 
 .info-glass-card {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 0, 0, 0.03);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   padding: 30px;
   border-radius: 30px;
   display: flex;
@@ -161,13 +161,13 @@
 }
 .info-glass-card:hover {
   transform: translateY(-10px);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.06);
   border-color: rgba(59, 130, 246, 0.3);
 }
 
 .info-icon {
   font-size: 2.5rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.05);
   width: 70px;
   height: 70px;
   display: flex;

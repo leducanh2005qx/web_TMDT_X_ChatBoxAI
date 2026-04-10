@@ -1,0 +1,41 @@
+.staff-workspace {
+  background: #f3f6fb;
+  min-height: calc(100vh - 72px);
+}
+
+.staff-hero {
+  background: linear-gradient(135deg, #111827, #1f2937);
+  color: #fff;
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.24);
+}
+
+.staff-hero h3 {
+  margin: 0;
+  font-weight: 800;
+}
+
+.staff-hero p {
+  margin: 6px 0 0;
+  color: #d1d5db;
+}
+
+.staff-workspace .card {
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.staff-workspace .card-header {
+  border-bottom: 1px solid #eef2f7;
+  font-weight: 700;
+}
+
+.staff-workspace .table thead th {
+  font-size: 13px;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.25px;
+}

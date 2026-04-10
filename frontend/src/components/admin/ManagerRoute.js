@@ -4,17 +4,15 @@ function normalizeRole(role) {
   return String(role || "").toUpperCase();
 }
 
-function AdminRoute({ children }) {
+function ManagerRoute({ children }) {
   const token = localStorage.getItem("token");
   const role = normalizeRole(localStorage.getItem("role"));
 
-  // ❌ Không đăng nhập hoặc không phải ADMIN
-  if (!token || role !== "ADMIN") {
+  if (!token || role !== "MANAGER") {
     return <Navigate to="/login" replace />;
   }
 
-  // ✅ Đúng admin
   return children;
 }
 
-export default AdminRoute;
+export default ManagerRoute;

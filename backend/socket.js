@@ -20,6 +20,18 @@ const initSocket = (server) => {
     }
   };
 
+  const isUserActive = async (userId) => {
+    try {
+      const [rows] = await db
+        .promise()
+        .query("SELECT status FROM users WHERE id = ? LIMIT 1", [userId]);
+      if (!rows.length) return false;
+      return rows[0].status === "active";
+    } catch (err) {
+      return false;
+    }
+  };
+
   // --- LOGIC PHẢN HỒI THÔNG MINH (Xử lý chữ thừa & Đa tác nhân) ---
   const getSmartAiResponse = async (userMessage, orderId, userName) => {
     const msg = userMessage.toLowerCase().trim();
@@ -106,6 +118,9 @@ const initSocket = (server) => {
 
           // AI PHẢN HỒI DỰA TRÊN TÊN THẬT TRONG DB
           if (senderRole === "CUSTOMER" || senderRole === "USER") {
+            const activeSender = await isUserActive(senderId);
+            if (!activeSender) return;
+
             // Bước này đảm bảo lấy tên mới nhất từ DB của người gửi hiện tại
             const currentUserName = await getUserName(senderId);
             const aiReply = await getSmartAiResponse(

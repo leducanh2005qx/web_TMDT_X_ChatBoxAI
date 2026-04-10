@@ -2,9 +2,9 @@
 
 .cart-premium-page {
   min-height: 100vh;
-  background: #0f172a;
+  background: #f8fafc;
   font-family: "Plus Jakarta Sans", sans-serif;
-  color: white;
+  color: #0f172a;
   padding: 60px 20px;
   position: relative;
   overflow: hidden;
@@ -62,10 +62,10 @@
   align-items: center;
   gap: 12px;
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.05);
   padding: 10px 20px;
   border-radius: 100px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .custom-checkbox {
@@ -77,7 +77,7 @@
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  color: white;
+  color: #0f172a;
   transition: 0.3s;
 }
 .custom-checkbox.checked {
@@ -93,9 +93,9 @@
 
 /* Item Card */
 .cart-premium-card {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 0, 0, 0.03);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 24px;
   display: flex;
   align-items: center;
@@ -118,7 +118,7 @@
   height: 100px;
   object-fit: cover;
   border-radius: 16px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
 }
 
 .item-details {
@@ -131,7 +131,7 @@
   margin-bottom: 5px;
 }
 .item-variant {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.1);
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 0.8rem;
@@ -159,7 +159,7 @@
 .premium-stepper button {
   background: transparent;
   border: none;
-  color: white;
+  color: #0f172a;
   padding: 8px 15px;
   font-size: 1.2rem;
   cursor: pointer;
@@ -181,9 +181,9 @@
 
 /* Sidebar Summary */
 .glass-summary-card {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.05);
   backdrop-filter: blur(30px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   padding: 35px;
   border-radius: 32px;
   position: sticky;
@@ -203,7 +203,7 @@
   color: #94a3b8;
 }
 .summary-row.total {
-  color: white;
+  color: #0f172a;
   margin-top: 20px;
 }
 
@@ -214,7 +214,7 @@
 }
 
 .divider-dash {
-  border-top: 1px dashed rgba(255, 255, 255, 0.2);
+  border-top: 1px dashed rgba(0, 0, 0, 0.2);
   margin: 20px 0;
 }
 
@@ -222,8 +222,8 @@
   width: 100%;
   padding: 20px;
   margin-top: 30px;
-  background: white;
-  color: black;
+  background: #0f172a;
+  color: white;
   border: none;
   border-radius: 20px;
   font-weight: 800;
@@ -232,7 +232,7 @@
 }
 .btn-checkout-premium:hover {
   background: #3b82f6;
-  color: white;
+  color: #0f172a;
   box-shadow: 0 15px 30px rgba(59, 130, 246, 0.4);
   transform: translateY(-5px);
 }
@@ -244,7 +244,7 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: white;
+  color: #0f172a;
 }
 .empty-icon {
   font-size: 5rem;
@@ -254,7 +254,7 @@
   margin-top: 30px;
   padding: 15px 40px;
   background: #3b82f6;
-  color: white;
+  color: #0f172a;
   border: none;
   border-radius: 100px;
   font-weight: 800;

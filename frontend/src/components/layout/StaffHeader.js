@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import "./AdminHeader.css";
 
-function AdminHeader() {
+function StaffHeader() {
   const navigate = useNavigate();
 
   const logout = () => {
@@ -12,35 +12,30 @@ function AdminHeader() {
 
   return (
     <header className="admin-header">
-      {/* LEFT */}
       <div className="admin-left">
-        <div
-          className="admin-brand"
-          onClick={() => navigate("/admin/dashboard")}
-        >
+        <div className="admin-brand" onClick={() => navigate("/staff/workspace")}>
           <span className="logo-icon">🐯</span>
           <div className="brand-text">
             <span className="logo-text">TIGER SHOP</span>
-            <span className="logo-sub">Admin Panel</span>
+            <span className="logo-sub">Staff Panel</span>
           </div>
         </div>
 
         <nav className="admin-nav">
-          <NavLink to="/admin/dashboard">Dashboard</NavLink>
-          <NavLink to="/admin/categories">Categories</NavLink>
-          <NavLink to="/admin/orders">Orders</NavLink>
-          <NavLink to="/admin/vouchers">Vouchers</NavLink>
-          <NavLink to="/admin/staff-approvals">Staff Approvals</NavLink>
-          <NavLink to="/admin/chat">Chat</NavLink>
-          <NavLink to="/admin/stats">Stats</NavLink>
+          <NavLink to="/staff/workspace">Tong quan</NavLink>
+          <NavLink to="/staff/orders">Don hang</NavLink>
+          <NavLink to="/staff/chat">Chat</NavLink>
+          <NavLink to="/staff/attendance">Cham cong</NavLink>
+          <NavLink to="/staff/requests">Don xin</NavLink>
+          <NavLink to="/staff/shifts">Ca lam</NavLink>
+          <NavLink to="/staff/payroll">Luong</NavLink>
         </nav>
       </div>
 
-      {/* RIGHT */}
       <div className="admin-right">
         <div className="admin-info">
           <span className="admin-dot" />
-          <span className="admin-role">ADMIN</span>
+          <span className="admin-role">STAFF</span>
         </div>
 
         <button className="admin-logout" onClick={logout}>
@@ -51,4 +46,4 @@ function AdminHeader() {
   );
 }
 
-export default AdminHeader;
+export default StaffHeader;

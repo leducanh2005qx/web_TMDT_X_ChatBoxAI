@@ -3,7 +3,7 @@
 
 .login-page {
   min-height: 100vh;
-  background: #0f172a; /* Nền tối sâu chuyên nghiệp */
+  background: #f8fafc; /* Nền tối sâu chuyên nghiệp */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -41,7 +41,7 @@
   max-width: 420px;
   background: rgba(30, 41, 59, 0.7); /* Nền kính đặc để chữ rõ nét */
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 30px;
   padding: 40px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
@@ -62,7 +62,7 @@
 }
 
 .login-card h2 {
-  color: #ffffff;
+  color: #0f172a;
   font-size: 2rem;
   font-weight: 800;
   margin-bottom: 8px;
@@ -104,10 +104,10 @@
 .form-group input {
   width: 100%;
   background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 14px;
   padding: 14px 18px;
-  color: #ffffff;
+  color: #0f172a;
   font-size: 1rem;
   font-family: inherit;
   outline: none;
@@ -129,7 +129,7 @@
 .login-btn {
   width: 100%;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: #ffffff;
+  color: #0f172a;
   border: none;
   padding: 16px;
   border-radius: 14px;

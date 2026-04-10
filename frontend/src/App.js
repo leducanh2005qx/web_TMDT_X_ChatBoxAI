@@ -8,6 +8,8 @@ import Register from "./pages/auth/Register";
 /* ================= LAYOUT ================= */
 import Layout from "./components/layout/Layout";
 import AdminLayout from "./components/layout/AdminLayout";
+import ManagerLayout from "./components/layout/ManagerLayout";
+import StaffLayout from "./components/layout/StaffLayout";
 
 /* ================= CUSTOMER ================= */
 import Home from "./pages/customer/Home";
@@ -28,7 +30,13 @@ import AdminStats from "./pages/admin/AdminStats";
 import AdminChat from "./pages/admin/AdminChat";
 import AdminCategories from "./pages/admin/AdminCategories";
 import AdminVouchers from "./pages/admin/AdminVouchers";
+import AdminPendingUsers from "./pages/admin/AdminPendingUsers";
 import AdminRoute from "./components/admin/AdminRoute";
+import ManagerRoute from "./components/admin/ManagerRoute";
+import ManagerStaff from "./pages/manager/ManagerStaff";
+import ManagerWorkspace from "./pages/manager/ManagerWorkspace";
+import StaffRoute from "./components/admin/StaffRoute";
+import StaffWorkspace from "./pages/staff/StaffWorkspace";
 
 /* ================= CHAT ================= */
 import ChatWidget from "./components/chat/ChatWidget";
@@ -238,6 +246,160 @@ function App() {
                 <AdminVouchers />
               </AdminLayout>
             </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/staff-approvals"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <AdminPendingUsers />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/manager/staff"
+          element={
+            <ManagerRoute>
+              <ManagerLayout>
+                <ManagerStaff />
+              </ManagerLayout>
+            </ManagerRoute>
+          }
+        />
+
+        <Route
+          path="/manager/workspace"
+          element={
+            <ManagerRoute>
+              <ManagerLayout>
+                <ManagerWorkspace />
+              </ManagerLayout>
+            </ManagerRoute>
+          }
+        />
+        <Route
+          path="/manager/orders"
+          element={
+            <ManagerRoute>
+              <ManagerLayout>
+                <ManagerWorkspace section="orders" />
+              </ManagerLayout>
+            </ManagerRoute>
+          }
+        />
+        <Route
+          path="/manager/inventory"
+          element={
+            <ManagerRoute>
+              <ManagerLayout>
+                <ManagerWorkspace section="inventory" />
+              </ManagerLayout>
+            </ManagerRoute>
+          }
+        />
+        <Route
+          path="/manager/payroll"
+          element={
+            <ManagerRoute>
+              <ManagerLayout>
+                <ManagerWorkspace section="payroll" />
+              </ManagerLayout>
+            </ManagerRoute>
+          }
+        />
+        <Route
+          path="/manager/approvals"
+          element={
+            <ManagerRoute>
+              <ManagerLayout>
+                <ManagerWorkspace section="approvals" />
+              </ManagerLayout>
+            </ManagerRoute>
+          }
+        />
+        <Route
+          path="/manager/attendance"
+          element={
+            <ManagerRoute>
+              <ManagerLayout>
+                <ManagerWorkspace section="attendance" />
+              </ManagerLayout>
+            </ManagerRoute>
+          }
+        />
+
+        <Route
+          path="/staff/workspace"
+          element={
+            <StaffRoute>
+              <StaffLayout>
+                <StaffWorkspace />
+              </StaffLayout>
+            </StaffRoute>
+          }
+        />
+        <Route
+          path="/staff/orders"
+          element={
+            <StaffRoute>
+              <StaffLayout>
+                <StaffWorkspace section="orders" />
+              </StaffLayout>
+            </StaffRoute>
+          }
+        />
+        <Route
+          path="/staff/chat"
+          element={
+            <StaffRoute>
+              <StaffLayout>
+                <StaffWorkspace section="chat" />
+              </StaffLayout>
+            </StaffRoute>
+          }
+        />
+        <Route
+          path="/staff/attendance"
+          element={
+            <StaffRoute>
+              <StaffLayout>
+                <StaffWorkspace section="attendance" />
+              </StaffLayout>
+            </StaffRoute>
+          }
+        />
+        <Route
+          path="/staff/requests"
+          element={
+            <StaffRoute>
+              <StaffLayout>
+                <StaffWorkspace section="requests" />
+              </StaffLayout>
+            </StaffRoute>
+          }
+        />
+        <Route
+          path="/staff/shifts"
+          element={
+            <StaffRoute>
+              <StaffLayout>
+                <StaffWorkspace section="shifts" />
+              </StaffLayout>
+            </StaffRoute>
+          }
+        />
+        <Route
+          path="/staff/payroll"
+          element={
+            <StaffRoute>
+              <StaffLayout>
+                <StaffWorkspace section="payroll" />
+              </StaffLayout>
+            </StaffRoute>
           }
         />
       </Routes>

@@ -12,25 +12,27 @@ const orderController = require("../controllers/orderController");
 
 // ✅ Middleware: bắt buộc đăng nhập + ADMIN
 router.use(authMiddleware);
-router.use(roleMiddleware("ADMIN"));
+const adminOnly = roleMiddleware("ADMIN");
+const canViewOrders = roleMiddleware(["ADMIN", "MANAGER", "STAFF"]);
+const canManageOrders = roleMiddleware(["ADMIN", "MANAGER"]);
 
 /* ================= STATISTICS ================= */
 
 // 📊 Thống kê doanh thu & tổng đơn (chỉ completed)
-router.get("/stats", orderController.getStatistics);
+router.get("/stats", adminOnly, orderController.getStatistics);
 
 // 🔥 Sản phẩm bán chạy
-router.get("/best-products", orderController.getBestSellingProducts);
+router.get("/best-products", adminOnly, orderController.getBestSellingProducts);
 
 // ⏳ Đơn hàng chưa hoàn thành (pending + confirmed)
-router.get("/uncompleted", orderController.getUncompletedOrders);
+router.get("/uncompleted", adminOnly, orderController.getUncompletedOrders);
 
 /* ================= ORDERS ================= */
 
 // 📦 Lấy danh sách tất cả đơn hàng
-router.get("/", orderController.getAllOrdersAdmin);
+router.get("/", canViewOrders, orderController.getAllOrdersAdmin);
 
 // 🔄 Cập nhật trạng thái đơn hàng
-router.put("/:id/status", orderController.updateOrderStatus);
+router.put("/:id/status", canManageOrders, orderController.updateOrderStatus);
 
 module.exports = router;

@@ -4,8 +4,8 @@ module.exports = (req, res, next) => {
     return res.status(401).json({ message: "Chưa đăng nhập" });
   }
 
-  // role có thể là: 'ADMIN' | 'CUSTOMER'
-  if (req.user.role !== "ADMIN") {
+  const role = String(req.user.role || "").toUpperCase();
+  if (role !== "ADMIN") {
     return res.status(403).json({ message: "Không có quyền admin" });
   }
 

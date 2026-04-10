@@ -1,6 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getProductById } from "../../services/api";
+import {
+  getProductById,
+  getProductReviews,
+  submitProductReview,
+} from "../../services/api";
 import "./ProductDetail.css";
 
 function ProductDetail({ cart, setCart }) {
@@ -12,6 +16,10 @@ function ProductDetail({ cart, setCart }) {
   const [variants, setVariants] = useState([]);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState([]);
+  const [myRating, setMyRating] = useState(5);
+  const [myComment, setMyComment] = useState("");
+  const [myReviewImage, setMyReviewImage] = useState(null);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -35,6 +43,13 @@ function ProductDetail({ cart, setCart }) {
       .then((data) => setVariants(Array.isArray(data) ? data : []))
       .catch(() => setVariants([]));
   }, [product]);
+
+  useEffect(() => {
+    if (!id) return;
+    getProductReviews(id)
+      .then((data) => setReviews(Array.isArray(data) ? data : []))
+      .catch(() => setReviews([]));
+  }, [id]);
 
   const handleAddToCart = () => {
     if (variants.length > 0 && !selectedVariant) {
@@ -105,6 +120,23 @@ function ProductDetail({ cart, setCart }) {
           quantity: 1,
         },
       ]);
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    try {
+      const formData = new FormData();
+      formData.append("rating", String(myRating));
+      formData.append("comment", myComment || "");
+      if (myReviewImage) formData.append("image", myReviewImage);
+      await submitProductReview(id, formData);
+      setMyComment("");
+      setMyReviewImage(null);
+      const data = await getProductReviews(id);
+      setReviews(Array.isArray(data) ? data : []);
+      alert("Đã gửi đánh giá sản phẩm");
+    } catch (err) {
+      alert(err.message || "Không thể gửi đánh giá");
     }
   };
 
@@ -207,6 +239,63 @@ function ProductDetail({ cart, setCart }) {
                 {isOutOfStock ? "TẠM HẾT HÀNG" : "MUA NGAY"}
               </button>
             </div>
+          </div>
+        </div>
+        <div className="review-panel mt-3 p-3">
+          <h5 className="review-title">Danh gia san pham</h5>
+          <p className="review-note mb-2">
+            Ban chi co the danh gia sau khi da mua san pham nay.
+          </p>
+          <div className="d-flex align-items-center gap-2 mb-2 review-form-row">
+            <select
+              className="form-select"
+              style={{ maxWidth: 120 }}
+              value={myRating}
+              onChange={(e) => setMyRating(Number(e.target.value))}
+            >
+              {[5, 4, 3, 2, 1].map((n) => (
+                <option key={n} value={n}>
+                  {n} sao
+                </option>
+              ))}
+            </select>
+            <input
+              className="form-control"
+              placeholder="Cam nhan cua ban..."
+              value={myComment}
+              onChange={(e) => setMyComment(e.target.value)}
+            />
+            <input
+              type="file"
+              accept="image/*"
+              className="form-control"
+              style={{ maxWidth: 220 }}
+              onChange={(e) => setMyReviewImage(e.target.files?.[0] || null)}
+            />
+            <button className="btn btn-primary" onClick={handleSubmitReview}>
+              Gui
+            </button>
+          </div>
+          <div className="review-list">
+            {reviews.length === 0 ? (
+              <div className="review-empty">Chua co danh gia nao.</div>
+            ) : (
+              reviews.slice(0, 10).map((r) => (
+                <div key={r.id} className="review-item">
+                  <strong>{r.user_name}</strong> - {"⭐".repeat(Number(r.rating || 0))}
+                  <div className="review-comment">
+                    {r.comment || "(Khong co binh luan)"}
+                  </div>
+                  {r.image_url && (
+                    <img
+                      src={`http://localhost:5000/${r.image_url}`}
+                      alt="review"
+                      className="review-image"
+                    />
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

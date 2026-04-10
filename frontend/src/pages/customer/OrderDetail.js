@@ -68,6 +68,14 @@ function OrderDetail() {
     );
   };
 
+  const canReviewByOrderRule = (order) => {
+    const method = String(order.payment_method || "cod")
+      .toLowerCase()
+      .trim();
+    if (method === "qr") return true;
+    return String(order.status || "").toLowerCase() === "completed";
+  };
+
   if (loading)
     return (
       <div className="order-detail-premium-page">
@@ -166,6 +174,20 @@ function OrderDetail() {
                     </div>
                     <div className="item-subtotal">
                       {(item.quantity * item.price).toLocaleString()} đ
+                      <div style={{ marginTop: 8 }}>
+                        {canReviewByOrderRule(order) ? (
+                          <button
+                            className="btn-view-detail"
+                            onClick={() => navigate(`/product/${item.product_id}`)}
+                          >
+                            Đánh giá
+                          </button>
+                        ) : (
+                          <small className="text-muted">
+                            Hoàn tất đơn để đánh giá (COD)
+                          </small>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

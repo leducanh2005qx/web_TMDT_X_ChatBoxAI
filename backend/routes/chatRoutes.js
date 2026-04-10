@@ -2,14 +2,15 @@ const express = require("express");
 const router = express.Router();
 
 const authMiddleware = require("../middlewares/authMiddleware");
-const adminMiddleware = require("../middlewares/adminMiddleware");
+const roleMiddleware = require("../middlewares/roleMiddleware");
 const Chat = require("../models/Chat");
+const canSupportChat = roleMiddleware(["ADMIN", "STAFF"]);
 
 /* =====================================================
    ADMIN – LIST THREADS (SIDEBAR)
    Lấy danh sách các cuộc hội thoại hiển thị ở cột trái
 ===================================================== */
-router.get("/admin/threads", authMiddleware, adminMiddleware, (req, res) => {
+router.get("/admin/threads", authMiddleware, canSupportChat, (req, res) => {
   Chat.listThreadsForAdmin((err, rows) => {
     if (err) {
       console.error("LIST THREADS ERR:", err);
@@ -26,7 +27,7 @@ router.get("/admin/threads", authMiddleware, adminMiddleware, (req, res) => {
 router.get(
   "/admin/messages/:threadId",
   authMiddleware,
-  adminMiddleware,
+  canSupportChat,
   (req, res) => {
     const threadId = req.params.threadId;
 
@@ -52,7 +53,7 @@ router.get(
 router.post(
   "/admin/messages/:threadId",
   authMiddleware,
-  adminMiddleware,
+  canSupportChat,
   (req, res) => {
     const { content } = req.body;
 
@@ -107,7 +108,7 @@ router.post(
 router.get(
   "/admin/orders/:userId",
   authMiddleware,
-  adminMiddleware,
+  canSupportChat,
   (req, res) => {
     Chat.getOrdersSummaryByUserId(req.params.userId, (err, rows) => {
       if (err) {

@@ -1,0 +1,41 @@
+.manager-workspace {
+  background: #f3f6fb;
+  min-height: calc(100vh - 72px);
+}
+
+.manager-hero {
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: #fff;
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.25);
+}
+
+.manager-hero h3 {
+  margin: 0;
+  font-weight: 800;
+}
+
+.manager-hero p {
+  margin: 6px 0 0;
+  color: #cbd5e1;
+}
+
+.manager-workspace .card {
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.manager-workspace .card-header {
+  border-bottom: 1px solid #eef2f7;
+  font-weight: 700;
+}
+
+.manager-workspace .table thead th {
+  font-size: 13px;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.25px;
+}

@@ -21,10 +21,22 @@ function Login() {
       localStorage.setItem("role", data.role);
       localStorage.setItem("user", JSON.stringify(data.user));
 
-      if (data.role === "ADMIN") {
+      const role = String(data.role || "").toUpperCase();
+
+      if (role === "ADMIN") {
         navigate("/admin/dashboard");
+      } else if (role === "MANAGER") {
+        navigate("/manager/workspace");
+      } else if (role === "STAFF") {
+        navigate("/staff/workspace");
       } else {
         navigate("/home");
+      }
+
+      if (data.aiReminder) {
+        setTimeout(() => {
+          window.alert(`Tiger: ${data.aiReminder}`);
+        }, 100);
       }
     } catch (err) {
       setError(err.message || "Đăng nhập thất bại");

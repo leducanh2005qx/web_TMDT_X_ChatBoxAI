@@ -7,7 +7,10 @@ const User = {
         u.id,
         u.name,
         u.email,
+        u.phone,
         u.password,
+        u.role_id,
+        u.status,
         r.name AS role_name
       FROM users u
       JOIN roles r ON u.role_id = r.id
@@ -19,12 +22,19 @@ const User = {
 
   create: (user, callback) => {
     const sql = `
-      INSERT INTO users (name, email, password, role_id)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO users (name, email, password, role_id, phone, status)
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
     db.query(
       sql,
-      [user.name, user.email, user.password, user.role_id],
+      [
+        user.name,
+        user.email,
+        user.password,
+        user.role_id,
+        user.phone || null,
+        user.status || "active",
+      ],
       callback
     );
   },

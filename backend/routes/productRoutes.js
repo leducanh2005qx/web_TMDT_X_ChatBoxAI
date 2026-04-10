@@ -48,6 +48,7 @@ const upload = multer({
  * @access  Public
  */
 router.get("/", productController.getAllProducts);
+router.get("/:id/reviews", productController.getProductReviews);
 
 /**
  * @route   GET /api/products/:id
@@ -88,5 +89,11 @@ router.put(
  * @access  Private (Admin)
  */
 router.delete("/:id", authMiddleware, productController.deleteProduct);
+router.post(
+  "/:id/reviews",
+  authMiddleware,
+  upload.single("image"),
+  productController.createOrUpdateProductReview,
+);
 
 module.exports = router;

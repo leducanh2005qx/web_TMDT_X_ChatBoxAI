@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import "./AdminHeader.css";
 
-function AdminHeader() {
+function ManagerHeader() {
   const navigate = useNavigate();
 
   const logout = () => {
@@ -12,35 +12,33 @@ function AdminHeader() {
 
   return (
     <header className="admin-header">
-      {/* LEFT */}
       <div className="admin-left">
         <div
           className="admin-brand"
-          onClick={() => navigate("/admin/dashboard")}
+          onClick={() => navigate("/manager/workspace")}
         >
           <span className="logo-icon">🐯</span>
           <div className="brand-text">
             <span className="logo-text">TIGER SHOP</span>
-            <span className="logo-sub">Admin Panel</span>
+            <span className="logo-sub">Manager Panel</span>
           </div>
         </div>
 
         <nav className="admin-nav">
-          <NavLink to="/admin/dashboard">Dashboard</NavLink>
-          <NavLink to="/admin/categories">Categories</NavLink>
-          <NavLink to="/admin/orders">Orders</NavLink>
-          <NavLink to="/admin/vouchers">Vouchers</NavLink>
-          <NavLink to="/admin/staff-approvals">Staff Approvals</NavLink>
-          <NavLink to="/admin/chat">Chat</NavLink>
-          <NavLink to="/admin/stats">Stats</NavLink>
+          <NavLink to="/manager/workspace">Tong quan</NavLink>
+          <NavLink to="/manager/orders">Don hang</NavLink>
+          <NavLink to="/manager/inventory">Kho</NavLink>
+          <NavLink to="/manager/payroll">Luong</NavLink>
+          <NavLink to="/manager/approvals">Duyet don</NavLink>
+          <NavLink to="/manager/attendance">Fix check-out</NavLink>
+          <NavLink to="/manager/staff">Nhan vien</NavLink>
         </nav>
       </div>
 
-      {/* RIGHT */}
       <div className="admin-right">
         <div className="admin-info">
           <span className="admin-dot" />
-          <span className="admin-role">ADMIN</span>
+          <span className="admin-role">MANAGER</span>
         </div>
 
         <button className="admin-logout" onClick={logout}>
@@ -51,4 +49,4 @@ function AdminHeader() {
   );
 }
 
-export default AdminHeader;
+export default ManagerHeader;
