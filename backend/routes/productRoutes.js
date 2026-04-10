@@ -57,6 +57,9 @@ router.get("/:id/reviews", productController.getProductReviews);
  */
 router.get("/:id", productController.getProductById);
 
+/* ================= ADMIN / MANAGER ================= */
+router.get("/inventory-alert", authMiddleware, productController.getInventoryAlert);
+
 /* ================= ADMIN ONLY ================= */
 
 /**
@@ -89,6 +92,7 @@ router.put(
  * @access  Private (Admin)
  */
 router.delete("/:id", authMiddleware, productController.deleteProduct);
+router.patch("/:id/restore", authMiddleware, productController.restoreProduct);
 router.post(
   "/:id/reviews",
   authMiddleware,

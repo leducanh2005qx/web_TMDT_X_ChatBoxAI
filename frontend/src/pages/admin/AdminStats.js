@@ -4,7 +4,9 @@ import {
   getOrderStatsAdmin,
   getBestSellingProducts,
   getUncompletedOrders,
+  getCategoryRevenueAdmin
 } from "../../services/api";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import "./AdminStats.css";
 
 function AdminStats() {
@@ -15,6 +17,9 @@ function AdminStats() {
 
   const [bestProducts, setBestProducts] = useState([]);
   const [uncompleted, setUncompleted] = useState(0);
+  const [categoryRevenue, setCategoryRevenue] = useState([]);
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A28DFF', '#FF6666'];
 
   const navigate = useNavigate();
 
@@ -32,6 +37,9 @@ function AdminStats() {
 
         const un = await getUncompletedOrders();
         setUncompleted(un.totalUncompleted || 0);
+
+        const catRev = await getCategoryRevenueAdmin();
+        setCategoryRevenue(Array.isArray(catRev) ? catRev.map(item => ({ name: item.category_name, value: Number(item.total_revenue) })) : []);
       } catch (err) {
         console.error("STATS ERROR:", err);
       }
@@ -82,6 +90,37 @@ function AdminStats() {
               </li>
             ))}
           </ul>
+        )}
+      </div>
+
+      {/* REVENUE CHART */}
+      <div className="revenue-chart">
+        <h3>🍩 Tỷ trọng doanh thu theo Danh mục</h3>
+        {categoryRevenue.length === 0 ? (
+          <p>Chưa có dữ liệu doanh thu</p>
+        ) : (
+          <div style={{ width: '100%', height: 350 }}>
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie
+                  data={categoryRevenue}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={120}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                >
+                  {categoryRevenue.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => `${Number(value).toLocaleString()} đ`} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         )}
       </div>
     </div>

@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
 import "./AdminDashboard.css";
+import "./AdminDashboard.css";
 import AdminVariantManager from "../../components/admin/AdminVariantManager";
+import { getInventoryAlert } from "../../services/api";
 
 function AdminDashboard() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [editing, setEditing] = useState(null);
+  const [alertData, setAlertData] = useState({ alerts: [], trashCount: 0 });
+  const [showTrash, setShowTrash] = useState(false);
+  const [trashProducts, setTrashProducts] = useState([]);
+  const [loadingTrash, setLoadingTrash] = useState(false);
   const [image, setImage] = useState(null);
   const [form, setForm] = useState({
     name: "",
@@ -38,6 +44,18 @@ function AdminDashboard() {
   useEffect(() => {
     loadProducts();
     loadCategories();
+    
+    // Kiểm tra hàng hóa sắp hết để Tiger nhắc nhở
+    getInventoryAlert()
+      .then(data => {
+        if (data && data.alerts) {
+          setAlertData(data);
+        } else if (Array.isArray(data)) {
+          // Fallback cho version cũ nếu có
+          setAlertData({ alerts: data, trashCount: 0 });
+        }
+      })
+      .catch(console.error);
   }, []);
 
   const handleChange = (e) =>
@@ -90,6 +108,34 @@ function AdminDashboard() {
       .catch((err) => alert(err.message));
   };
 
+  const loadTrash = () => {
+    setLoadingTrash(true);
+    fetch("http://localhost:5000/api/products?deleted=true", {
+      headers: { Authorization: "Bearer " + token },
+    })
+      .then((res) => res.json())
+      .then((data) => setTrashProducts(Array.isArray(data) ? data : []))
+      .catch((err) => console.error("Lỗi:", err))
+      .finally(() => setLoadingTrash(false));
+  };
+
+  const handleRestore = (id) => {
+    fetch(`http://localhost:5000/api/products/${id}/restore`, {
+      method: "PATCH",
+      headers: { Authorization: "Bearer " + token },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Khôi phục thất bại");
+        alert("Đã khôi phục sản phẩm!");
+        loadProducts();
+        if (showTrash) loadTrash();
+        
+        // Refresh alert data to update Tiger's count
+        getInventoryAlert().then(setAlertData).catch(console.error);
+      })
+      .catch((err) => alert(err.message));
+  };
+
   const editProduct = (p) => {
     setEditing(p);
     setForm({
@@ -112,6 +158,69 @@ function AdminDashboard() {
           <span className="stat-value">{products.length}</span>
         </div>
       </div>
+      
+      {(alertData.alerts.length > 0 || alertData.trashCount > 0) && (
+        <div className="card glass-card" style={{ marginBottom: "20px", borderLeft: "5px solid #ffcc00", backgroundColor: "#fffbea" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+            <span style={{ fontSize: "2rem" }}>🐅</span>
+            <div>
+              <h4 style={{ margin: "0 0 5px 0", color: "#b38f00" }}>Trợ lý Tiger báo cáo:</h4>
+              <p style={{ margin: 0, color: "#333", fontSize: "1.1rem" }}>
+                Sếp Đức Anh ơi, 
+                {alertData.alerts.length > 0 && (
+                  <> có <b>{alertData.alerts.length}</b> mặt hàng sắp hết rồi, nhắc Manager nhập thêm đi! ({alertData.alerts.map(p => `${p.name} (còn ${p.stock})`).join(", ")})</>
+                )}
+                {alertData.trashCount > 0 && (
+                  <> {alertData.alerts.length > 0 ? "Ngoài ra còn" : "có"} <b>{alertData.trashCount}</b> sản phẩm đang nằm trong thùng rác, sếp có muốn dọn dẹp hay khôi phục không?</>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
+      {alertData.trashCount > 0 && (
+        <button 
+          className="btn-trash-toggle" 
+          onClick={() => {
+            setShowTrash(!showTrash);
+            if (!showTrash) loadTrash();
+          }}
+          style={{ marginBottom: '20px', padding: '10px 15px', borderRadius: '8px', border: '1px solid #ddd', backgroundColor: showTrash ? '#eee' : '#fff', cursor: 'pointer' }}
+        >
+          {showTrash ? '🙈 Đóng thùng rác' : `🗑️ Xem thùng rác (${alertData.trashCount})`}
+        </button>
+      )}
+
+      {showTrash && (
+        <div className="card trash-card" style={{ marginBottom: '20px', backgroundColor: '#f9f9f9', padding: '15px' }}>
+          <h3 className="card-title">🗑️ Sản phẩm đã xóa (Soft Delete)</h3>
+          {loadingTrash ? <p>Đang tải...</p> : trashProducts.length === 0 ? <p>Thùng rác trống.</p> : (
+            <table className="modern-table">
+              <thead>
+                <tr>
+                  <th>Ảnh</th>
+                  <th>Tên</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trashProducts.map(tp => (
+                  <tr key={tp.id}>
+                    <td><img src={`http://localhost:5000/${tp.image}`} alt={tp.name} style={{ width: '40px', borderRadius: '5px' }} /></td>
+                    <td>{tp.name}</td>
+                    <td>
+                      <button className="icon-btn edit" onClick={() => handleRestore(tp.id)}>Khôi phục</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
 
       <div className="dashboard-layout-grid">
         <div className="editor-aside">

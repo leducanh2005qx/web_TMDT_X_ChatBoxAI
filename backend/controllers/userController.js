@@ -47,6 +47,28 @@ exports.getMe = (req, res) => {
   );
 };
 
+exports.getAllUsers = (req, res) => {
+  db.query("SELECT id, role_id FROM users WHERE id = ?", [req.user.id], (err, rows) => {
+    if (err) return res.status(500).json({ message: "Lỗi server" });
+    if (!rows.length || rows[0].role_id !== 1) {
+      return res.status(403).json({ message: "Chỉ Admin được xem tất cả user" });
+    }
+    
+    const showDeleted = req.query.deleted === "true";
+    const sql = `
+      SELECT u.id, u.name, u.email, u.phone, u.status, u.role_id, r.name as role_name 
+      FROM users u 
+      LEFT JOIN roles r ON u.role_id = r.id 
+      WHERE ${showDeleted ? "u.deleted_at IS NOT NULL" : "u.deleted_at IS NULL"}
+      ORDER BY u.id DESC
+    `;
+    db.query(sql, (listErr, listRows) => {
+      if (listErr) return res.status(500).json({ message: "Không thể lấy danh sách" });
+      return res.json(listRows);
+    });
+  });
+};
+
 exports.updateMe = (req, res) => {
   const { name, phone } = req.body;
 
@@ -118,6 +140,17 @@ exports.approveUser = (req, res) => {
       if (result.affectedRows === 0) {
         return res.status(404).json({ message: "Không tìm thấy nhân viên pending để duyệt" });
       }
+
+      // Fetch user name to log
+      db.query("SELECT name FROM users WHERE id = ?", [userId], (errTarget, rowsTarget) => {
+        const staffName = rowsTarget.length ? rowsTarget[0].name : "Không rõ";
+        const actionStr = `Admin ${actor.name || actor.email || 'Hệ thống'} đã phê duyệt nhân viên ${staffName} vào hệ thống.`;
+        db.query(
+          "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
+          [actor.id, actionStr, userId]
+        );
+      });
+
       return res.json({ message: "Duyệt nhân viên thành công", status: "active" });
     });
   });
@@ -775,11 +808,28 @@ exports.getActiveStaff = (req, res) => {
     if (checkErr) return res.status(checkErr.code).json({ message: checkErr.message });
 
     db.query(
-      "SELECT id, name, email, hourly_rate FROM users WHERE role_id = 3 AND status = 'active' ORDER BY id DESC",
+      "SELECT id, name, email, hourly_rate FROM users WHERE role_id = 3 AND status = 'active' AND deleted_at IS NULL ORDER BY id DESC",
       (err, rows) => {
         if (err) return res.status(500).json({ message: "Không thể lấy danh sách staff" });
         return res.json(rows);
       },
     );
+  });
+};
+// ✅ SOFT DELETE USER
+exports.deleteUser = (req, res) => {
+  const { userId } = req.params;
+  db.query("UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?", [userId], (err) => {
+    if (err) return res.status(500).json({ message: "Lỗi xóa người dùng" });
+    res.json({ message: "Đã chuyển người dùng vào thùng rác" });
+  });
+};
+
+// ✅ RESTORE USER
+exports.restoreUser = (req, res) => {
+  const { userId } = req.params;
+  db.query("UPDATE users SET deleted_at = NULL WHERE id = ?", [userId], (err) => {
+    if (err) return res.status(500).json({ message: "Lỗi khôi phục người dùng" });
+    res.json({ message: "Khôi phục người dùng thành công" });
   });
 };

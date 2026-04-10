@@ -3,6 +3,13 @@ const cors = require("cors");
 const http = require("http");
 const path = require("path");
 require("dotenv").config();
+const rateLimit = require("express-rate-limit");
+
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 10, // Limit each IP to 10 requests per window
+  message: { message: "Bạn gửi lện quá nhanh, vui lòng đợi 1 phút!" }
+});
 
 /* ================= ROUTES ================= */
 const authRoutes = require("./routes/authRoutes");
@@ -30,7 +37,7 @@ app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 /* ================= API ROUTES ================= */
-app.use("/api/auth", authRoutes);
+app.use("/api/auth", apiLimiter, authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/variants", variantRoutes);

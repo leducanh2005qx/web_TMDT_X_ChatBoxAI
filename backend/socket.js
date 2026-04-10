@@ -9,6 +9,10 @@ const initSocket = (server) => {
     transports: ["websocket"],
   });
 
+  const messageCounts = {}; // { ip: { count: N, resetTime: T } }
+  const LIMIT_MS = 60 * 1000;
+  const LIMIT_MAX = 5;
+
   const getUserName = async (userId) => {
     try {
       const [rows] = await db.promise().query("SELECT name FROM users WHERE id = ?", [userId]);
@@ -71,11 +75,14 @@ Trả lời:`;
         } catch (e) {
           const code = e?.status || 0;
           if ((code === 429 || code === 503 || code === 404) && i < FALLBACK_MODELS.length - 1) {
-            console.warn(`⚠️  Model ${FALLBACK_MODELS[i]} bận, đang chuyển sang model tiếp theo...`);
+            console.warn(`⚠️ Model ${FALLBACK_MODELS[i]} bận, đang chuyển sang model tiếp theo...`);
             await new Promise((r) => setTimeout(r, 2000));
-          } else throw e;
+          } else {
+            throw e;
+          }
         }
       }
+      return `Dạ ${userName}, Tiger đang bận một chút, nhân viên sẽ hỗ trợ bạn ngay! 🐯`;
     } catch (error) {
       console.error("Lỗi gọi Gemini AI:", error.message);
       return `Dạ ${userName}, Tiger đang bận một chút, nhân viên sẽ hỗ trợ bạn ngay! 🐯`;
@@ -89,7 +96,28 @@ Trả lời:`;
     });
 
     socket.on("send_message", async (data) => {
+      const ip = socket.handshake.address;
+      const now = Date.now();
+
+      if (!messageCounts[ip] || now > messageCounts[ip].resetTime) {
+        messageCounts[ip] = { count: 1, resetTime: now + LIMIT_MS };
+      } else {
+        messageCounts[ip].count++;
+      }
+
       const { threadId, senderRole, senderId, message, orderId, receiverId } = data;
+
+      if (messageCounts[ip].count > LIMIT_MAX && (senderRole === "CUSTOMER" || senderRole === "USER")) {
+        const limitMsg = {
+          threadId,
+          senderRole: "SYSTEM",
+          senderId: 0,
+          message: "Bạn chat nhanh quá, Tiger xử lý không kịp, đợi 1 lát nhé! 🐯",
+          createdAt: new Date(),
+        };
+        socket.emit("newMessage", limitMsg);
+        return;
+      }
 
       const sqlSave = `INSERT INTO chat_messages (thread_id, sender_role, sender_id, message, order_id, receiver_id, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())`;
 

@@ -25,13 +25,13 @@ function ManagerHeader() {
         </div>
 
         <nav className="admin-nav">
-          <NavLink to="/manager/workspace">Tong quan</NavLink>
-          <NavLink to="/manager/orders">Don hang</NavLink>
+          <NavLink to="/manager/workspace">Tổng quan</NavLink>
+          <NavLink to="/manager/orders">Đơn hàng</NavLink>
           <NavLink to="/manager/inventory">Kho</NavLink>
-          <NavLink to="/manager/payroll">Luong</NavLink>
-          <NavLink to="/manager/approvals">Duyet don</NavLink>
-          <NavLink to="/manager/attendance">Fix check-out</NavLink>
-          <NavLink to="/manager/staff">Nhan vien</NavLink>
+          <NavLink to="/manager/payroll">Lương</NavLink>
+          <NavLink to="/manager/approvals">Duyệt đơn</NavLink>
+          <NavLink to="/manager/attendance">Sửa chấm công</NavLink>
+          <NavLink to="/manager/staff">Nhân viên</NavLink>
           <NavLink to="/manager/shifts">📅 Lịch ca</NavLink>
         </nav>
       </div>
@@ -43,7 +43,7 @@ function ManagerHeader() {
         </div>
 
         <button className="admin-logout" onClick={logout}>
-          Logout
+          Đăng xuất
         </button>
       </div>
     </header>

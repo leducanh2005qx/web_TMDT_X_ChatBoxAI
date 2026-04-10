@@ -368,3 +368,21 @@ exports.getUncompletedOrders = (req, res) => {
     },
   );
 };
+
+exports.getCategoryRevenue = (req, res) => {
+  const sql = `
+    SELECT c.name AS category_name, SUM(oi.quantity * oi.price) AS total_revenue
+    FROM order_items oi
+    JOIN orders o ON oi.order_id = o.id
+    JOIN product_variants pv ON oi.variant_id = pv.id
+    JOIN products p ON pv.product_id = p.id
+    JOIN categories c ON p.category_id = c.id
+    WHERE o.status = 'completed'
+    GROUP BY c.id, c.name
+    ORDER BY total_revenue DESC
+  `;
+  db.query(sql, (err, rows) => {
+    if (err) return res.status(500).json({ message: "Lỗi doanh thu theo danh mục" });
+    res.json(rows);
+  });
+};

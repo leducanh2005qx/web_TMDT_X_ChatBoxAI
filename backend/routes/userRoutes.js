@@ -1,7 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const authMiddleware = require("../middlewares/authMiddleware");
+const isAdmin = require("../middlewares/isAdmin");
 const userController = require("../controllers/userController");
+
+// GET ALL USERS (ADMIN)
+router.get("/", authMiddleware, isAdmin, userController.getAllUsers);
 
 // GET MY PROFILE
 router.get("/me", authMiddleware, userController.getMe);
@@ -32,7 +36,9 @@ router.post("/attendance/clock-in", authMiddleware, userController.staffClockIn)
 router.post("/attendance/clock-out", authMiddleware, userController.staffClockOut);
 router.get("/attendance/issues", authMiddleware, userController.getAttendanceIssues);
 router.patch("/attendance/sessions/:sessionId/fix-checkout", authMiddleware, userController.fixAttendanceCheckout);
-router.patch("/staff/:userId/approve", authMiddleware, userController.approveUser);
-router.patch("/staff/:userId/reject", authMiddleware, userController.rejectUser);
+router.patch("/staff/:userId/approve", authMiddleware, isAdmin, userController.approveUser);
+router.patch("/staff/:userId/reject", authMiddleware, isAdmin, userController.rejectUser);
+router.delete("/:userId", authMiddleware, isAdmin, userController.deleteUser);
+router.patch("/:userId/restore", authMiddleware, isAdmin, userController.restoreUser);
 
 module.exports = router;

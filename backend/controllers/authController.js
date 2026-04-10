@@ -76,7 +76,7 @@ exports.login = (req, res) => {
         role: user.role_name, // "ADMIN" | "CUSTOMER"
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" },
+      { expiresIn: "1h" },
     );
 
     const sendLoginResponse = (aiReminder = null) => {

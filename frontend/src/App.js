@@ -25,6 +25,7 @@ import Wishlist from "./pages/customer/Wishlist"; // ✅ Thêm trang Wishlist
 
 /* ================= ADMIN ================= */
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUserManagement from "./pages/admin/AdminUserManagement";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminStats from "./pages/admin/AdminStats";
 import AdminChat from "./pages/admin/AdminChat";
@@ -202,6 +203,17 @@ function App() {
             <AdminRoute>
               <AdminLayout>
                 <AdminCategories />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/users"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <AdminUserManagement />
               </AdminLayout>
             </AdminRoute>
           }

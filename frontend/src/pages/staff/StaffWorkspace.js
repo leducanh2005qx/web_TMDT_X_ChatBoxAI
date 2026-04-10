@@ -772,6 +772,42 @@ function StaffWorkspace({ section = "all" }) {
       {(section === "all" || section === "shifts") && (
         <div style={{ marginTop: 12 }}>
           <ShiftSchedule role="STAFF" />
+          
+          <div className="card shadow-sm mt-3">
+            <div className="card-header bg-white">
+              <strong>Lịch sử yêu cầu của tôi</strong>
+            </div>
+            <div className="card-body p-0">
+               <table className="table table-sm table-hover mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Loại</th>
+                      <th>Ngày</th>
+                      <th>Lý do</th>
+                      <th>Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {myStaffRequests.length === 0 ? (
+                      <tr><td colSpan="4" className="text-center py-3 text-muted">Chưa có yêu cầu nào</td></tr>
+                    ) : (
+                      myStaffRequests.map(r => (
+                        <tr key={r.id}>
+                          <td>{r.request_type}</td>
+                          <td>{new Date(r.request_date).toLocaleDateString()}</td>
+                          <td>{r.reason}</td>
+                          <td>
+                            <span className={`badge bg-${r.status === 'approved' ? 'success' : r.status === 'rejected' ? 'danger' : 'warning'}`}>
+                              {r.status === 'approved' ? 'Đã duyệt' : r.status === 'rejected' ? 'Từ chối' : 'Chờ duyệt'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+               </table>
+            </div>
+          </div>
         </div>
       )}
 

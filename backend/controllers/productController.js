@@ -3,6 +3,7 @@ const db = require("../config/db");
 
 // ✅ LẤY TẤT CẢ SẢN PHẨM (Sửa lỗi tên bảng & GROUP BY)
 exports.getAllProducts = (req, res) => {
+  const showDeleted = req.query.deleted === "true";
   const sql = `
     SELECT 
       p.*, 
@@ -26,6 +27,7 @@ exports.getAllProducts = (req, res) => {
       ) AS variants
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
+    WHERE ${showDeleted ? "p.deleted_at IS NOT NULL" : "p.deleted_at IS NULL"}
     GROUP BY p.id, c.name
     ORDER BY p.id DESC
   `;
@@ -88,7 +90,7 @@ exports.getProductById = (req, res) => {
       ) AS variants
     FROM products p 
     LEFT JOIN categories c ON p.category_id = c.id 
-    WHERE p.id = ?
+    WHERE p.id = ? AND p.deleted_at IS NULL
     GROUP BY p.id, c.name
   `;
 
@@ -165,17 +167,20 @@ exports.updateProduct = (req, res) => {
   );
 };
 
-// ✅ XÓA SẢN PHẨM
+// ✅ XÓA SẢN PHẨM (SOFT DELETE)
 exports.deleteProduct = (req, res) => {
   const { id } = req.params;
-  // Đổi sang product_variants
-  db.query(`DELETE FROM product_variants WHERE product_id = ?`, [id], (err) => {
-    if (err) return res.status(500).json({ error: "Lỗi xóa biến thể" });
-    Product.delete(id, (err) => {
-      if (err)
-        return res.status(500).json({ error: "Sản phẩm vướng đơn hàng" });
-      res.json({ message: "Xóa thành công" });
-    });
+  db.query(`UPDATE products SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?`, [id], (err) => {
+    if (err) return res.status(500).json({ error: "Lỗi xóa sản phẩm" });
+    res.json({ message: "Xóa thành công vào thùng rác" });
+  });
+};
+
+exports.restoreProduct = (req, res) => {
+  const { id } = req.params;
+  db.query(`UPDATE products SET deleted_at = NULL WHERE id = ?`, [id], (err) => {
+    if (err) return res.status(500).json({ error: "Lỗi khôi phục sản phẩm" });
+    res.json({ message: "Khôi phục sản phẩm thành công" });
   });
 };
 
@@ -261,4 +266,18 @@ exports.createOrUpdateProductReview = (req, res) => {
       });
     },
   );
+};
+
+
+exports.getInventoryAlert = (req, res) => {
+  const sql = "SELECT id, name, stock, image FROM products WHERE stock < 5 AND deleted_at IS NULL ORDER BY stock ASC";
+  db.query(sql, (err, rows) => {
+    if (err) return res.status(500).json({ message: "Lỗi kiểm tra kho" });
+    
+    // Check trash
+    db.query("SELECT COUNT(*) as trashCount FROM products WHERE deleted_at IS NOT NULL", (err2, trashRows) => {
+      const trashCount = trashRows?.[0]?.trashCount || 0;
+      res.json({ alerts: rows, trashCount });
+    });
+  });
 };

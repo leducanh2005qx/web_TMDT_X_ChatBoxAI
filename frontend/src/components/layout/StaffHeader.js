@@ -22,13 +22,13 @@ function StaffHeader() {
         </div>
 
         <nav className="admin-nav">
-          <NavLink to="/staff/workspace">Tong quan</NavLink>
-          <NavLink to="/staff/orders">Don hang</NavLink>
+          <NavLink to="/staff/workspace">Tổng quan</NavLink>
+          <NavLink to="/staff/orders">Đơn hàng</NavLink>
           <NavLink to="/staff/chat">Chat</NavLink>
-          <NavLink to="/staff/attendance">Cham cong</NavLink>
-          <NavLink to="/staff/requests">Don xin</NavLink>
-          <NavLink to="/staff/shifts">Ca lam</NavLink>
-          <NavLink to="/staff/payroll">Luong</NavLink>
+          <NavLink to="/staff/attendance">Chấm công</NavLink>
+          <NavLink to="/staff/requests">Đơn xin</NavLink>
+          <NavLink to="/staff/shifts">Ca làm</NavLink>
+          <NavLink to="/staff/payroll">Lương</NavLink>
         </nav>
       </div>
 
@@ -39,7 +39,7 @@ function StaffHeader() {
         </div>
 
         <button className="admin-logout" onClick={logout}>
-          Logout
+          Đăng xuất
         </button>
       </div>
     </header>

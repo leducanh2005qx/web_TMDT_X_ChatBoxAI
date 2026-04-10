@@ -26,13 +26,14 @@ function AdminHeader() {
         </div>
 
         <nav className="admin-nav">
-          <NavLink to="/admin/dashboard">Dashboard</NavLink>
-          <NavLink to="/admin/categories">Categories</NavLink>
-          <NavLink to="/admin/orders">Orders</NavLink>
-          <NavLink to="/admin/vouchers">Vouchers</NavLink>
-          <NavLink to="/admin/staff-approvals">Staff Approvals</NavLink>
+          <NavLink to="/admin/dashboard">Tổng quan</NavLink>
+          <NavLink to="/admin/users">Người dùng</NavLink>
+          <NavLink to="/admin/categories">Danh mục</NavLink>
+          <NavLink to="/admin/orders">Đơn hàng</NavLink>
+          <NavLink to="/admin/vouchers">Khuyến mãi</NavLink>
+          <NavLink to="/admin/staff-approvals">Duyệt NV</NavLink>
           <NavLink to="/admin/chat">Chat</NavLink>
-          <NavLink to="/admin/stats">Stats</NavLink>
+          <NavLink to="/admin/stats">Thống kê</NavLink>
         </nav>
       </div>
 
@@ -44,7 +45,7 @@ function AdminHeader() {
         </div>
 
         <button className="admin-logout" onClick={logout}>
-          Logout
+          Đăng xuất
         </button>
       </div>
     </header>

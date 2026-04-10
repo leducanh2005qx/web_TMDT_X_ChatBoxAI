@@ -21,7 +21,11 @@ const handleResponse = async (res) => {
   }
 
   if (!res.ok) {
-    if (res.status === 401 || res.status === 403) {
+    if (res.status === 401) {
+      localStorage.clear();
+      window.location.href = "/login?expired=true";
+    }
+    if (res.status === 403) {
       throw new Error(data.message || "Không có quyền truy cập");
     }
     if (res.status >= 500) {
@@ -33,6 +37,11 @@ const handleResponse = async (res) => {
 };
 
 /* ================= AUTHENTICATION ================= */
+
+export const getAllUsers = (deleted = false) =>
+  fetch(`${API_URL}/users${deleted ? "?deleted=true" : ""}`, {
+    headers: getAuthHeader(),
+  }).then(handleResponse);
 
 export const login = async (email, password) => {
   const res = await fetch(`${API_URL}/auth/login`, {
@@ -88,6 +97,12 @@ export const updateProduct = (id, formData) =>
 export const deleteProduct = (id) =>
   fetch(`${API_URL}/products/${id}`, {
     method: "DELETE",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const restoreProduct = (id) =>
+  fetch(`${API_URL}/products/${id}/restore`, {
+    method: "PATCH",
     headers: getAuthHeader(),
   }).then(handleResponse);
 
@@ -151,6 +166,9 @@ export const updateOrderStatusAdmin = (orderId, status) =>
 
 export const getCategories = () =>
   fetch(`${API_URL}/categories`).then(handleResponse);
+
+export const getInventoryAlert = () =>
+  fetch(`${API_URL}/products/inventory-alert`, { headers: getAuthHeader() }).then(handleResponse);
 
 export const createCategory = (name) =>
   fetch(`${API_URL}/categories`, {
@@ -428,7 +446,25 @@ export const getBestSellingProducts = () =>
     headers: getAuthHeader(),
   }).then(handleResponse);
 
+export const getCategoryRevenueAdmin = () =>
+  fetch(`${API_URL}/orders/admin/category-revenue`, {
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
 export const getUncompletedOrders = () =>
   fetch(`${API_URL}/orders/admin/uncompleted`, {
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+/* ================= ADMIN USER MANAGEMENT ================= */
+export const deleteUserAdmin = (id) =>
+  fetch(`${API_URL}/users/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const restoreUserAdmin = (id) =>
+  fetch(`${API_URL}/users/${id}/restore`, {
+    method: "PATCH",
     headers: getAuthHeader(),
   }).then(handleResponse);

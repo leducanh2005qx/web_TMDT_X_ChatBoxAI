@@ -3,6 +3,7 @@ const router = express.Router();
 
 const authMiddleware = require("../middlewares/authMiddleware");
 const roleMiddleware = require("../middlewares/roleMiddleware");
+const isAdmin = require("../middlewares/isAdmin");
 const orderController = require("../controllers/orderController");
 
 /*
@@ -11,21 +12,24 @@ const orderController = require("../controllers/orderController");
 */
 
 // ✅ Middleware: bắt buộc đăng nhập + ADMIN
+// ✅ Middleware: bắt buộc đăng nhập + ADMIN
 router.use(authMiddleware);
-const adminOnly = roleMiddleware("ADMIN");
 const canViewOrders = roleMiddleware(["ADMIN", "MANAGER", "STAFF"]);
 const canManageOrders = roleMiddleware(["ADMIN", "MANAGER"]);
 
 /* ================= STATISTICS ================= */
 
 // 📊 Thống kê doanh thu & tổng đơn (chỉ completed)
-router.get("/stats", adminOnly, orderController.getStatistics);
+router.get("/stats", isAdmin, orderController.getStatistics);
 
 // 🔥 Sản phẩm bán chạy
-router.get("/best-products", adminOnly, orderController.getBestSellingProducts);
+router.get("/best-products", isAdmin, orderController.getBestSellingProducts);
 
 // ⏳ Đơn hàng chưa hoàn thành (pending + confirmed)
-router.get("/uncompleted", adminOnly, orderController.getUncompletedOrders);
+router.get("/uncompleted", isAdmin, orderController.getUncompletedOrders);
+
+// 📈 Doanh thu theo danh mục
+router.get("/category-revenue", isAdmin, orderController.getCategoryRevenue);
 
 /* ================= ORDERS ================= */
 
