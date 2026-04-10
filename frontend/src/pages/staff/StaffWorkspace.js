@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import ShiftSchedule from "../../components/shift/ShiftSchedule";
 import {
   getAllOrdersAdmin,
   getProducts,
@@ -8,8 +9,6 @@ import {
   getMyPayroll,
   createStaffRequest,
   getMyStaffRequests,
-  registerShift,
-  getMyShifts,
 } from "../../services/api";
 import {
   adminGetThreadMessages,
@@ -54,21 +53,14 @@ function StaffWorkspace({ section = "all" }) {
   const [clockNow, setClockNow] = useState(Date.now());
   const [payrollMonth, setPayrollMonth] = useState(new Date().toISOString().slice(0, 7));
   const [myPayroll, setMyPayroll] = useState(null);
-  const [myRequests, setMyRequests] = useState([]);
-  const [myShifts, setMyShifts] = useState([]);
   const [requestForm, setRequestForm] = useState({
     request_type: "late",
     request_date: new Date().toISOString().slice(0, 10),
     minutes_late: 15,
     reason: "",
   });
-  const [shiftForm, setShiftForm] = useState({
-    shift_date: new Date().toISOString().slice(0, 10),
-    start_time: "08:00",
-    end_time: "12:00",
-    note: "",
-  });
-  const [weekStart, setWeekStart] = useState(new Date().toISOString().slice(0, 10));
+  const [myStaffRequests, setMyStaffRequests] = useState([]);
+
   const [orderPage, setOrderPage] = useState(1);
   const orderPageSize = 10;
 
@@ -79,19 +71,17 @@ function StaffWorkspace({ section = "all" }) {
         adminListThreads(),
         getProducts(),
       ]);
-      const [attendanceData, payrollData, requestsData, shiftsData] = await Promise.all([
+      const [attendanceData, payrollData, staffRequestsData] = await Promise.all([
         getMyAttendanceStatus(),
         getMyPayroll(payrollMonth),
         getMyStaffRequests(),
-        getMyShifts(),
       ]);
       setOrders(Array.isArray(orderData) ? orderData : []);
       setThreads(Array.isArray(threadData) ? threadData : []);
       setProducts(Array.isArray(productData) ? productData : []);
       setAttendance(attendanceData || null);
       setMyPayroll(payrollData || null);
-      setMyRequests(Array.isArray(requestsData) ? requestsData : []);
-      setMyShifts(Array.isArray(shiftsData) ? shiftsData : []);
+      setMyStaffRequests(Array.isArray(staffRequestsData) ? staffRequestsData : []);
       setError("");
     } catch (err) {
       setError(err.message || "Khong the tai du lieu staff");
@@ -215,17 +205,7 @@ function StaffWorkspace({ section = "all" }) {
     }
   };
 
-  const submitShift = async (e) => {
-    e.preventDefault();
-    try {
-      await registerShift(shiftForm);
-      setSuccess("Da dang ky ca lam.");
-      setShiftForm((prev) => ({ ...prev, note: "" }));
-      await loadOrdersAndThreads();
-    } catch (err) {
-      setError(err.message || "Khong the dang ky ca");
-    }
-  };
+
 
   const openSessionSeconds = useMemo(() => {
     const checkInAt = attendance?.open_session?.check_in_at;
@@ -241,26 +221,7 @@ function StaffWorkspace({ section = "all" }) {
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
-  const weekDates = useMemo(() => {
-    const base = new Date(weekStart);
-    const monday = new Date(base);
-    const day = monday.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    monday.setDate(monday.getDate() + diff);
-    return Array.from({ length: 7 }).map((_, i) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      return d.toISOString().slice(0, 10);
-    });
-  }, [weekStart]);
-
-  const shiftsByDate = useMemo(() => {
-    const map = {};
-    weekDates.forEach((d) => {
-      map[d] = myShifts.filter((s) => s.shift_date === d);
-    });
-    return map;
-  }, [myShifts, weekDates]);
+  // shiftsByDate removed – now handled by ShiftSchedule component
 
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
@@ -776,67 +737,8 @@ function StaffWorkspace({ section = "all" }) {
         </div>
         )}
 
-        {(section === "all" || section === "shifts") && (
-        <div className="col-lg-4">
-          <div className="card shadow-sm">
-            <div className="card-header bg-light">
-              <strong>Dang ky ca lam</strong>
-            </div>
-            <div className="card-body">
-              <form onSubmit={submitShift} className="row g-2">
-                <div className="col-12">
-                  <input
-                    type="date"
-                    className="form-control form-control-sm"
-                    value={shiftForm.shift_date}
-                    onChange={(e) =>
-                      setShiftForm((prev) => ({ ...prev, shift_date: e.target.value }))
-                    }
-                    required
-                  />
-                </div>
-                <div className="col-6">
-                  <input
-                    type="time"
-                    className="form-control form-control-sm"
-                    value={shiftForm.start_time}
-                    onChange={(e) =>
-                      setShiftForm((prev) => ({ ...prev, start_time: e.target.value }))
-                    }
-                    required
-                  />
-                </div>
-                <div className="col-6">
-                  <input
-                    type="time"
-                    className="form-control form-control-sm"
-                    value={shiftForm.end_time}
-                    onChange={(e) =>
-                      setShiftForm((prev) => ({ ...prev, end_time: e.target.value }))
-                    }
-                    required
-                  />
-                </div>
-                <div className="col-12">
-                  <input
-                    className="form-control form-control-sm"
-                    placeholder="Ghi chu"
-                    value={shiftForm.note}
-                    onChange={(e) =>
-                      setShiftForm((prev) => ({ ...prev, note: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="col-12">
-                  <button className="btn btn-sm btn-success w-100" type="submit">
-                    Dang ky ca
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-        )}
+
+
 
         {(section === "all" || section === "payroll") && (
         <div className="col-lg-4">
@@ -867,113 +769,13 @@ function StaffWorkspace({ section = "all" }) {
       </div>
       )}
 
-      {(section === "all" || section === "requests" || section === "shifts") && (
-      <div className="row g-3 mt-1">
-        {(section === "all" || section === "requests") && (
-        <div className="col-lg-6">
-          <div className="card shadow-sm">
-            <div className="card-header bg-light">
-              <strong>Lich su don xin</strong>
-            </div>
-            <div className="card-body table-responsive">
-              <table className="table table-sm table-bordered mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>Loai</th><th>Ngay</th><th>Trang thai</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {myRequests.slice(0, 10).map((r) => (
-                    <tr key={r.id}>
-                      <td>{r.request_type}</td>
-                      <td>{r.request_date}</td>
-                      <td>{r.status}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+      {(section === "all" || section === "shifts") && (
+        <div style={{ marginTop: 12 }}>
+          <ShiftSchedule role="STAFF" />
         </div>
-        )}
-        {(section === "all" || section === "shifts") && (
-        <div className="col-lg-6">
-          <div className="card shadow-sm">
-            <div className="card-header bg-light">
-              <strong>Lich su ca dang ky</strong>
-            </div>
-            <div className="card-body table-responsive">
-              <table className="table table-sm table-bordered mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>Ngay</th><th>Ca</th><th>Trang thai</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {myShifts.slice(0, 10).map((s) => (
-                    <tr key={s.id}>
-                      <td>{s.shift_date}</td>
-                      <td>{s.start_time} - {s.end_time}</td>
-                      <td>{s.status}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        )}
-      </div>
       )}
 
-      {(section === "all" || section === "shifts") && (
-      <div className="card shadow-sm mt-3">
-        <div className="card-header bg-light d-flex justify-content-between align-items-center">
-          <strong>Thoi khoa bieu ca lam (theo tuan)</strong>
-          <input
-            type="date"
-            className="form-control form-control-sm"
-            style={{ width: 180 }}
-            value={weekStart}
-            onChange={(e) => setWeekStart(e.target.value)}
-          />
-        </div>
-        <div className="card-body table-responsive">
-          <table className="table table-bordered align-middle mb-0">
-            <thead className="table-light">
-              <tr>
-                {weekDates.map((d) => (
-                  <th key={d}>{new Date(d).toLocaleDateString("vi-VN")}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                {weekDates.map((d) => (
-                  <td key={d} style={{ minWidth: 140 }}>
-                    {shiftsByDate[d]?.length ? (
-                      shiftsByDate[d].map((s) => (
-                        <div key={s.id} className="mb-2 p-1 border rounded">
-                          <div className="small">{s.start_time} - {s.end_time}</div>
-                          <span
-                            className={`badge ${s.status === "approved" ? "bg-success" : s.status === "rejected" ? "bg-danger" : "bg-warning text-dark"}`}
-                          >
-                            {s.status}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <span className="text-muted small">Khong co ca</span>
-                    )}
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      )}
-      </div>
+    </div>
     </div>
   );
 }

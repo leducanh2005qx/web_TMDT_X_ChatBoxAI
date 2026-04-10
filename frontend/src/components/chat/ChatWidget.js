@@ -31,8 +31,8 @@ export default function ChatWidget() {
     (async () => {
       const t = await getMyThread();
       setThreadId(t.id);
-      const data = await getMyMessages();
-      setMessages(data.messages || []);
+      const data = await getMyMessages(t.id);
+      setMessages(Array.isArray(data) ? data : []);
       const os = await getMyOrdersSummary();
       setOrders(Array.isArray(os) ? os : []);
     })();
@@ -119,22 +119,31 @@ export default function ChatWidget() {
           </div>
 
           <div className="chat-body">
-            {messages.map((m, i) => (
-              <div
-                key={m.id || i}
-                className={`chat-msg ${m.senderRole === "CUSTOMER" ? "me" : "other"} ${m.senderRole === "SYSTEM" ? "sys" : ""}`}
-              >
-                {m.orderId && (
-                  <div className="chat-order-tag">Đơn #{m.orderId}</div>
-                )}
-                <div className="chat-bubble">
-                  {m.senderRole === "SYSTEM" && (
-                    <div className="system-tag">🤖 TRỢ LÝ TIGER</div>
+            {messages.map((m, i) => {
+              const isSystem = m.senderRole === "SYSTEM" || m.sender_role === "SYSTEM";
+              const isMe =
+                m.senderRole === "CUSTOMER" ||
+                m.senderRole === "USER" ||
+                m.sender_role === "CUSTOMER" ||
+                m.sender_role === "USER";
+
+              return (
+                <div
+                  key={m.id || i}
+                  className={`chat-msg ${isMe ? "me" : "other"} ${isSystem ? "sys" : ""}`}
+                >
+                  {m.orderId && (
+                    <div className="chat-order-tag">Đơn #{m.orderId}</div>
                   )}
-                  {m.message}
+                  <div className="chat-bubble">
+                    {isSystem && (
+                      <div className="system-tag">🤖 TRỢ LÝ TIGER</div>
+                    )}
+                    {m.message}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             <div ref={bottomRef} />
           </div>
 

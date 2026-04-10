@@ -37,6 +37,8 @@ import ManagerStaff from "./pages/manager/ManagerStaff";
 import ManagerWorkspace from "./pages/manager/ManagerWorkspace";
 import StaffRoute from "./components/admin/StaffRoute";
 import StaffWorkspace from "./pages/staff/StaffWorkspace";
+import StaffShifts from "./pages/staff/StaffShifts";
+import ManagerShifts from "./pages/manager/ManagerShifts";
 
 /* ================= CHAT ================= */
 import ChatWidget from "./components/chat/ChatWidget";
@@ -331,6 +333,16 @@ function App() {
             </ManagerRoute>
           }
         />
+        <Route
+          path="/manager/shifts"
+          element={
+            <ManagerRoute>
+              <ManagerLayout>
+                <ManagerShifts />
+              </ManagerLayout>
+            </ManagerRoute>
+          }
+        />
 
         <Route
           path="/staff/workspace"
@@ -388,6 +400,16 @@ function App() {
             <StaffRoute>
               <StaffLayout>
                 <StaffWorkspace section="shifts" />
+              </StaffLayout>
+            </StaffRoute>
+          }
+        />
+        <Route
+          path="/staff/shifts"
+          element={
+            <StaffRoute>
+              <StaffLayout>
+                <StaffShifts />
               </StaffLayout>
             </StaffRoute>
           }

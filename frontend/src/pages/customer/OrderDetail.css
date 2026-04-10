@@ -20,14 +20,14 @@
 .odb-blue {
   width: 500px;
   height: 500px;
-  background: #3b82f6;
+  background: #ee4d2d;
   top: -10%;
   left: -5%;
 }
 .odb-purple {
   width: 400px;
   height: 400px;
-  background: #a855f7;
+  background: #ff7337;
   bottom: 0;
   right: -5%;
 }
@@ -64,7 +64,7 @@
   letter-spacing: -1px;
 }
 .premium-title span {
-  color: #3b82f6;
+  color: #ee4d2d;
   font-size: 1.4rem;
 }
 
@@ -75,14 +75,14 @@
   gap: 30px;
 }
 
-/* Glass Section Cards */
+/* Section Cards */
 .glass-section-card {
-  background: rgba(0, 0, 0, 0.03);
-  backdrop-filter: blur(25px);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 30px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
   padding: 30px;
   margin-bottom: 30px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 
 .section-label {
@@ -113,8 +113,8 @@
   color: #fbbf24;
 }
 .st-shipping {
-  background: rgba(59, 130, 246, 0.2);
-  color: #3b82f6;
+  background: rgba(238, 77, 45, 0.15);
+  color: #ee4d2d;
 }
 .st-completed {
   background: rgba(34, 197, 94, 0.2);
@@ -144,10 +144,10 @@
 }
 .info-item span {
   font-weight: 600;
-  color: #f1f5f9;
+  color: #0f172a;
 }
 .info-item.highlight span {
-  color: #3b82f6;
+  color: #ee4d2d;
   font-size: 1.1rem;
 }
 .address-text {
@@ -183,8 +183,8 @@
   margin-bottom: 5px;
 }
 .variant-badge {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  background: rgba(238, 77, 45, 0.1);
+  color: #ee4d2d;
   padding: 3px 10px;
   border-radius: 6px;
   font-size: 0.7rem;
@@ -197,7 +197,7 @@
 }
 .item-subtotal {
   font-weight: 800;
-  color: #3b82f6;
+  color: #ee4d2d;
   font-size: 1.1rem;
 }
 
@@ -223,9 +223,9 @@
   justify-content: space-between;
   align-items: center;
   margin-top: 25px;
-  background: rgba(59, 130, 246, 0.05);
+  background: rgba(238, 77, 45, 0.05);
   padding: 20px;
-  border-radius: 20px;
+  border-radius: 12px;
 }
 .grand-total-row span:first-child {
   font-weight: 800;
@@ -235,7 +235,7 @@
 .final-price-text {
   font-size: 2rem;
   font-weight: 800;
-  color: #3b82f6;
+  color: #ee4d2d;
 }
 
 /* Responsive */
@@ -307,7 +307,7 @@
   align-items: center;
   height: 100vh;
   font-weight: 900;
-  color: #2563eb;
+  color: #ee4d2d;
   letter-spacing: 3px;
   animation: pulse 1.5s infinite;
 }

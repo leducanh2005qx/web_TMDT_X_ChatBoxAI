@@ -20,14 +20,14 @@
 .vb-blue {
   width: 500px;
   height: 500px;
-  background: #3b82f6;
+  background: #ee4d2d;
   top: -10%;
   left: -5%;
 }
 .vb-purple {
   width: 450px;
   height: 450px;
-  background: #a855f7;
+  background: #ff7337;
   bottom: 5%;
   right: -5%;
 }
@@ -49,7 +49,7 @@
   letter-spacing: -1px;
 }
 .premium-title span {
-  color: #3b82f6;
+  color: #ee4d2d;
 }
 .subtitle {
   color: #94a3b8;
@@ -66,18 +66,20 @@
 /* Voucher Ticket Design */
 .voucher-ticket-card {
   display: flex;
-  background: rgba(0, 0, 0, 0.03);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   height: 160px;
   overflow: hidden;
   transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .voucher-ticket-card:hover {
-  transform: translateY(-8px);
-  background: rgba(0, 0, 0, 0.05);
+  transform: translateY(-4px);
+  background: #ffffff;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  border-color: #ee4d2d;
 }
 
 /* Left side (Coupon Value) */
@@ -92,8 +94,8 @@
 
 /* ✅ Màu sắc riêng cho từng loại thẻ */
 .voucher-ticket-card.percent .ticket-left {
-  background: #3b82f6;
-} /* Xanh dương */
+  background: #ee4d2d;
+} /* Cam chủ đạo */
 .voucher-ticket-card.fixed .ticket-left {
   background: #f59e0b;
 } /* Vàng cam */
@@ -107,7 +109,7 @@
 
 .value-box {
   text-align: center;
-  color: #0f172a;
+  color: #ffffff;
   padding: 0 5px;
 }
 .val-text {
@@ -141,8 +143,9 @@
   content: "";
   width: 16px;
   height: 16px;
-  background: #f8fafc; /* Khớp với màu nền page */
+  background: #f5f5f5; /* Khớp với màu nền page */
   border-radius: 50%;
+  border-left: 1px solid #e2e8f0;
 }
 
 /* Right side (Details) */
@@ -179,7 +182,7 @@
 }
 .min-order b,
 .max-info b {
-  color: #f8fafc;
+  color: #0f172a;
 }
 
 .ticket-footer {
@@ -194,24 +197,23 @@
 
 /* Button Lưu Mã */
 .btn-receive-voucher {
-  background: #0f172a;
-  color: #f8fafc;
+  background: #ee4d2d;
+  color: #ffffff;
   border: none;
-  padding: 12px 18px;
-  border-radius: 12px;
+  padding: 10px 16px;
+  border-radius: 8px;
   font-weight: 800;
   font-size: 0.75rem;
   cursor: pointer;
   transition: 0.3s;
   white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .btn-receive-voucher:hover:not(:disabled) {
-  background: #3b82f6;
-  color: #0f172a;
+  background: #d44225;
+  color: white;
   transform: scale(1.05);
-  box-shadow: 0 10px 20px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 5px 15px rgba(238, 77, 45, 0.3);
 }
 
 .btn-receive-voucher:active {
@@ -229,10 +231,9 @@
 .empty-vouchers-glass {
   text-align: center;
   padding: 80px 40px;
-  background: rgba(0, 0, 0, 0.02);
-  backdrop-filter: blur(20px);
-  border-radius: 30px;
-  border: 1px dashed rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px dashed #e2e8f0;
 }
 .empty-icon {
   font-size: 4rem;
@@ -248,8 +249,8 @@
 .premium-spinner {
   width: 45px;
   height: 45px;
-  border: 3px solid rgba(59, 130, 246, 0.1);
-  border-top-color: #3b82f6;
+  border: 3px solid rgba(238, 77, 45, 0.1);
+  border-top-color: #ee4d2d;
   border-radius: 50%;
   animation: spin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
   margin: 0 auto 20px;

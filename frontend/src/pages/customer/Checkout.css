@@ -20,14 +20,14 @@
 .b-blue {
   width: 500px;
   height: 500px;
-  background: #3b82f6;
+  background: #ee4d2d;
   top: -10%;
   right: -5%;
 }
 .b-purple {
   width: 400px;
   height: 400px;
-  background: #a855f7;
+  background: #ff7337;
   bottom: 5%;
   left: -5%;
 }
@@ -49,7 +49,7 @@
   letter-spacing: -1px;
 }
 .premium-title span {
-  color: #3b82f6;
+  color: #ee4d2d;
 }
 .subtitle {
   color: #94a3b8;
@@ -63,21 +63,21 @@
   gap: 30px;
 }
 
-/* Khối kính Glassmorphism */
+/* Khối trắng tĩnh */
 .glass-section {
-  background: rgba(0, 0, 0, 0.03);
-  backdrop-filter: blur(25px);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 32px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   padding: 30px;
   margin-bottom: 30px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .section-title {
   font-size: 1.25rem;
   font-weight: 700;
   margin-bottom: 25px;
-  color: #f8fafc;
+  color: #0f172a;
 }
 
 /* Form Style */
@@ -103,9 +103,9 @@
   transition: 0.3s;
 }
 .premium-input:focus {
-  border-color: #3b82f6;
+  border-color: #ee4d2d;
   outline: none;
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.02);
 }
 textarea.premium-input {
   min-height: 100px;
@@ -131,8 +131,9 @@ textarea.premium-input {
   align-items: center;
   gap: 20px;
   padding: 15px;
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   margin-bottom: 12px;
 }
 .checkout-item-card img {
@@ -147,8 +148,8 @@ textarea.premium-input {
 }
 .variant-tag {
   font-size: 0.75rem;
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  background: rgba(238, 77, 45, 0.1);
+  color: #ee4d2d;
   display: inline-block;
   padding: 2px 10px;
   border-radius: 6px;
@@ -161,7 +162,7 @@ textarea.premium-input {
 .item-price {
   margin-left: auto;
   font-weight: 700;
-  color: #3b82f6;
+  color: #ee4d2d;
 }
 
 /* Sticky Summary */
@@ -188,9 +189,10 @@ textarea.premium-input {
   font-weight: 600;
 }
 .pay-btn.active {
-  background: #3b82f6;
-  border-color: #3b82f6;
-  box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+  background: #ee4d2d;
+  color: white;
+  border-color: #ee4d2d;
+  box-shadow: 0 10px 20px rgba(238, 77, 45, 0.3);
 }
 
 /* QR Code Animation */
@@ -213,7 +215,7 @@ textarea.premium-input {
   font-size: 0.9rem;
 }
 .qr-reveal-box span {
-  color: #3b82f6;
+  color: #ee4d2d;
 }
 
 @keyframes slideDown {
@@ -248,27 +250,26 @@ textarea.premium-input {
 .price {
   font-size: 1.8rem;
   font-weight: 800;
-  color: #3b82f6;
+  color: #ee4d2d;
 }
 
 .btn-confirm-order {
   width: 100%;
-  padding: 20px;
+  padding: 15px;
   margin-top: 30px;
-  background: #0f172a;
+  background: #ee4d2d;
   color: white;
   border: none;
-  border-radius: 20px;
+  border-radius: 8px;
   font-weight: 800;
   font-size: 1.1rem;
   cursor: pointer;
   transition: 0.4s;
 }
 .btn-confirm-order:hover {
-  background: #3b82f6;
-  color: #0f172a;
-  transform: translateY(-5px);
-  box-shadow: 0 20px 40px rgba(59, 130, 246, 0.4);
+  background: #d44225;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(238, 77, 45, 0.3);
 }
 .btn-confirm-order:disabled {
   opacity: 0.3;
@@ -316,9 +317,9 @@ textarea.premium-input {
   left: 0;
   width: 100%;
   height: 2px;
-  background: #2563eb;
+  background: #ee4d2d;
   animation: qr-scan 2.5s infinite linear;
-  box-shadow: 0 0 8px #2563eb;
+  box-shadow: 0 0 8px #ee4d2d;
 }
 
 @keyframes qr-scan {
@@ -338,7 +339,7 @@ textarea.premium-input {
 
 .qr-total-amount {
   font-weight: 800;
-  color: #2563eb;
+  color: #ee4d2d;
   font-size: 16px;
 }
 
@@ -360,7 +361,8 @@ textarea.premium-input {
   gap: 6px;
 }
 .v-tag.item {
-  background: #2563eb;
+  background: #ee4d2d;
+  color: white;
 }
 .v-tag.ship {
   background: #10b981;

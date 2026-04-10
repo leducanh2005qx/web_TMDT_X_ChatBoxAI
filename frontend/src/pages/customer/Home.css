@@ -24,14 +24,14 @@
 .hb-blue {
   width: 600px;
   height: 600px;
-  background: #3b82f6;
+  background: #ee4d2d;
   top: -10%;
   left: -5%;
 }
 .hb-purple {
   width: 500px;
   height: 500px;
-  background: #a855f7;
+  background: #ff7337;
   bottom: -5%;
   right: -5%;
 }
@@ -56,20 +56,19 @@
 }
 
 .glass-hero-card {
-  background: rgba(0, 0, 0, 0.03);
-  backdrop-filter: blur(30px);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   padding: 80px 40px;
-  border-radius: 50px;
-  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.08);
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .hero-badge {
   display: inline-block;
   padding: 8px 20px;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  color: #3b82f6;
+  background: rgba(238, 77, 45, 0.1);
+  border: 1px solid rgba(238, 77, 45, 0.3);
+  color: #ee4d2d;
   border-radius: 100px;
   font-size: 0.75rem;
   font-weight: 800;
@@ -85,8 +84,7 @@
   line-height: 0.9;
 }
 .hero-main-title span {
-  color: #3b82f6;
-  text-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+  color: #ee4d2d;
 }
 
 .hero-subtitle {
@@ -105,35 +103,37 @@
 }
 
 .btn-primary-glow {
-  background: #0f172a;
+  background: #ee4d2d;
   color: white;
   border: none;
   padding: 18px 40px;
-  border-radius: 20px;
+  border-radius: 8px;
   font-weight: 800;
   font-size: 1rem;
   cursor: pointer;
   transition: 0.4s;
 }
 .btn-primary-glow:hover {
-  background: #3b82f6;
-  color: #0f172a;
+  background: #d44225;
+  color: white;
   transform: translateY(-5px);
-  box-shadow: 0 20px 40px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 10px 20px rgba(238, 77, 45, 0.3);
 }
 
 .btn-secondary-glass {
-  background: rgba(0, 0, 0, 0.05);
+  background: #ffffff;
   color: #0f172a;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
   padding: 18px 40px;
-  border-radius: 20px;
+  border-radius: 8px;
   font-weight: 700;
   cursor: pointer;
   transition: 0.3s;
 }
 .btn-secondary-glass:hover {
-  background: rgba(0, 0, 0, 0.1);
+  background: #f8fafc;
+  color: #ee4d2d;
+  border-color: #ee4d2d;
 }
 
 /* --- INFO GRID --- */
@@ -149,20 +149,20 @@
 }
 
 .info-glass-card {
-  background: rgba(0, 0, 0, 0.03);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   padding: 30px;
-  border-radius: 30px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   gap: 20px;
   transition: 0.4s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 .info-glass-card:hover {
-  transform: translateY(-10px);
-  background: rgba(0, 0, 0, 0.06);
-  border-color: rgba(59, 130, 246, 0.3);
+  transform: translateY(-5px);
+  border-color: rgba(238, 77, 45, 0.6);
+  box-shadow: 0 10px 20px rgba(238, 77, 45, 0.1);
 }
 
 .info-icon {

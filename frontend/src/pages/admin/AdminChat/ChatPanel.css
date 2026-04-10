@@ -9,8 +9,8 @@
 /* --- HEADER --- */
 .chat-header-premium {
   padding: 20px 30px;
-  background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   gap: 15px;
@@ -30,6 +30,8 @@
 
 .user-info-mini h4 {
   font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
   margin: 0;
 }
 .status-online {
@@ -74,33 +76,32 @@
 }
 
 .user-side .msg-bubble {
-  background: rgba(255, 255, 255, 0.08);
-  color: white;
+  background: #f1f5f9;
+  color: #334155;
   border-bottom-left-radius: 4px;
-  backdrop-filter: blur(10px);
 }
 
 /* --- INPUT AREA --- */
 .chat-input-premium {
-  padding: 25px 30px;
-  background: rgba(255, 255, 255, 0.02);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 20px 30px;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
 }
 
 .input-glass-box {
   display: flex;
   gap: 15px;
-  background: rgba(0, 0, 0, 0.2);
+  background: #f8fafc;
   padding: 8px 8px 8px 20px;
   border-radius: 100px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #e2e8f0;
 }
 
 .input-glass-box input {
   flex: 1;
   background: transparent;
   border: none;
-  color: white;
+  color: #0f172a;
   outline: none;
   font-size: 0.95rem;
 }
@@ -177,6 +178,6 @@
 }
 
 .user-side .msg-bubble {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+  background: #f1f5f9;
+  color: #334155;
 }

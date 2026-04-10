@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
+import { getAiSuggestion } from "../../../services/chatApi";
 import "./ChatPanel.css";
 
 const socket = io("http://localhost:5000");
@@ -7,6 +8,7 @@ const socket = io("http://localhost:5000");
 function ChatPanel({ user }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const bottomRef = useRef(null);
 
   /* JOIN SOCKET ROOM */
@@ -77,6 +79,23 @@ function ChatPanel({ user }) {
     });
   };
 
+  const handleAiSuggest = async () => {
+    if (!user?.threadId) return;
+    setIsAiLoading(true);
+    try {
+      const data = await getAiSuggestion(user.threadId);
+      if (data && data.suggestion) {
+        setText(data.suggestion);
+      } else {
+        alert(data.message || "Không thể lấy gợi ý AI");
+      }
+    } catch (err) {
+      alert("Lỗi kết nối AI: " + err.message);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
   if (!user) {
     return (
       <div className="chat-panel-empty">
@@ -137,6 +156,28 @@ function ChatPanel({ user }) {
 
       {/* Input Area */}
       <div className="chat-input-premium">
+        <div style={{ paddingBottom: '8px', paddingLeft: '4px' }}>
+          <button 
+            type="button" 
+            onClick={handleAiSuggest} 
+            disabled={isAiLoading}
+            style={{
+              background: 'linear-gradient(45deg, #FF6B6B, #FF8E53)', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '20px', 
+              padding: '6px 12px', 
+              cursor: 'pointer', 
+              fontSize: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              opacity: isAiLoading ? 0.7 : 1
+            }}
+          >
+            <span>✨</span> {isAiLoading ? "Đang suy nghĩ..." : "Gợi ý AI"}
+          </button>
+        </div>
         <div className="input-glass-box">
           <input
             value={text}

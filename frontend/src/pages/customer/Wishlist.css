@@ -20,14 +20,14 @@
 .wb-blue {
   width: 500px;
   height: 500px;
-  background: #3b82f6;
+  background: #ee4d2d;
   top: -10%;
   right: -5%;
 }
 .wb-purple {
   width: 400px;
   height: 400px;
-  background: #a855f7;
+  background: #ff7337;
   bottom: 5%;
   left: -5%;
 }
@@ -51,7 +51,7 @@
   margin-bottom: 10px;
 }
 .premium-title span {
-  color: #3b82f6;
+  color: #ee4d2d;
 }
 
 .wishlist-count-badge {
@@ -71,20 +71,20 @@
   gap: 30px;
 }
 
-/* Card Glassmorphism */
+/* Card */
 .wishlist-card-glass {
-  background: rgba(0, 0, 0, 0.03);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 24px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   overflow: hidden;
   transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .wishlist-card-glass:hover {
-  transform: translateY(-10px);
-  border-color: rgba(59, 130, 246, 0.4);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+  transform: translateY(-5px);
+  border-color: rgba(238, 77, 45, 0.6);
+  box-shadow: 0 10px 20px rgba(238, 77, 45, 0.15);
 }
 
 .wishlist-media {
@@ -124,8 +124,9 @@
   transition: 0.3s;
 }
 .remove-wish-icon:hover {
-  background: #0f172a;
-  border-color: #0f172a;
+  background: #ee4d2d;
+  color: white;
+  border-color: #ee4d2d;
   transform: scale(1.1);
 }
 
@@ -152,18 +153,18 @@
   font-weight: 700;
   margin-bottom: 8px;
   cursor: pointer;
-  color: #f1f5f9;
+  color: #0f172a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .p-name-wish:hover {
-  color: #3b82f6;
+  color: #ee4d2d;
 }
 
 .p-price-wish {
   font-size: 1.2rem;
-  color: #3b82f6;
+  color: #ee4d2d;
   font-weight: 800;
   margin-bottom: 20px;
 }
@@ -176,19 +177,18 @@
 .btn-wish-action {
   width: 100%;
   padding: 12px;
-  border-radius: 14px;
-  border: none;
-  background: rgba(0, 0, 0, 0.05);
-  color: #0f172a;
+  border-radius: 8px;
+  border: 1px solid #ee4d2d;
+  background: #ffffff;
+  color: #ee4d2d;
   font-weight: 700;
   cursor: pointer;
   transition: 0.3s;
-  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 .btn-wish-action:hover {
-  background: #3b82f6;
-  border-color: #3b82f6;
-  box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+  background: #ee4d2d;
+  color: white;
+  box-shadow: 0 10px 20px rgba(238, 77, 45, 0.3);
   transform: translateY(-2px);
 }
 
@@ -202,11 +202,11 @@
 .empty-wishlist-glass {
   text-align: center;
   padding: 60px;
-  background: rgba(0, 0, 0, 0.03);
-  backdrop-filter: blur(30px);
-  border-radius: 40px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
   max-width: 500px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
 }
 
 .empty-heart-anim {
@@ -236,15 +236,16 @@
 .btn-back-to-shop {
   margin-top: 30px;
   padding: 15px 35px;
-  background: #3b82f6;
-  color: #0f172a;
+  background: #ee4d2d;
+  color: white;
   border: none;
-  border-radius: 100px;
+  border-radius: 8px;
   font-weight: 800;
   cursor: pointer;
   transition: 0.4s;
 }
 .btn-back-to-shop:hover {
   transform: translateY(-5px);
-  box-shadow: 0 15px 30px rgba(59, 130, 246, 0.4);
+  background: #d44225;
+  box-shadow: 0 15px 30px rgba(238, 77, 45, 0.3);
 }

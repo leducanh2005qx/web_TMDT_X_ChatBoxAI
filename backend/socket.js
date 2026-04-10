@@ -1,5 +1,7 @@
 const { Server } = require("socket.io");
 const db = require("./config/db");
+// ✅ ĐÃ SỬA: Dùng đúng thư viện chính thức của Google
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const initSocket = (server) => {
   const io = new Server(server, {
@@ -7,148 +9,122 @@ const initSocket = (server) => {
     transports: ["websocket"],
   });
 
-  // --- HÀM TRUY XUẤT TÊN TÁC NHÂN (USER) TỪ DATABASE ---
   const getUserName = async (userId) => {
     try {
-      // Mỗi khi gọi, nó sẽ vào DB tìm đúng tên của ID đó
-      const [rows] = await db
-        .promise()
-        .query("SELECT name FROM users WHERE id = ?", [userId]);
+      const [rows] = await db.promise().query("SELECT name FROM users WHERE id = ?", [userId]);
       return rows.length > 0 ? rows[0].name : "bạn";
-    } catch (err) {
-      return "bạn";
-    }
+    } catch (err) { return "bạn"; }
   };
 
   const isUserActive = async (userId) => {
     try {
-      const [rows] = await db
-        .promise()
-        .query("SELECT status FROM users WHERE id = ? LIMIT 1", [userId]);
+      const [rows] = await db.promise().query("SELECT status FROM users WHERE id = ? LIMIT 1", [userId]);
       if (!rows.length) return false;
       return rows[0].status === "active";
-    } catch (err) {
-      return false;
-    }
+    } catch (err) { return false; }
   };
 
-  // --- LOGIC PHẢN HỒI THÔNG MINH (Xử lý chữ thừa & Đa tác nhân) ---
+  // --- LOGIC PHẢN HỒI THÔNG MINH ---
   const getSmartAiResponse = async (userMessage, orderId, userName) => {
-    const msg = userMessage.toLowerCase().trim();
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) return `Dạ chào ${userName}. Hiện tại Trợ lý Tiger đang tạm nghỉ. 🐯`;
 
-    // 1. Nhận diện từ khóa Đơn hàng (Dù câu hỏi dài/thừa chữ)
-    if (
-      msg.includes("đơn hàng") ||
-      msg.includes("trạng thái") ||
-      msg.includes("kiểm tra")
-    ) {
-      if (!orderId) {
-        return `Dạ ${userName}, để kiểm tra chính xác, bạn vui lòng chọn đơn hàng ở phía trên nhé! 🚚`;
+      const genAI = new GoogleGenerativeAI(apiKey);
+
+      // Lấy sản phẩm (Giới hạn lại để tránh lỗi quá tải Token/429)
+      const [products] = await db.promise().query("SELECT name, price, stock FROM products LIMIT 20");
+      const productList = products
+        .map((p) => `- ${p.name}: Giá ${Number(p.price).toLocaleString()}đ, Kho: ${p.stock}`)
+        .join("\n");
+
+      let orderInfo = "Không có đơn hàng đính kèm.";
+      if (orderId) {
+        const [orders] = await db.promise().query("SELECT id, total, status FROM orders WHERE id = ?", [orderId]);
+        if (orders.length > 0) {
+          const o = orders[0];
+          orderInfo = `Đơn #${o.id}. Trạng thái: ${o.status}. Tổng: ${Number(o.total).toLocaleString()}đ.`;
+        }
       }
-      try {
-        const [order] = await db
-          .promise()
-          .query("SELECT status FROM orders WHERE id = ?", [orderId]);
-        const statusMap = {
-          pending: "chờ xử lý",
-          shipping: "đang giao",
-          completed: "hoàn tất",
-        };
-        return `Dạ ${userName}, đơn hàng #${orderId} của bạn hiện ${statusMap[order[0].status] || "đang xử lý"}. 📦`;
-      } catch (e) {
-        return `Dạ ${userName}, Tiger chưa lấy được dữ liệu đơn này.`;
+
+      const prompt = `Bạn là "Trợ lý Tiger" của Tiger Shop. Chat với khách: ${userName}.
+Nhiệm vụ: tư vấn bán hàng ngắn gọn, thân thiện, không dùng Markdown.
+SẢN PHẨM:
+${productList}
+ĐƠN HÀNG HIỆN TẠI:
+${orderInfo}
+Khách hỏi: "${userMessage}"
+Trả lời:`;
+
+      // ✅ ĐÃ SỬA: Danh sách model chuẩn nhất hiện tại
+      const FALLBACK_MODELS = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.0-pro"];
+      
+      for (let i = 0; i < FALLBACK_MODELS.length; i++) {
+        try {
+          const model = genAI.getGenerativeModel({ model: FALLBACK_MODELS[i] });
+          const result = await model.generateContent(prompt);
+          // ✅ ĐÃ SỬA: Cách lấy text đúng từ kết quả API
+          const response = await result.response;
+          const text = response.text();
+          console.log(`✅ AI phản hồi qua ${FALLBACK_MODELS[i]}`);
+          return text;
+        } catch (e) {
+          const code = e?.status || 0;
+          if ((code === 429 || code === 503 || code === 404) && i < FALLBACK_MODELS.length - 1) {
+            console.warn(`⚠️  Model ${FALLBACK_MODELS[i]} bận, đang chuyển sang model tiếp theo...`);
+            await new Promise((r) => setTimeout(r, 2000));
+          } else throw e;
+        }
       }
+    } catch (error) {
+      console.error("Lỗi gọi Gemini AI:", error.message);
+      return `Dạ ${userName}, Tiger đang bận một chút, nhân viên sẽ hỗ trợ bạn ngay! 🐯`;
     }
-
-    // 2. Nhận diện từ khóa Thanh toán
-    if (
-      msg.includes("thanh toán") ||
-      msg.includes("ngân hàng") ||
-      msg.includes("mb")
-    ) {
-      return `Dạ ${userName}, bạn có thể chuyển khoản qua MB Bank: 3616042005888 (LE DINH DUC ANH) ạ! 💳`;
-    }
-
-    // 3. Chào hỏi theo tên tác nhân
-    if (
-      msg.includes("xin chào") ||
-      msg.includes("hi") ||
-      msg.includes("hello")
-    ) {
-      return `Chào ${userName}! Tiger Shop rất vui được hỗ trợ bạn. ✨`;
-    }
-
-    // Phản hồi mặc định
-    return `Cảm ơn ${userName}! Tiger đã nhận được yêu cầu. Shop sẽ phản hồi bạn sớm nhất nhé! 🐯`;
   };
 
   io.on("connection", (socket) => {
-    socket.on("joinThread", (data) => {
-      if (data.threadId) socket.join(String(data.threadId));
+    socket.on("join_thread", (data) => {
+      const threadId = data?.threadId || data;
+      if (threadId) socket.join(String(threadId));
     });
 
     socket.on("send_message", async (data) => {
-      const { threadId, senderRole, senderId, message, orderId, receiverId } =
-        data;
+      const { threadId, senderRole, senderId, message, orderId, receiverId } = data;
 
-      const sqlSave = `
-        INSERT INTO chat_messages 
-        (thread_id, sender_role, sender_id, message, order_id, receiver_id, created_at) 
-        VALUES (?, ?, ?, ?, ?, ?, NOW())
-      `;
+      const sqlSave = `INSERT INTO chat_messages (thread_id, sender_role, sender_id, message, order_id, receiver_id, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())`;
 
-      db.query(
-        sqlSave,
-        [
-          threadId,
-          senderRole,
-          senderId,
-          message,
-          orderId || null,
-          receiverId || null,
-        ],
-        async (err, result) => {
-          if (err) return;
+      db.query(sqlSave, [threadId, senderRole, senderId, message, orderId || null, receiverId || null], async (err, result) => {
+        if (err) return;
 
-          io.to(String(threadId)).emit("newMessage", {
-            id: result.insertId,
-            ...data,
-            createdAt: new Date(),
-          });
+        const msgPayload = { id: result.insertId, ...data, createdAt: new Date() };
+        io.to(String(threadId)).emit("newMessage", msgPayload);
 
-          // AI PHẢN HỒI DỰA TRÊN TÊN THẬT TRONG DB
-          if (senderRole === "CUSTOMER" || senderRole === "USER") {
-            const activeSender = await isUserActive(senderId);
-            if (!activeSender) return;
+        // AI PHẢN HỒI TỰ ĐỘNG
+        if (senderRole === "CUSTOMER" || senderRole === "USER") {
+          const activeSender = await isUserActive(senderId);
+          if (!activeSender) return;
 
-            // Bước này đảm bảo lấy tên mới nhất từ DB của người gửi hiện tại
-            const currentUserName = await getUserName(senderId);
-            const aiReply = await getSmartAiResponse(
-              message,
-              orderId,
-              currentUserName,
-            );
+          const currentUserName = await getUserName(senderId);
+          const aiReply = await getSmartAiResponse(message, orderId, currentUserName);
 
-            setTimeout(() => {
-              db.query(
-                sqlSave,
-                [threadId, "SYSTEM", 0, aiReply, orderId || null, senderId],
-                (errAi, resAi) => {
-                  io.to(String(threadId)).emit("newMessage", {
-                    id: resAi.insertId,
-                    threadId,
-                    senderRole: "SYSTEM",
-                    senderId: 0,
-                    message: aiReply,
-                    orderId: orderId || null,
-                    createdAt: new Date(),
-                  });
-                },
-              );
-            }, 1000);
-          }
-        },
-      );
+          // Tạo hiệu ứng trễ để trông thật hơn
+          setTimeout(() => {
+            db.query(sqlSave, [threadId, "SYSTEM", 0, aiReply, orderId || null, senderId], (errAi, resAi) => {
+              if (errAi) return;
+              const aiMsgPayload = {
+                id: resAi.insertId,
+                threadId,
+                senderRole: "SYSTEM",
+                senderId: 0,
+                message: aiReply,
+                orderId: orderId || null,
+                createdAt: new Date(),
+              };
+              io.to(String(threadId)).emit("newMessage", aiMsgPayload);
+            });
+          }, 1500);
+        }
+      });
     });
   });
 

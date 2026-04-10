@@ -16,11 +16,8 @@ export async function getMyThread() {
 }
 
 export async function getMyMessages(threadId) {
-  // Nếu dùng ChatWidget cũ không truyền threadId, ta lấy mặc định của user
-  const url = threadId
-    ? `${API}/chat/admin/messages/${threadId}`
-    : `${API}/chat/messages`;
-  const res = await fetch(url, { headers: authHeaders() });
+  if (!threadId) return [];
+  const res = await fetch(`${API}/chat/messages/${threadId}`, { headers: authHeaders() });
   return res.json();
 }
 
@@ -69,6 +66,15 @@ export async function adminSendMessage(threadId, content) {
 // Hàm lấy tóm tắt đơn hàng cho Admin Panel
 export async function adminGetUserOrdersSummary(userId) {
   const res = await fetch(`${API}/chat/admin/orders/${userId}`, {
+    headers: authHeaders(),
+  });
+  return res.json();
+}
+
+// Hàm lấy gợi ý AI
+export async function getAiSuggestion(threadId) {
+  const res = await fetch(`${API}/chat/ai/suggest/${threadId}`, {
+    method: "POST",
     headers: authHeaders(),
   });
   return res.json();

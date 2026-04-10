@@ -1,59 +1,56 @@
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap");
 
-/* Khung Chat Panel chính */
 .chat-panel {
   position: fixed;
   right: 25px;
   bottom: 100px;
   width: 380px;
   height: 580px;
-  background: rgba(15, 23, 42, 0.95); /* Nền tối đậm để nổi chữ trắng */
-  backdrop-filter: blur(25px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 28px;
   display: flex;
-  flex-direction: column; /* Chia Header, Body, Input theo chiều dọc */
+  flex-direction: column;
   overflow: hidden;
   z-index: 9999;
   font-family: "Plus Jakarta Sans", sans-serif;
-  color: #ffffff; /* Ép toàn bộ chữ mặc định sang màu trắng */
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+  color: #0f172a;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
 }
 
 /* Header */
 .chat-header {
   padding: 18px 22px;
-  background: rgba(255, 255, 255, 0.05);
+  background: #ee4d2d;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .chat-title {
   font-weight: 800;
   font-size: 1.05rem;
-  color: #fff;
+  color: white;
 }
 
 /* Khu vực chọn đơn hàng */
 .chat-tools {
   padding: 10px 20px;
-  background: rgba(0, 0, 0, 0.2);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
 }
 .chat-tools label {
   font-size: 9px;
   font-weight: 800;
-  color: #3b82f6;
+  color: #ee4d2d;
   display: block;
   margin-bottom: 5px;
 }
 .chat-tools select {
   width: 100%;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
   border-radius: 10px;
   padding: 5px;
   font-size: 12px;
@@ -89,44 +86,46 @@
   border-radius: 18px;
   font-size: 0.9rem;
   line-height: 1.4;
-  color: #fff; /* Chữ trong bóng chat màu trắng */
+  color: #0f172a;
 }
 
 .me .chat-bubble {
-  background: #2563eb;
+  background: #ee4d2d;
+  color: white;
   border-bottom-right-radius: 4px;
 }
 .other .chat-bubble {
-  background: rgba(255, 255, 255, 0.1);
+  background: #f1f5f9;
   border-bottom-left-radius: 4px;
 }
 .sys .chat-bubble {
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px dashed #3b82f6;
-  color: #93c5fd;
+  background: #fff5f3;
+  border: 1px dashed #ee4d2d;
+  color: #ee4d2d;
+  text-align: center;
 }
 
 /* Ô nhập liệu và nút gửi */
 .chat-input-area {
   padding: 15px 20px;
-  background: rgba(255, 255, 255, 0.02);
+  background: #ffffff;
   display: flex;
   gap: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid #e2e8f0;
 }
 
 .chat-input-area input {
   flex: 1;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
   padding: 12px;
   border-radius: 14px;
-  color: #fff; /* Chữ nhập vào màu trắng */
+  color: #0f172a;
   outline: none;
 }
 
 .chat-input-area button {
-  background: #3b82f6;
+  background: #ee4d2d;
   color: #fff;
   border: none;
   padding: 0 18px;
@@ -137,7 +136,7 @@
 }
 
 .chat-input-area button:hover {
-  background: #1d4ed8;
+  background: #d44225;
   transform: scale(1.05);
 }
 
@@ -149,11 +148,11 @@
   width: 60px;
   height: 60px;
   border-radius: 20px;
-  background: #2563eb;
+  background: #ee4d2d;
   color: #fff;
   border: none;
   cursor: pointer;
   z-index: 9999;
   font-size: 24px;
-  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 10px 25px rgba(238, 77, 45, 0.4);
 }

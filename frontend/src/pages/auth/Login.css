@@ -26,12 +26,12 @@
   opacity: 0.3;
 }
 .login-page::before {
-  background: #3b82f6;
+  background: #ee4d2d;
   top: -150px;
   left: -150px;
 }
 .login-page::after {
-  background: #8b5cf6;
+  background: #ff7337;
   bottom: -150px;
   right: -150px;
 }
@@ -39,12 +39,11 @@
 .login-card {
   width: 100%;
   max-width: 420px;
-  background: rgba(30, 41, 59, 0.7); /* Nền kính đặc để chữ rõ nét */
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 30px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
   padding: 40px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   z-index: 10;
   text-align: center;
   animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
@@ -94,7 +93,7 @@
 
 .form-group label {
   display: block;
-  color: #e2e8f0;
+  color: #334155;
   font-size: 0.85rem;
   font-weight: 700;
   margin-bottom: 8px;
@@ -103,9 +102,9 @@
 
 .form-group input {
   width: 100%;
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   padding: 14px 18px;
   color: #0f172a;
   font-size: 1rem;
@@ -120,30 +119,30 @@
 }
 
 .form-group input:focus {
-  border-color: #3b82f6;
-  background: rgba(15, 23, 42, 0.8);
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+  border-color: #ee4d2d;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(238, 77, 45, 0.1);
 }
 
 /* Nút Đăng nhập Premium */
 .login-btn {
   width: 100%;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: #0f172a;
+  background: #ee4d2d;
+  color: white;
   border: none;
   padding: 16px;
-  border-radius: 14px;
+  border-radius: 12px;
   font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
   margin-top: 10px;
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
 }
 
 .login-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 15px 30px rgba(37, 99, 235, 0.3);
+  background: #d44225;
+  box-shadow: 0 8px 15px rgba(238, 77, 45, 0.3);
 }
 
 .login-btn:active {
@@ -157,13 +156,13 @@
 }
 
 .register-text a {
-  color: #3b82f6;
+  color: #ee4d2d;
   text-decoration: none;
   font-weight: 700;
   transition: 0.3s;
 }
 
 .register-text a:hover {
-  color: #60a5fa;
+  color: #d44225;
   text-decoration: underline;
 }

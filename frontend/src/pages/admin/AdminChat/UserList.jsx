@@ -25,14 +25,14 @@ export default function UserList({ onSelectUser, selectedUser }) {
       ) : (
         threads.map((t) => {
           const user = {
-            id: t.user_id,
+            id: t.userId || t.user_id,
             email: t.email,
-            threadId: t.thread_id,
+            threadId: t.threadId || t.thread_id,
           };
 
           return (
             <div
-              key={t.thread_id}
+              key={user.threadId}
               className={`chat-user-box ${selectedUser?.id === user.id ? "active" : ""}`}
               onClick={() => onSelectUser(user)}
             >
@@ -43,7 +43,7 @@ export default function UserList({ onSelectUser, selectedUser }) {
 
               <div className="user-details">
                 <span className="user-email-text">{user.email}</span>
-                <span className="user-subtext">Hội thoại #{t.thread_id}</span>
+                <span className="user-subtext">Hội thoại #{user.threadId}</span>
               </div>
 
               {/* Vạch xanh chỉ báo khi đang chọn ô này */}

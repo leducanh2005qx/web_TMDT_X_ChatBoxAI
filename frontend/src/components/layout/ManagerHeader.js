@@ -32,6 +32,7 @@ function ManagerHeader() {
           <NavLink to="/manager/approvals">Duyet don</NavLink>
           <NavLink to="/manager/attendance">Fix check-out</NavLink>
           <NavLink to="/manager/staff">Nhan vien</NavLink>
+          <NavLink to="/manager/shifts">📅 Lịch ca</NavLink>
         </nav>
       </div>
 

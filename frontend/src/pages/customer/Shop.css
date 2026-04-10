@@ -44,14 +44,14 @@
 .blob-1 {
   width: 500px;
   height: 500px;
-  background: #3b82f6;
+  background: #ee4d2d;
   top: -100px;
   left: -100px;
 }
 .blob-2 {
   width: 400px;
   height: 400px;
-  background: #a855f7;
+  background: #ff7337;
   bottom: -50px;
   right: -50px;
 }
@@ -66,22 +66,23 @@
 .brand-badge {
   display: inline-block;
   padding: 8px 20px;
-  background: rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 100px;
-  color: #94a3b8;
-  font-weight: 600;
-  letter-spacing: 2px;
+  color: #ee4d2d;
+  font-weight: 800;
+  letter-spacing: 1px;
   margin-bottom: 1.5rem;
 }
 
 .category-nav {
   display: flex;
   gap: 10px;
-  background: rgba(0, 0, 0, 0.2);
+  background: #ffffff;
   padding: 6px;
   border-radius: 100px;
-  backdrop-filter: blur(10px);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .nav-link {
@@ -96,9 +97,9 @@
 }
 
 .nav-link.active {
-  background: #0f172a;
+  background: #ee4d2d;
   color: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(238, 77, 45, 0.3);
 }
 
 /* --- CAROUSEL STAGE --- */
@@ -122,13 +123,13 @@
 
 /* --- PREMIUM CARD --- */
 .p-card-premium {
-  background: rgba(0, 0, 0, 0.03);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 32px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
   width: 340px;
   padding: 16px;
   transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
-  backdrop-filter: blur(20px);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 
 .p-card-premium.side {
@@ -139,9 +140,9 @@
 
 .p-card-premium.focus {
   transform: scale(1.05) translateZ(50px);
-  background: rgba(0, 0, 0, 0.07);
-  border-color: rgba(0, 0, 0, 0.2);
-  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  border-color: #ee4d2d;
+  box-shadow: 0 15px 30px rgba(238, 77, 45, 0.15);
 }
 
 .image-wrapper {
@@ -187,8 +188,9 @@
 }
 
 .wish-circle.liked {
-  background: #0f172a;
-  border-color: #0f172a;
+  background: #ee4d2d;
+  border-color: #ee4d2d;
+  color: white;
 }
 
 /* Nội dung Card */
@@ -213,17 +215,17 @@
 }
 
 .p-price {
-  color: #3b82f6;
+  color: #ee4d2d;
   font-size: 1.3rem;
   font-weight: 800;
 }
 
 .btn-action-main {
-  background: #0f172a;
+  background: #ee4d2d;
   color: white;
   border: none;
   padding: 12px 24px;
-  border-radius: 16px;
+  border-radius: 12px;
   font-weight: 700;
   font-size: 0.9rem;
   cursor: pointer;
@@ -232,8 +234,9 @@
 
 .btn-action-main:hover {
   transform: scale(1.05);
-  background: #3b82f6;
-  color: #0f172a;
+  background: #d44225;
+  color: white;
+  box-shadow: 0 5px 15px rgba(238, 77, 45, 0.3);
 }
 
 /* Nút điều hướng */
@@ -241,16 +244,18 @@
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   color: #0f172a;
   font-size: 2rem;
   cursor: pointer;
   transition: 0.3s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 .glass-nav-btn:hover {
-  background: #0f172a;
+  background: #ee4d2d;
   color: white;
+  border-color: #ee4d2d;
 }
 
 /* Thanh tiến trình tự xoay */
@@ -264,7 +269,7 @@
 }
 .progress-fill {
   height: 100%;
-  background: #3b82f6;
+  background: #ee4d2d;
   animation: progressAnim 4s linear infinite;
 }
 
