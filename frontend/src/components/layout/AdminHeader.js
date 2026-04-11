@@ -30,8 +30,10 @@ function AdminHeader() {
           <NavLink to="/admin/users">Người dùng</NavLink>
           <NavLink to="/admin/categories">Danh mục</NavLink>
           <NavLink to="/admin/orders">Đơn hàng</NavLink>
+          <NavLink to="/admin/add-product">Thêm SP</NavLink>
           <NavLink to="/admin/vouchers">Khuyến mãi</NavLink>
           <NavLink to="/admin/staff-approvals">Duyệt NV</NavLink>
+          <NavLink to="/admin/product-approvals">Duyệt SP</NavLink>
           <NavLink to="/admin/chat">Chat</NavLink>
           <NavLink to="/admin/stats">Thống kê</NavLink>
         </nav>

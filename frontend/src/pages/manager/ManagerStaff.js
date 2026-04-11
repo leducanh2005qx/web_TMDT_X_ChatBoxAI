@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  createStaffByManager,
   getManagerCreatedStaff,
 } from "../../services/api";
 
@@ -21,14 +20,7 @@ function ManagerStaff() {
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    password: "",
-  });
+
 
   const loadData = async () => {
     try {
@@ -46,23 +38,6 @@ function ManagerStaff() {
     loadData();
   }, []);
 
-  const handleCreateStaff = async (e) => {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
-
-    try {
-      setCreating(true);
-      await createStaffByManager(form);
-      setSuccess("Tao nhan vien thanh cong. Tai khoan dang cho Admin duyet.");
-      setForm({ name: "", email: "", phone: "", password: "" });
-      await loadData();
-    } catch (err) {
-      setError(err.message || "Khong the tao nhan vien");
-    } finally {
-      setCreating(false);
-    }
-  };
 
   return (
     <div className="container py-4">
@@ -71,67 +46,7 @@ function ManagerStaff() {
       </div>
 
       {error && <div className="alert alert-danger">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
 
-      <div className="card shadow-sm mb-3">
-        <div className="card-header bg-light">
-          <strong>Dang ky nhan vien moi</strong>
-        </div>
-        <div className="card-body">
-          <form onSubmit={handleCreateStaff}>
-            <div className="row g-3">
-              <div className="col-md-3">
-                <label className="form-label">Ten nhan vien</label>
-                <input
-                  className="form-control"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="col-md-3">
-                <label className="form-label">Email</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="col-md-2">
-                <label className="form-label">So dien thoai</label>
-                <input
-                  className="form-control"
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                />
-              </div>
-              <div className="col-md-2">
-                <label className="form-label">Mat khau</label>
-                <input
-                  type="password"
-                  className="form-control"
-                  value={form.password}
-                  onChange={(e) =>
-                    setForm({ ...form, password: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="col-md-2 d-flex align-items-end">
-                <button
-                  className="btn btn-primary w-100"
-                  type="submit"
-                  disabled={creating}
-                >
-                  {creating ? "Dang tao..." : "Tao nhan vien"}
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-      </div>
 
       <div className="card shadow-sm">
         <div className="card-body">

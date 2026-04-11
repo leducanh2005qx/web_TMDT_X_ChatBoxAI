@@ -1,12 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  getAllOrdersAdmin,
-  updateOrderStatusAdmin,
+  DollarSign,
+  ShoppingBag,
+  Package,
+  Users,
+} from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
+import {
   getProducts,
   addInventoryStock,
-  getInventoryLogs,
-  getActiveStaff,
-  addStaffWorkLog,
+  getAllOrdersAdmin,
+  updateOrderStatusAdmin,
   getStaffPayroll,
   getProbationStaff,
   approveOfficialStaff,
@@ -30,8 +46,6 @@ function ManagerWorkspace({ section = "all" }) {
   const [orderKeyword, setOrderKeyword] = useState("");
   const [productKeyword, setProductKeyword] = useState("");
   const [lowStockOnly, setLowStockOnly] = useState(false);
-  const [inventoryLogs, setInventoryLogs] = useState([]);
-  const [staffList, setStaffList] = useState([]);
   const [payrollRows, setPayrollRows] = useState([]);
   const [probationStaff, setProbationStaff] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -40,12 +54,7 @@ function ManagerWorkspace({ section = "all" }) {
   const [payrollMonth, setPayrollMonth] = useState(
     new Date().toISOString().slice(0, 7),
   );
-  const [workForm, setWorkForm] = useState({
-    staff_id: "",
-    work_date: new Date().toISOString().slice(0, 10),
-    hours_worked: "",
-    note: "",
-  });
+
 
   const loadData = useCallback(async () => {
     try {
@@ -56,9 +65,9 @@ function ManagerWorkspace({ section = "all" }) {
       ]);
       setOrders(Array.isArray(orderData) ? orderData : []);
       setProducts(Array.isArray(productData) ? productData : []);
-      const [logData, staffData, payrollData] = await Promise.all([
-        getInventoryLogs(),
-        getActiveStaff(),
+      
+      // Fetch sub-section data
+      const [payrollData] = await Promise.all([
         getStaffPayroll(payrollMonth),
       ]);
       const probationData = await getProbationStaff();
@@ -67,13 +76,13 @@ function ManagerWorkspace({ section = "all" }) {
         getPendingShifts(),
         getAttendanceIssues(),
       ]);
-      setInventoryLogs(Array.isArray(logData) ? logData : []);
-      setStaffList(Array.isArray(staffData) ? staffData : []);
+      
       setPayrollRows(Array.isArray(payrollData) ? payrollData : []);
       setProbationStaff(Array.isArray(probationData) ? probationData : []);
       setPendingRequests(Array.isArray(reqData) ? reqData : []);
       setPendingShifts(Array.isArray(shiftData) ? shiftData : []);
       setAttendanceIssues(Array.isArray(issueData) ? issueData : []);
+      
       setError("");
     } catch (err) {
       setError(err.message || "Khong the tai du lieu");
@@ -130,35 +139,6 @@ function ManagerWorkspace({ section = "all" }) {
     }
   };
 
-  const handleAddStock = async (product) => {
-    const qty = Number(stockInput[product.id] || 0);
-    if (!qty || qty <= 0) return;
-
-    try {
-      await addInventoryStock({
-        product_id: product.id,
-        quantity: qty,
-        note: "Manager nhap bo sung ton kho",
-      });
-      setStockInput((prev) => ({ ...prev, [product.id]: "" }));
-      setSuccess(`Da nhap them ${qty} san pham cho "${product.name}".`);
-      await loadData();
-    } catch (err) {
-      setError(err.message || "Nhap them hang that bai");
-    }
-  };
-
-  const handleSaveWorkLog = async (e) => {
-    e.preventDefault();
-    try {
-      await addStaffWorkLog(workForm);
-      setSuccess("Da luu gio lam cho nhan vien.");
-      setWorkForm((prev) => ({ ...prev, hours_worked: "", note: "" }));
-      await loadData();
-    } catch (err) {
-      setError(err.message || "Khong the luu gio lam");
-    }
-  };
 
   const handleApproveOfficial = async (staffId) => {
     try {
@@ -183,22 +163,37 @@ function ManagerWorkspace({ section = "all" }) {
   const handleShiftDecision = async (id, decision) => {
     try {
       await decideShift(id, { decision });
-      setSuccess("Da cap nhat duyet ca lam.");
+      setSuccess("Da cap nhat trang thai ca lam.");
       await loadData();
     } catch (err) {
-      setError(err.message || "Khong the duyet ca");
+      setError(err.message || "Khong the cap nhat ca lam");
     }
   };
 
-  const handleFixCheckout = async (sessionId) => {
-    const value = window.prompt("Nhap thoi gian check-out (YYYY-MM-DD HH:mm:ss):");
-    if (!value) return;
+  const handleFixCheckout = async (id) => {
     try {
-      await fixAttendanceCheckout(sessionId, value);
-      setSuccess("Da chinh lai check-out thanh cong.");
+      await fixAttendanceCheckout(id);
+      setSuccess("Da cap nhat check-out.");
       await loadData();
     } catch (err) {
       setError(err.message || "Khong the chinh check-out");
+    }
+  };
+
+  const handleAddStock = async (product) => {
+    const qty = Number(stockInput[product.id] || 0);
+    if (!qty || qty <= 0) return;
+    try {
+      await addInventoryStock({
+        product_id: product.id,
+        quantity: qty,
+        note: "Manager nhap bo sung ton kho",
+      });
+      setStockInput((prev) => ({ ...prev, [product.id]: "" }));
+      setSuccess(`Da nhap them ${qty} san pham cho "${product.name}".`);
+      await loadData();
+    } catch (err) {
+      setError(err.message || "Nhap hang that bai");
     }
   };
 
@@ -219,395 +214,303 @@ function ManagerWorkspace({ section = "all" }) {
       ) : (
         <>
           {(section === "all" || section === "overview") && (
-          <div className="row g-3 mb-4">
-            <div className="col-md-3">
-              <div className="card border-warning">
-                <div className="card-body">
-                  <div className="text-muted">Don cho duyet</div>
-                  <h4 className="mb-0">{dashboardStats.pending}</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              {/* Thẻ 1: Doanh thu */}
+              <div className="bg-white p-6 rounded-lg shadow-md border-b-4 border-blue-500">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">Doanh thu tháng</p>
+                    <h3 className="text-2xl font-extrabold mt-1">150.000.000đ</h3>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-full text-blue-500">
+                    <DollarSign size={24} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Thẻ 2: Đơn hàng */}
+              <div className="bg-white p-6 rounded-lg shadow-md border-b-4 border-green-500">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">Đơn hàng mới</p>
+                    <h3 className="text-2xl font-extrabold mt-1">24</h3>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-full text-green-500">
+                    <ShoppingBag size={24} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Thẻ 3: Hàng tồn */}
+              <div className="bg-white p-6 rounded-lg shadow-md border-b-4 border-orange-500">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">Sản phẩm sắp hết</p>
+                    <h3 className={`text-2xl font-extrabold mt-1 ${dashboardStats.lowStock > 0 ? 'text-red-500' : ''}`}>
+                      {dashboardStats.lowStock}
+                    </h3>
+                  </div>
+                  <div className="bg-orange-50 p-3 rounded-full text-orange-500">
+                    <Package size={24} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Thẻ 4: Nhân sự */}
+              <div className="bg-white p-6 rounded-lg shadow-md border-b-4 border-purple-500">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">Staff đang làm</p>
+                    <h3 className="text-2xl font-extrabold mt-1">3/10</h3>
+                  </div>
+                  <div className="bg-purple-50 p-3 rounded-full text-purple-500">
+                    <Users size={24} />
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="col-md-3">
-              <div className="card border-primary">
-                <div className="card-body">
-                  <div className="text-muted">Don da xac nhan</div>
-                  <h4 className="mb-0">{dashboardStats.confirmed}</h4>
-                </div>
-              </div>
-            </div>
-            <div className="col-md-3">
-              <div className="card border-success">
-                <div className="card-body">
-                  <div className="text-muted">Don hoan thanh</div>
-                  <h4 className="mb-0">{dashboardStats.completed}</h4>
-                </div>
-              </div>
-            </div>
-            <div className="col-md-3">
-              <div className="card border-danger">
-                <div className="card-body">
-                  <div className="text-muted">San pham sap het</div>
-                  <h4 className="mb-0">{dashboardStats.lowStock}</h4>
-                </div>
-              </div>
-            </div>
-          </div>
           )}
 
-          {(section === "all" || section === "orders") && (
-          <div className="card shadow-sm mb-4">
-            <div className="card-header bg-light">
-              <strong>Quan ly don hang</strong>
-            </div>
-            <div className="card-body">
-              <div className="row g-2 mb-3">
-                <div className="col-md-8 d-flex flex-wrap gap-2">
-                  {["all", "pending", "confirmed", "completed", "cancelled"].map(
-                    (status) => (
-                      <button
-                        key={status}
-                        className={`btn btn-sm ${orderStatusFilter === status ? "btn-primary" : "btn-outline-primary"}`}
-                        onClick={() => setOrderStatusFilter(status)}
-                      >
-                        {status === "all" ? "Tat ca" : status}
-                      </button>
-                    ),
-                  )}
+          {/* KHU VỰC BIỂU ĐỒ (RECHARTS) */}
+          {(section === "all" || section === "overview") && (
+            <div className="flex flex-col lg:flex-row gap-6 mb-8">
+              {/* Bên trái: AreaChart Doanh thu */}
+              <div className="w-full lg:w-[60%] bg-white p-6 rounded-lg shadow-md min-h-[400px]">
+                <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+                  <div className="w-1 h-6 bg-[#ee4d2d]"></div>
+                  Xu hướng doanh thu (7 ngày gần nhất)
+                </h3>
+                <div style={{ width: '100%', height: 300 }}>
+                  <ResponsiveContainer>
+                    <AreaChart
+                      data={[
+                        { name: '06/04', revenue: 12000000 },
+                        { name: '07/04', revenue: 18000000 },
+                        { name: '08/04', revenue: 15000000 },
+                        { name: '09/04', revenue: 22000000 },
+                        { name: '10/04', revenue: 30000000 },
+                        { name: '11/04', revenue: 25000000 },
+                        { name: 'Hôm nay', revenue: 35000000 },
+                      ]}
+                      margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#ee4d2d" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="#ee4d2d" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value/1000000}M`} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                      <Tooltip 
+                        formatter={(value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)}
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Area type="monotone" dataKey="revenue" stroke="#ee4d2d" fillOpacity={1} fill="url(#colorRev)" strokeWidth={3} />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
-                <div className="col-md-4">
+              </div>
+
+              {/* Bên phải: PieChart Danh mục */}
+              <div className="w-full lg:w-[40%] bg-white p-6 rounded-lg shadow-md min-h-[400px]">
+                <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+                  <div className="w-1 h-6 bg-blue-500"></div>
+                  Tỷ trọng doanh thu theo Danh mục
+                </h3>
+                <div style={{ width: '100%', height: 300 }}>
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Điện tử', value: 45 },
+                          { name: 'Thời trang', value: 30 },
+                          { name: 'Đồ ăn', value: 15 },
+                          { name: 'Khác', value: 10 },
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {[
+                          { color: '#ee4d2d' },
+                          { color: '#3b82f6' },
+                          { color: '#10b981' },
+                          { color: '#f59e0b' },
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* KHU VỰC QUẢN LÝ KHO (INVENTORY) */}
+          {(section === "inventory") && (
+            <div className="card shadow-sm border-0 mb-4">
+              <div className="card-header bg-white py-3">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <h4 className="text-lg font-bold text-gray-800 mb-0">Danh sách sản phẩm / Tồn kho</h4>
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="form-control form-control-sm"
+                      placeholder="Tìm ID hoặc Tên SP..."
+                      value={productKeyword}
+                      onChange={(e) => setProductKeyword(e.target.value)}
+                      style={{ width: '200px' }}
+                    />
+                    <div className="form-check form-switch mb-0">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        checked={lowStockOnly}
+                        onChange={(e) => setLowStockOnly(e.target.checked)}
+                        id="lowStockCheck"
+                      />
+                      <label className="form-check-label text-sm" htmlFor="lowStockCheck">
+                        Sắp hết hàng
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="card-body p-0">
+                <div className="table-responsive">
+                  <table className="table table-hover align-middle mb-0">
+                    <thead className="bg-light">
+                      <tr>
+                        <th className="px-4 py-3 border-0">ID</th>
+                        <th className="py-3 border-0">Sản phẩm</th>
+                        <th className="py-3 border-0">Giá</th>
+                        <th className="py-3 border-0">Tồn kho</th>
+                        <th className="py-3 border-0 text-center" style={{ width: 220 }}>Thao tác nhập kho</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredProducts.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="text-center py-5 text-gray-500">
+                            Không tìm thấy sản phẩm nào.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredProducts.map((p) => (
+                          <tr key={p.id}>
+                            <td className="px-4 text-gray-500">#{p.id}</td>
+                            <td>
+                              <div className="flex items-center gap-3">
+                                {p.image_url && (
+                                  <img src={p.image_url} alt="" className="w-10 h-10 rounded object-cover border" />
+                                )}
+                                <span className="font-medium text-gray-800">{p.name}</span>
+                              </div>
+                            </td>
+                            <td className="text-orange-600 font-bold">
+                              {Number(p.price).toLocaleString()}đ
+                            </td>
+                            <td>
+                              <span className={`badge ${Number(p.stock) <= 10 ? 'bg-danger' : 'bg-success'}`}>
+                                {p.stock} {p.unit || 'cái'}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="input-group input-group-sm">
+                                <input
+                                  type="number"
+                                  className="form-control text-center"
+                                  placeholder="+ Số lượng"
+                                  value={stockInput[p.id] || ""}
+                                  onChange={(e) => setStockInput({ ...stockInput, [p.id]: e.target.value })}
+                                />
+                                <button className="btn btn-primary" onClick={() => handleAddStock(p)}>
+                                  Lưu
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {(section === "orders") && (
+          <div className="card shadow-sm mb-4 border-0">
+            <div className="card-header bg-white py-3">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <h4 className="text-lg font-bold text-gray-800 mb-0">Quản lý đơn hàng</h4>
+                <div className="flex items-center gap-2">
+                  <select 
+                    className="form-select form-select-sm"
+                    value={orderStatusFilter}
+                    onChange={(e) => setOrderStatusFilter(e.target.value)}
+                    style={{ width: '150px' }}
+                  >
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="pending">Chờ duyệt</option>
+                    <option value="confirmed">Đã xác nhận</option>
+                    <option value="completed">Hoàn thành</option>
+                    <option value="cancelled">Đã hủy</option>
+                  </select>
                   <input
                     className="form-control form-control-sm"
-                    placeholder="Tim theo ma don / email"
+                    placeholder="Tìm mã đơn / email..."
                     value={orderKeyword}
                     onChange={(e) => setOrderKeyword(e.target.value)}
+                    style={{ width: '200px' }}
                   />
                 </div>
               </div>
+            </div>
+            <div className="card-body p-0">
               <div className="table-responsive">
-                <table className="table table-bordered table-hover align-middle mb-0">
-                  <thead className="table-light">
+                <table className="table table-hover align-middle mb-0">
+                  <thead className="bg-light">
                     <tr>
-                      <th style={{ width: 90 }}>Ma don</th>
-                      <th>Khach hang</th>
-                      <th>Tong tien</th>
-                      <th>Trang thai</th>
-                      <th>Ngay dat</th>
-                      <th style={{ width: 240 }}>Thao tac</th>
+                      <th className="px-4">Mã đơn</th>
+                      <th>Khách hàng</th>
+                      <th>Tổng tiền</th>
+                      <th>Trạng thái</th>
+                      <th>Ngày đặt</th>
+                      <th className="text-center">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredOrders.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="text-center text-muted">
-                          Khong co don hang phu hop bo loc.
-                        </td>
-                      </tr>
+                      <tr><td colSpan={6} className="text-center py-5 text-gray-500">Trống.</td></tr>
                     ) : (
-                      filteredOrders.map((o) => {
-                        const orderId = o.orderId ?? o.id;
-                        return (
-                          <tr key={orderId}>
-                            <td>#{orderId}</td>
-                            <td>{o.email || "Khach vang lai"}</td>
-                            <td>{Number(o.total || 0).toLocaleString()} đ</td>
-                            <td>
-                              <span className="badge bg-secondary text-uppercase">
-                                {o.status}
-                              </span>
-                            </td>
-                            <td>
-                              {o.created_at
-                                ? new Date(o.created_at).toLocaleDateString("vi-VN")
-                                : "-"}
-                            </td>
-                            <td className="d-flex gap-2">
+                      filteredOrders.map((o) => (
+                        <tr key={o.id}>
+                          <td className="px-4 font-bold">#{o.id}</td>
+                          <td>{o.email || "Khách vãng lai"}</td>
+                          <td className="text-orange-600 font-medium">{Number(o.total || 0).toLocaleString()}đ</td>
+                          <td>
+                            <span className="badge bg-secondary text-uppercase">{o.status}</span>
+                          </td>
+                          <td>{new Date(o.created_at).toLocaleDateString("vi-VN")}</td>
+                          <td className="text-center">
+                            <div className="flex justify-center gap-2">
                               {o.status === "pending" && (
                                 <>
-                                  <button
-                                    className="btn btn-sm btn-success"
-                                    onClick={() => handleUpdateOrder(orderId, "confirmed")}
-                                  >
-                                    Duyet
-                                  </button>
-                                  <button
-                                    className="btn btn-sm btn-outline-danger"
-                                    onClick={() => handleUpdateOrder(orderId, "cancelled")}
-                                  >
-                                    Huy
-                                  </button>
+                                  <button className="btn btn-sm btn-success" onClick={() => handleUpdateOrder(o.id, "confirmed")}>Duyệt</button>
+                                  <button className="btn btn-sm btn-outline-danger" onClick={() => handleUpdateOrder(o.id, "cancelled")}>Hủy</button>
                                 </>
                               )}
                               {o.status === "confirmed" && (
-                                <button
-                                  className="btn btn-sm btn-primary"
-                                  onClick={() => handleUpdateOrder(orderId, "completed")}
-                                >
-                                  Danh dau hoan thanh
-                                </button>
+                                <button className="btn btn-sm btn-primary" onClick={() => handleUpdateOrder(o.id, "completed")}>Giao xong</button>
                               )}
-                              {o.status === "completed" && (
-                                <span className="text-success">Da hoan thanh</span>
-                              )}
-                              {o.status === "cancelled" && (
-                                <span className="text-muted">Da huy</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-          )}
-
-          {(section === "all" || section === "inventory") && (
-          <div className="card shadow-sm">
-            <div className="card-header bg-light">
-              <strong>Quan ly kho va nhap hang</strong>
-            </div>
-            <div className="card-body">
-              <div className="row g-2 mb-3">
-                <div className="col-md-8">
-                  <input
-                    className="form-control form-control-sm"
-                    placeholder="Tim san pham theo ten / ID"
-                    value={productKeyword}
-                    onChange={(e) => setProductKeyword(e.target.value)}
-                  />
-                </div>
-                <div className="col-md-4 d-flex align-items-center">
-                  <div className="form-check">
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      id="lowStockOnly"
-                      checked={lowStockOnly}
-                      onChange={(e) => setLowStockOnly(e.target.checked)}
-                    />
-                    <label className="form-check-label" htmlFor="lowStockOnly">
-                      Chi hien san pham ton kho {"<="} 10
-                    </label>
-                  </div>
-                </div>
-              </div>
-              <div className="table-responsive">
-                <table className="table table-bordered table-hover align-middle mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th style={{ width: 80 }}>ID</th>
-                      <th>San pham</th>
-                      <th style={{ width: 130 }}>Ton kho</th>
-                      <th style={{ width: 130 }}>Gia ban</th>
-                      <th style={{ width: 220 }}>Nhap them</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredProducts.map((p) => (
-                      <tr key={p.id}>
-                        <td>{p.id}</td>
-                        <td>{p.name}</td>
-                        <td>
-                          <span
-                            className={`badge ${Number(p.stock || 0) <= 10 ? "bg-danger" : "bg-success"}`}
-                          >
-                            {Number(p.stock || 0)}
-                          </span>
-                        </td>
-                        <td>{Number(p.price || 0).toLocaleString()} đ</td>
-                        <td>
-                          <div className="d-flex gap-2">
-                            <input
-                              type="number"
-                              min="1"
-                              className="form-control form-control-sm"
-                              placeholder="So luong"
-                              value={stockInput[p.id] || ""}
-                              onChange={(e) =>
-                                setStockInput((prev) => ({
-                                  ...prev,
-                                  [p.id]: e.target.value,
-                                }))
-                              }
-                            />
-                            <button
-                              className="btn btn-sm btn-primary"
-                              onClick={() => handleAddStock(p)}
-                            >
-                              Cap nhat
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-          )}
-
-          {(section === "all" || section === "inventory") && (
-          <div className="card shadow-sm mt-4">
-            <div className="card-header bg-light">
-              <strong>Lich su nhap kho gan day</strong>
-            </div>
-            <div className="card-body">
-              <div className="table-responsive">
-                <table className="table table-bordered table-hover align-middle mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th style={{ width: 70 }}>ID</th>
-                      <th>San pham</th>
-                      <th>So luong nhap</th>
-                      <th>Ton kho cu -> moi</th>
-                      <th>Ghi chu</th>
-                      <th>Thoi gian</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {inventoryLogs.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="text-center text-muted">
-                          Chua co lich su nhap kho.
-                        </td>
-                      </tr>
-                    ) : (
-                      inventoryLogs.slice(0, 15).map((log) => (
-                        <tr key={log.id}>
-                          <td>{log.id}</td>
-                          <td>{log.product_name}</td>
-                          <td>+{log.quantity_added}</td>
-                          <td>
-                            {log.old_stock} -> {log.new_stock}
-                          </td>
-                          <td>{log.note || "-"}</td>
-                          <td>{new Date(log.created_at).toLocaleString("vi-VN")}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-          )}
-
-          {(section === "all" || section === "payroll") && (
-          <div className="card shadow-sm mt-4">
-            <div className="card-header bg-light">
-              <strong>Cham cong theo gio va tinh luong staff</strong>
-            </div>
-            <div className="card-body">
-              <form onSubmit={handleSaveWorkLog} className="row g-2 mb-3">
-                <div className="col-md-3">
-                  <select
-                    className="form-select form-select-sm"
-                    value={workForm.staff_id}
-                    onChange={(e) =>
-                      setWorkForm((prev) => ({ ...prev, staff_id: e.target.value }))
-                    }
-                    required
-                  >
-                    <option value="">Chon staff</option>
-                    {staffList.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} - {s.email}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-md-2">
-                  <input
-                    type="date"
-                    className="form-control form-control-sm"
-                    value={workForm.work_date}
-                    onChange={(e) =>
-                      setWorkForm((prev) => ({ ...prev, work_date: e.target.value }))
-                    }
-                    required
-                  />
-                </div>
-                <div className="col-md-2">
-                  <input
-                    type="number"
-                    min="0.5"
-                    step="0.5"
-                    className="form-control form-control-sm"
-                    placeholder="So gio lam"
-                    value={workForm.hours_worked}
-                    onChange={(e) =>
-                      setWorkForm((prev) => ({ ...prev, hours_worked: e.target.value }))
-                    }
-                    required
-                  />
-                </div>
-                <div className="col-md-3">
-                  <input
-                    className="form-control form-control-sm"
-                    placeholder="Ghi chu"
-                    value={workForm.note}
-                    onChange={(e) =>
-                      setWorkForm((prev) => ({ ...prev, note: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="col-md-2">
-                  <button className="btn btn-sm btn-primary w-100" type="submit">
-                    Luu gio lam
-                  </button>
-                </div>
-              </form>
-
-              <div className="d-flex justify-content-end mb-2">
-                <input
-                  type="month"
-                  className="form-control form-control-sm"
-                  style={{ width: 180 }}
-                  value={payrollMonth}
-                  onChange={(e) => setPayrollMonth(e.target.value)}
-                />
-              </div>
-              <div className="table-responsive">
-                <table className="table table-bordered table-hover align-middle mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th>Staff</th>
-                      <th>Email</th>
-                      <th>Trang thai</th>
-                      <th>Luong thu viec</th>
-                      <th>Luong chinh thuc</th>
-                      <th>Tong gio ({payrollMonth})</th>
-                      <th>Tien luong</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {payrollRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="text-center text-muted">
-                          Chua co du lieu luong.
-                        </td>
-                      </tr>
-                    ) : (
-                      payrollRows.map((row) => (
-                        <tr key={row.staff_id}>
-                          <td>{row.staff_name}</td>
-                          <td>{row.email}</td>
-                          <td>
-                            <span
-                              className={`badge ${row.employment_status === "official" ? "bg-success" : "bg-warning text-dark"}`}
-                            >
-                              {row.employment_status === "official" ? "Chinh thuc" : "Thu viec"}
-                            </span>
-                          </td>
-                          <td>{Number(row.probation_hourly_rate || 0).toLocaleString()} đ</td>
-                          <td>{Number(row.official_hourly_rate || 0).toLocaleString()} đ</td>
-                          <td>{Number(row.total_hours || 0)}</td>
-                          <td className="fw-bold text-success">
-                            {Number(row.salary_amount || 0).toLocaleString()} đ
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -619,50 +522,35 @@ function ManagerWorkspace({ section = "all" }) {
           </div>
           )}
 
-          {(section === "all" || section === "staff") && (
-          <div className="card shadow-sm mt-4">
-            <div className="card-header bg-light">
-              <strong>Duyet nhan vien thu viec len chinh thuc (som)</strong>
+          {(section === "staff") && (
+          <div className="card shadow-sm border-0 mb-4">
+            <div className="card-header bg-white py-3">
+              <h4 className="text-lg font-bold text-gray-800 mb-0">Duyệt nhân viên lên chính thức</h4>
             </div>
-            <div className="card-body">
+            <div className="card-body p-0">
               <div className="table-responsive">
-                <table className="table table-bordered table-hover align-middle mb-0">
-                  <thead className="table-light">
+                <table className="table table-hover align-middle mb-0">
+                  <thead className="bg-light">
                     <tr>
-                      <th>ID</th>
-                      <th>Nhan vien</th>
+                      <th className="px-4">ID</th>
+                      <th>Nhân viên</th>
                       <th>Email</th>
-                      <th>Bat dau thu viec</th>
-                      <th>Muc luong thu viec</th>
-                      <th style={{ width: 180 }}>Thao tac</th>
+                      <th>Bắt đầu thử việc</th>
+                      <th className="text-center">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
                     {probationStaff.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="text-center text-muted">
-                          Khong co nhan vien nao dang thu viec.
-                        </td>
-                      </tr>
+                      <tr><td colSpan={5} className="text-center py-5 text-gray-500">Không có nhân viên thử việc.</td></tr>
                     ) : (
                       probationStaff.map((s) => (
                         <tr key={s.id}>
-                          <td>{s.id}</td>
-                          <td>{s.name}</td>
+                          <td className="px-4">#{s.id}</td>
+                          <td className="font-medium">{s.name}</td>
                           <td>{s.email}</td>
-                          <td>
-                            {s.probation_start_at
-                              ? new Date(s.probation_start_at).toLocaleString("vi-VN")
-                              : "-"}
-                          </td>
-                          <td>{Number(s.probation_hourly_rate || 20000).toLocaleString()} đ/h</td>
-                          <td>
-                            <button
-                              className="btn btn-sm btn-success"
-                              onClick={() => handleApproveOfficial(s.id)}
-                            >
-                              Duyet len chinh thuc
-                            </button>
+                          <td>{new Date(s.probation_start_at).toLocaleDateString("vi-VN")}</td>
+                          <td className="text-center">
+                            <button className="btn btn-sm btn-success" onClick={() => handleApproveOfficial(s.id)}>Lên chính thức</button>
                           </td>
                         </tr>
                       ))
@@ -674,106 +562,166 @@ function ManagerWorkspace({ section = "all" }) {
           </div>
           )}
 
-          {(section === "all" || section === "approvals") && (
-          <div className="row g-3 mt-2">
-            <div className="col-lg-6">
-              <div className="card shadow-sm">
-                <div className="card-header bg-light">
-                  <strong>Duyet don xin nghi / den muon</strong>
+
+          {(section === "approvals") && (
+            <div className="row g-4">
+              <div className="col-lg-6">
+                <div className="card shadow-sm border-0 h-100">
+                  <div className="card-header bg-white py-3">
+                    <h4 className="text-lg font-bold text-gray-800 mb-0">Đơn xin nghỉ / Đến muộn</h4>
+                  </div>
+                  <div className="card-body p-0">
+                    <div className="table-responsive">
+                      <table className="table table-hover align-middle mb-0">
+                        <thead className="bg-light">
+                          <tr>
+                            <th className="px-3">Staff</th><th>Loại</th><th>Ngày</th><th className="text-center">Duyệt</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pendingRequests.length === 0 ? (
+                            <tr><td colSpan={4} className="text-center py-4 text-gray-500">Trống.</td></tr>
+                          ) : (
+                            pendingRequests.map((r) => (
+                              <tr key={r.id}>
+                                <td className="px-3">{r.staff_name}</td>
+                                <td>{r.request_type}</td>
+                                <td>{r.request_date}</td>
+                                <td className="text-center flex justify-center gap-1">
+                                  <button className="btn btn-sm btn-success" onClick={() => handleRequestDecision(r.id, "approved")}>OK</button>
+                                  <button className="btn btn-sm btn-outline-danger" onClick={() => handleRequestDecision(r.id, "rejected")}>X</button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
-                <div className="card-body table-responsive">
-                  <table className="table table-sm table-bordered mb-0">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Staff</th><th>Loai</th><th>Ngay</th><th>Duyet</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pendingRequests.slice(0, 15).map((r) => (
-                        <tr key={r.id}>
-                          <td>{r.staff_name}</td>
-                          <td>{r.request_type}</td>
-                          <td>{r.request_date}</td>
-                          <td className="d-flex gap-1">
-                            <button className="btn btn-sm btn-success" onClick={() => handleRequestDecision(r.id, "approved")}>OK</button>
-                            <button className="btn btn-sm btn-outline-danger" onClick={() => handleRequestDecision(r.id, "rejected")}>Tu choi</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              </div>
+              <div className="col-lg-6">
+                <div className="card shadow-sm border-0 h-100">
+                  <div className="card-header bg-white py-3">
+                    <h4 className="text-lg font-bold text-gray-800 mb-0">Đăng ký ca làm</h4>
+                  </div>
+                  <div className="card-body p-0">
+                    <div className="table-responsive">
+                      <table className="table table-hover align-middle mb-0">
+                        <thead className="bg-light">
+                          <tr>
+                            <th className="px-3">Staff</th><th>Ngày</th><th>Ca</th><th className="text-center">Duyệt</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pendingShifts.length === 0 ? (
+                            <tr><td colSpan={4} className="text-center py-4 text-gray-500">Trống.</td></tr>
+                          ) : (
+                            pendingShifts.map((s) => (
+                              <tr key={s.id}>
+                                <td className="px-3">{s.staff_name}</td>
+                                <td>{s.shift_date}</td>
+                                <td className="text-sm">{s.start_time}-{s.end_time}</td>
+                                <td className="text-center flex justify-center gap-1">
+                                  <button className="btn btn-sm btn-success" onClick={() => handleShiftDecision(s.id, "approved")}>OK</button>
+                                  <button className="btn btn-sm btn-outline-danger" onClick={() => handleShiftDecision(s.id, "rejected")}>X</button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="col-lg-6">
-              <div className="card shadow-sm">
-                <div className="card-header bg-light">
-                  <strong>Duyet dang ky ca lam</strong>
-                </div>
-                <div className="card-body table-responsive">
-                  <table className="table table-sm table-bordered mb-0">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Staff</th><th>Ngay</th><th>Ca</th><th>Duyet</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pendingShifts.slice(0, 15).map((s) => (
-                        <tr key={s.id}>
-                          <td>{s.staff_name}</td>
-                          <td>{s.shift_date}</td>
-                          <td>{s.start_time} - {s.end_time}</td>
-                          <td className="d-flex gap-1">
-                            <button className="btn btn-sm btn-success" onClick={() => handleShiftDecision(s.id, "approved")}>OK</button>
-                            <button className="btn btn-sm btn-outline-danger" onClick={() => handleShiftDecision(s.id, "rejected")}>Tu choi</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
           )}
 
-          {(section === "all" || section === "attendance") && (
-          <div className="card shadow-sm mt-4">
-            <div className="card-header bg-light">
-              <strong>Ca lam loi (qua 24h chua check-out)</strong>
-            </div>
-            <div className="card-body table-responsive">
-              <table className="table table-bordered table-hover align-middle mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>Staff</th>
-                    <th>Check-in</th>
-                    <th>Trang thai</th>
-                    <th>Thao tac</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {attendanceIssues.length === 0 ? (
-                    <tr><td colSpan={4} className="text-center text-muted">Khong co ca loi.</td></tr>
-                  ) : (
-                    attendanceIssues.map((i) => (
-                      <tr key={i.id}>
-                        <td>{i.staff_name}</td>
-                        <td>{new Date(i.check_in_at).toLocaleString("vi-VN")}</td>
-                        <td>{i.status}</td>
-                        <td>
-                          <button className="btn btn-sm btn-primary" onClick={() => handleFixCheckout(i.id)}>
-                            Chinh check-out
-                          </button>
-                        </td>
+          {(section === "attendance") && (
+            <div className="card shadow-sm border-0 mb-4">
+              <div className="card-header bg-white py-3">
+                <h4 className="text-lg font-bold text-gray-800 mb-0">Ca làm lỗi (Quá 24h chưa check-out)</h4>
+              </div>
+              <div className="card-body p-0">
+                <div className="table-responsive">
+                  <table className="table table-hover align-middle mb-0">
+                    <thead className="bg-light">
+                      <tr>
+                        <th className="px-4">Staff</th>
+                        <th>Check-in lúc</th>
+                        <th>Trạng thái</th>
+                        <th className="text-center">Thao tác</th>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      {attendanceIssues.length === 0 ? (
+                        <tr><td colSpan={4} className="text-center py-5 text-gray-500">Không có ca lỗi.</td></tr>
+                      ) : (
+                        attendanceIssues.map((i) => (
+                          <tr key={i.id}>
+                            <td className="px-4 font-medium">{i.staff_name}</td>
+                            <td>{new Date(i.check_in_at).toLocaleString("vi-VN")}</td>
+                            <td><span className="badge bg-warning text-dark">{i.status}</span></td>
+                            <td className="text-center">
+                              <button className="btn btn-sm btn-primary" onClick={() => handleFixCheckout(i.id)}>
+                                Chỉnh check-out
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-          </div>
           )}
+
+          {(section === "payroll") && (
+            <div className="card shadow-sm border-0 mb-4">
+              <div className="card-header bg-white py-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-lg font-bold text-gray-800 mb-0">Bảng lương dự kiến</h4>
+                  <input
+                    type="month"
+                    className="form-control form-control-sm w-auto"
+                    value={payrollMonth}
+                    onChange={(e) => setPayrollMonth(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="card-body p-0">
+                <div className="table-responsive">
+                  <table className="table table-hover align-middle mb-0">
+                    <thead className="bg-light">
+                      <tr>
+                        <th className="px-4">Nhân viên</th>
+                        <th>Tổng giờ</th>
+                        <th>Lương/H</th>
+                        <th>Tổng lương</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payrollRows.length === 0 ? (
+                        <tr><td colSpan={4} className="text-center py-5 text-gray-500">Không có dữ liệu lương.</td></tr>
+                      ) : (
+                        payrollRows.map((p, idx) => (
+                          <tr key={idx}>
+                            <td className="px-4 font-medium">{p.staff_name}</td>
+                            <td>{p.total_hours}h</td>
+                            <td>{Number(p.employment_status === "official" ? p.official_hourly_rate : p.probation_hourly_rate || 0).toLocaleString()}đ</td>
+                            <td className="text-orange-600 font-bold">{Number(p.salary_amount || 0).toLocaleString()}đ</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
         </>
       )}
       </div>

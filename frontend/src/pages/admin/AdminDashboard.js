@@ -1,28 +1,27 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { Search, Filter, Plus } from "lucide-react";
 import "./AdminDashboard.css";
-import "./AdminDashboard.css";
-import AdminVariantManager from "../../components/admin/AdminVariantManager";
 import { getInventoryAlert } from "../../services/api";
 
 function AdminDashboard() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [editing, setEditing] = useState(null);
   const [alertData, setAlertData] = useState({ alerts: [], trashCount: 0 });
   const [showTrash, setShowTrash] = useState(false);
   const [trashProducts, setTrashProducts] = useState([]);
   const [loadingTrash, setLoadingTrash] = useState(false);
-  const [image, setImage] = useState(null);
-  const [form, setForm] = useState({
-    name: "",
-    price: "",
-    category_id: "",
-    description: "",
-  });
+  
+  // Toolbar states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+
   const token = localStorage.getItem("token");
 
-  const loadProducts = () => {
-    fetch("http://localhost:5000/api/products")
+  const loadProducts = useCallback(() => {
+    fetch("http://localhost:5000/api/products", {
+      headers: { Authorization: "Bearer " + token },
+    })
       .then((res) => {
         if (!res.ok) throw new Error("Lỗi hệ thống server");
         return res.json();
@@ -32,69 +31,32 @@ function AdminDashboard() {
         console.error("Lỗi:", err);
         setProducts([]);
       });
-  };
+  }, [token]);
 
-  const loadCategories = () => {
+  const loadCategories = useCallback(() => {
     fetch("http://localhost:5000/api/categories")
       .then((res) => res.json())
       .then((data) => setCategories(Array.isArray(data) ? data : []))
       .catch((err) => console.error("Lỗi:", err));
-  };
+  }, []);
 
   useEffect(() => {
     loadProducts();
     loadCategories();
     
-    // Kiểm tra hàng hóa sắp hết để Tiger nhắc nhở
     getInventoryAlert()
       .then(data => {
         if (data && data.alerts) {
           setAlertData(data);
         } else if (Array.isArray(data)) {
-          // Fallback cho version cũ nếu có
           setAlertData({ alerts: data, trashCount: 0 });
         }
       })
       .catch(console.error);
-  }, []);
-
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
-
-  const submit = (e) => {
-    e.preventDefault();
-    const formData = new FormData();
-    Object.keys(form).forEach((k) => formData.append(k, form[k]));
-    if (image) formData.append("image", image);
-
-    const method = editing ? "PUT" : "POST";
-    const url = editing
-      ? `http://localhost:5000/api/products/${editing.id}`
-      : "http://localhost:5000/api/products";
-
-    fetch(url, {
-      method,
-      headers: { Authorization: "Bearer " + token },
-      body: formData,
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Thất bại");
-        setForm({ name: "", price: "", category_id: "", description: "" });
-        setImage(null);
-        setEditing(null);
-        loadProducts();
-        alert("Thành công!");
-      })
-      .catch((err) => alert(err.message));
-  };
+  }, [loadProducts, loadCategories]);
 
   const deleteProduct = (id) => {
-    if (
-      !window.confirm(
-        "Xoá sản phẩm này sẽ xóa tất cả các Size liên quan. Bạn chắc chắn?",
-      )
-    )
-      return;
+    if (!window.confirm("Xoá sản phẩm này sẽ chuyển vào thùng rác. Bạn chắc chắn?")) return;
     fetch(`http://localhost:5000/api/products/${id}`, {
       method: "DELETE",
       headers: { Authorization: "Bearer " + token },
@@ -104,6 +66,8 @@ function AdminDashboard() {
         if (!res.ok) throw new Error(data.error || "Lỗi xóa");
         loadProducts();
         alert("Đã xóa xong!");
+        if (showTrash) loadTrash();
+        getInventoryAlert().then(setAlertData).catch(console.error);
       })
       .catch((err) => alert(err.message));
   };
@@ -129,22 +93,24 @@ function AdminDashboard() {
         alert("Đã khôi phục sản phẩm!");
         loadProducts();
         if (showTrash) loadTrash();
-        
-        // Refresh alert data to update Tiger's count
         getInventoryAlert().then(setAlertData).catch(console.error);
       })
       .catch((err) => alert(err.message));
   };
 
-  const editProduct = (p) => {
-    setEditing(p);
-    setForm({
-      name: p.name,
-      price: p.price,
-      category_id: p.category_id,
-      description: p.description,
-    });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  // Lọc sản phẩm
+  const filteredProducts = products.filter(p => {
+    const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchCat = filterCategory ? String(p.category_id) === String(filterCategory) : true;
+    return matchSearch && matchCat;
+  });
+
+  const getBadgeColor = (categoryName) => {
+    const name = categoryName?.toLowerCase() || '';
+    if (name.includes('thời trang')) return 'bg-pink-100 text-pink-700 border-pink-200';
+    if (name.includes('điện tử')) return 'bg-blue-100 text-blue-700 border-blue-200';
+    if (name.includes('thực phẩm')) return 'bg-green-100 text-green-700 border-green-200';
+    return 'bg-gray-100 text-gray-700 border-gray-200';
   };
 
   return (
@@ -178,8 +144,6 @@ function AdminDashboard() {
           </div>
         </div>
       )}
-
-
 
       {alertData.trashCount > 0 && (
         <button 
@@ -222,157 +186,114 @@ function AdminDashboard() {
         </div>
       )}
 
-      <div className="dashboard-layout-grid">
-        <div className="editor-aside">
-          <div className="card glass-card">
-            <h2 className="card-title">
-              {editing ? "✏️ Hiệu chỉnh" : "➕ Thêm mới"}
-            </h2>
-            <form className="modern-form" onSubmit={submit}>
-              <div className="form-group">
-                <label>Tên sản phẩm</label>
-                <input
-                  name="name"
-                  value={form.name}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Giá</label>
-                  <input
-                    name="price"
-                    type="number"
-                    value={form.price}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Danh mục</label>
-                  <select
-                    name="category_id"
-                    value={form.category_id}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">Chọn nhóm</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Mô tả</label>
-                <textarea
-                  name="description"
-                  rows="3"
-                  value={form.description}
-                  onChange={handleChange}
-                />
-              </div>
-              <div className="form-group">
-                <label>Ảnh</label>
-                <input
-                  type="file"
-                  onChange={(e) => setImage(e.target.files[0])}
-                />
-              </div>
-              <div className="action-bar">
-                <button type="submit" className="btn-save">
-                  Lưu
-                </button>
-                {editing && (
-                  <button
-                    type="button"
-                    className="btn-discard"
-                    onClick={() => setEditing(null)}
-                  >
-                    Hủy
-                  </button>
-                )}
-              </div>
-            </form>
-          </div>
-          {editing && (
-            <AdminVariantManager
-              productId={editing.id}
-              onUpdate={loadProducts}
+      {/* Toolbar */}
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-4 flex items-center justify-between gap-4">
+        <div className="flex flex-1 gap-4 items-center">
+          <div className="relative w-1/3 min-w-[250px]">
+            <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
+            <input 
+              type="text" 
+              className="w-full pl-10 border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:border-[#ee4d2d]" 
+              placeholder="Tìm tên sản phẩm..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
-          )}
-        </div>
-
-        <div className="table-main">
-          <div className="card table-card">
-            <h2 className="card-title">📦 Danh sách hàng tồn</h2>
-            <table className="modern-table">
-              <thead>
-                <tr>
-                  <th>Ảnh</th>
-                  <th>Thông tin</th>
-                  <th>Size & Kho</th>
-                  <th className="text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((p) => (
-                  <tr key={p.id} className="table-row">
-                    <td>
-                      <img
-                        src={`http://localhost:5000/${p.image}`}
-                        className="product-avatar"
-                        alt=""
-                      />
-                    </td>
-                    <td className="info-cell">
-                      <span className="p-name">{p.name}</span>
-                      <span className="p-cat">{p.category_name}</span>
-                      <span className="p-price">
-                        {Number(p.price).toLocaleString()}đ
-                      </span>
-                    </td>
-                    <td className="stock-cell">
-                      <div className="variant-badges-container">
-                        {p.variants?.length > 0 ? (
-                          p.variants.map((v, i) => (
-                            <div
-                              key={i}
-                              className={`size-badge ${v.stock === 0 ? "out" : ""}`}
-                            >
-                              {v.variant_name}:{" "}
-                              <span className="qty">{v.stock}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <span className="empty-stock-text">
-                            Chưa cấu hình Size
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="action-cell text-right">
-                      <button
-                        className="icon-btn edit"
-                        onClick={() => editProduct(p)}
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        className="icon-btn delete"
-                        onClick={() => deleteProduct(p.id)}
-                      >
-                        Xoá
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
+          
+          <div className="relative w-1/4 min-w-[200px]">
+            <Filter className="absolute left-3 top-2.5 text-gray-400" size={20} />
+            <select 
+              className="w-full pl-10 border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:border-[#ee4d2d] bg-white"
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+            >
+              <option value="">Tất cả danh mục</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        <Link to="/admin/add-product" className="flex items-center gap-2 bg-[#ee4d2d] hover:bg-[#d73f22] text-white px-5 py-2.5 rounded-md font-medium transition-colors shadow-sm">
+          <Plus size={20} /> Thêm sản phẩm mới
+        </Link>
+      </div>
+
+      <div className="w-full">
+        <div className="card table-card overflow-x-auto">
+          <h2 className="card-title mb-4">📦 Danh sách hàng tồn</h2>
+          <table className="modern-table min-w-full">
+            <thead>
+              <tr className="border-b-2 border-gray-100">
+                <th className="pb-3 text-gray-500 font-semibold uppercase text-xs">Ảnh</th>
+                <th className="pb-3 text-gray-500 font-semibold uppercase text-xs w-[35%]">Thông tin</th>
+                <th className="pb-3 text-gray-500 font-semibold uppercase text-xs">Loại hàng</th>
+                <th className="pb-3 text-gray-500 font-semibold uppercase text-xs">Size & Kho</th>
+                <th className="pb-3 text-right text-gray-500 font-semibold uppercase text-xs">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProducts.map((p) => (
+                <tr key={p.id} className="table-row border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                  <td className="py-4 px-2">
+                    <img
+                      src={p.image?.startsWith('http') ? p.image : `http://localhost:5000/${p.image}`}
+                      className="w-20 h-20 object-cover rounded-md border border-gray-200 shadow-sm"
+                      alt={p.name}
+                    />
+                  </td>
+                  <td className="py-4 pr-4">
+                    <span className="block font-bold text-lg text-gray-800 mb-1">{p.name}</span>
+                    <span className="block font-bold text-[#ee4d2d] text-[15px]">
+                      {Number(p.price).toLocaleString()} ₫
+                    </span>
+                  </td>
+                  <td className="py-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getBadgeColor(p.category_name)}`}>
+                      {p.category_name || 'Khác'}
+                    </span>
+                  </td>
+                  <td className="py-4">
+                    <div className="variant-badges-container flex flex-wrap gap-2">
+                      {p.variants?.length > 0 ? (
+                        p.variants.map((v, i) => (
+                          <div
+                            key={i}
+                            className={`px-3 py-1.5 rounded-md border text-sm shadow-sm bg-white ${v.stock === 0 ? "border-red-300 text-red-600 bg-red-50" : "border-gray-200 text-gray-700"}`}
+                          >
+                            <span className="mr-2 opacity-80">{v.variant_name}</span>
+                            <strong className="font-bold">{v.stock}</strong>
+                          </div>
+                        ))
+                      ) : (
+                        <span className="text-gray-400 italic text-sm">Chưa có phân loại</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-4 text-right">
+                    <Link to={`/admin/products/edit/${p.id}`} className="inline-block px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold rounded-md mr-2 transition-colors">
+                      Sửa
+                    </Link>
+                    <button
+                      className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 font-semibold rounded-md transition-colors"
+                      onClick={() => deleteProduct(p.id)}
+                    >
+                      Xóa
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              
+              {filteredProducts.length === 0 && (
+                <tr>
+                  <td colSpan="5" className="text-center py-10 text-gray-500">
+                    Không tìm thấy sản phẩm nào phù hợp
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

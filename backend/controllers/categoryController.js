@@ -15,15 +15,15 @@ exports.getAllCategories = (req, res) => {
 
 /* ===== CREATE ===== */
 exports.createCategory = (req, res) => {
-  const { name } = req.body;
+  const { name, display_type } = req.body;
 
   if (!name) {
     return res.status(400).json({ message: "Category name is required" });
   }
 
   db.query(
-    "INSERT INTO categories (name) VALUES (?)",
-    [name],
+    "INSERT INTO categories (name, display_type) VALUES (?, ?)",
+    [name, display_type || "general"],
     (err, result) => {
       if (err) {
         console.error(err);
@@ -33,6 +33,7 @@ exports.createCategory = (req, res) => {
       res.json({
         id: result.insertId,
         name,
+        display_type: display_type || "general",
       });
     }
   );
@@ -40,12 +41,12 @@ exports.createCategory = (req, res) => {
 
 /* ===== UPDATE ===== */
 exports.updateCategory = (req, res) => {
-  const { name } = req.body;
+  const { name, display_type } = req.body;
   const { id } = req.params;
 
   db.query(
-    "UPDATE categories SET name=? WHERE id=?",
-    [name, id],
+    "UPDATE categories SET name=?, display_type=? WHERE id=?",
+    [name, display_type || "general", id],
     (err, result) => {
       if (err) {
         console.error(err);

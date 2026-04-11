@@ -31,6 +31,10 @@ router.get("/uncompleted", isAdmin, orderController.getUncompletedOrders);
 // 📈 Doanh thu theo danh mục
 router.get("/category-revenue", isAdmin, orderController.getCategoryRevenue);
 
+// 📅 Doanh thu theo tháng & tuần
+router.get("/monthly-revenue", isAdmin, orderController.getMonthlyRevenue);
+router.get("/weekly-revenue", isAdmin, orderController.getWeeklyRevenue);
+
 /* ================= ORDERS ================= */
 
 // 📦 Lấy danh sách tất cả đơn hàng

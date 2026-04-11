@@ -2,31 +2,26 @@ const express = require("express");
 const router = express.Router();
 const productController = require("../controllers/productController");
 const authMiddleware = require("../middlewares/authMiddleware");
+const optionalAuth = require("../middlewares/optionalAuth");
 
 const multer = require("multer");
 const path = require("path");
 
 /* ================= MULTER CONFIG ================= */
-// Cấu hình lưu trữ ảnh chuyên nghiệp
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/");
   },
   filename: (req, file, cb) => {
-    // Đặt tên file theo timestamp để tránh trùng lặp
     const ext = path.extname(file.originalname);
     cb(null, Date.now() + ext);
   },
 });
 
-// Kiểm tra định dạng file để bảo mật (chỉ cho phép ảnh)
 const fileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|webp/;
-  const extname = allowedTypes.test(
-    path.extname(file.originalname).toLowerCase(),
-  );
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = allowedTypes.test(file.mimetype);
-
   if (extname && mimetype) {
     return cb(null, true);
   } else {
@@ -37,67 +32,68 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // Giới hạn 5MB
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
 
 /* ================= ROUTES ================= */
 
+// ⚠️ QUAN TRỌNG: Static routes phải đứng TRƯỚC dynamic /:id routes
+
 /**
  * @route   GET /api/products
- * @desc    Lấy danh sách sản phẩm (Kèm theo mảng variants/size)
- * @access  Public
+ * @access  Public (nhưng Admin/Manager nhận thêm sản phẩm pending)
  */
-router.get("/", productController.getAllProducts);
+router.get("/", optionalAuth, productController.getAllProducts);
+
+/**
+ * @route   GET /api/products/inventory-alert
+ * @access  Private (Admin, Manager)
+ */
+router.get("/inventory-alert", authMiddleware, productController.getInventoryAlert);
+
+/**
+ * @route   GET /api/products/pending
+ * @access  Private (Admin)
+ */
+router.get("/pending", authMiddleware, productController.getPendingProducts);
+
+/**
+ * @route   GET /api/products/decided
+ * @desc    Lịch sử sản phẩm đã duyệt / từ chối
+ * @access  Private (Admin)
+ */
+router.get("/decided", authMiddleware, productController.getDecidedProducts);
+
+/**
+ * @route   POST /api/products
+ * @access  Private (Admin, Manager)
+ */
+router.post("/", authMiddleware, upload.single("image"), productController.createProduct);
+
+/* ================= DYNAMIC /:id ROUTES (phải sau static routes) ================= */
+
 router.get("/:id/reviews", productController.getProductReviews);
 
 /**
  * @route   GET /api/products/:id
- * @desc    Lấy chi tiết 1 sản phẩm (Kèm theo mảng variants/size)
  * @access  Public
  */
 router.get("/:id", productController.getProductById);
 
-/* ================= ADMIN / MANAGER ================= */
-router.get("/inventory-alert", authMiddleware, productController.getInventoryAlert);
-
-/* ================= ADMIN ONLY ================= */
-
-/**
- * @route   POST /api/products
- * @desc    Tạo sản phẩm mới
- * @access  Private (Admin)
- */
-router.post(
-  "/",
-  authMiddleware,
-  upload.single("image"),
-  productController.createProduct,
-);
-
 /**
  * @route   PUT /api/products/:id
- * @desc    Cập nhật thông tin sản phẩm
- * @access  Private (Admin)
+ * @access  Private (Admin, Manager)
  */
-router.put(
-  "/:id",
-  authMiddleware,
-  upload.single("image"),
-  productController.updateProduct,
-);
+router.put("/:id", authMiddleware, upload.single("image"), productController.updateProduct);
 
 /**
  * @route   DELETE /api/products/:id
- * @desc    Xóa sản phẩm
  * @access  Private (Admin)
  */
 router.delete("/:id", authMiddleware, productController.deleteProduct);
 router.patch("/:id/restore", authMiddleware, productController.restoreProduct);
-router.post(
-  "/:id/reviews",
-  authMiddleware,
-  upload.single("image"),
-  productController.createOrUpdateProductReview,
-);
+router.patch("/:id/restore-pending", authMiddleware, productController.restoreProductToPending);
+router.post("/:id/reviews", authMiddleware, upload.single("image"), productController.createOrUpdateProductReview);
+router.patch("/:id/decision", authMiddleware, productController.decideProduct);
 
 module.exports = router;

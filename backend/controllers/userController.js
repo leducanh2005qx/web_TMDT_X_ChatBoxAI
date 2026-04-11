@@ -9,10 +9,11 @@ const checkManager = (userId, callback) => {
       if (err) return callback({ code: 500, message: "Lỗi server" });
       if (!rows.length)
         return callback({ code: 401, message: "Người dùng không hợp lệ" });
-      if (rows[0].role_id !== 2)
+      // Allow both Admin (1) and Manager (2)
+      if (![1, 2].includes(rows[0].role_id))
         return callback({
           code: 403,
-          message: "Chỉ Manager mới được thực hiện thao tác này",
+          message: "Chỉ Admin hoặc Manager mới được thực hiện thao tác này",
         });
       return callback(null, rows[0]);
     },

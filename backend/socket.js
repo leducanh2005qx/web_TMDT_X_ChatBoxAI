@@ -32,14 +32,14 @@ const initSocket = (server) => {
   const getSmartAiResponse = async (userMessage, orderId, userName) => {
     try {
       const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) return `Dạ chào ${userName}. Hiện tại Trợ lý Tiger đang tạm nghỉ. 🐯`;
+      if (!apiKey) return { reply: `Dạ chào ${userName}. Hiện tại Trợ lý Tiger đang tạm nghỉ. 🐯`, sentiment: "neutral" };
 
       const genAI = new GoogleGenerativeAI(apiKey);
 
-      // Lấy sản phẩm (Giới hạn lại để tránh lỗi quá tải Token/429)
-      const [products] = await db.promise().query("SELECT name, price, stock FROM products LIMIT 20");
+      // Lấy danh sách sản phẩm có kèm display_type
+      const [products] = await db.promise().query("SELECT name, price, stock, display_type FROM products LIMIT 20");
       const productList = products
-        .map((p) => `- ${p.name}: Giá ${Number(p.price).toLocaleString()}đ, Kho: ${p.stock}`)
+        .map((p) => `- ${p.name} (Loại: ${p.display_type || 'general'}): Giá ${Number(p.price).toLocaleString()}đ, Kho: ${p.stock}`)
         .join("\n");
 
       let orderInfo = "Không có đơn hàng đính kèm.";
@@ -52,40 +52,54 @@ const initSocket = (server) => {
       }
 
       const prompt = `Bạn là "Trợ lý Tiger" của Tiger Shop. Chat với khách: ${userName}.
-Nhiệm vụ: tư vấn bán hàng ngắn gọn, thân thiện, không dùng Markdown.
+Nhiệm vụ: Tư vấn thân thiện. QUAN TRỌNG: Phân tích hỏi đáp dựa trên Loại sản phẩm. Nếu khách hỏi Điện tử (electronics) thì tư vấn rành rọt về thông số/cấu hình. Nếu hỏi Thời trang (fashion) thì tư vấn về size, màu sắc.
+BẮT BUỘC TRẢ VỀ ĐÚNG MỘT ĐỐI TƯỢNG JSON VỚI 2 TRƯỜNG:
+{
+  "reply": "Câu trả lời của bạn (không dùng Markdown)",
+  "sentiment": "happy hoặc angry hoặc neutral" // Phân tích cảm xúc của khách ở câu hỏi dưới đây
+}
+
 SẢN PHẨM:
 ${productList}
+
 ĐƠN HÀNG HIỆN TẠI:
 ${orderInfo}
-Khách hỏi: "${userMessage}"
-Trả lời:`;
 
-      // ✅ ĐÃ SỬA: Danh sách model chuẩn nhất hiện tại
-      const FALLBACK_MODELS = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.0-pro"];
-      
-      for (let i = 0; i < FALLBACK_MODELS.length; i++) {
+Khách hỏi: "${userMessage}"
+JSON:`;
+
+      const currentModel = "gemini-1.5-flash";
+      for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const model = genAI.getGenerativeModel({ model: FALLBACK_MODELS[i] });
+          const model = genAI.getGenerativeModel({ 
+            model: currentModel,
+            generationConfig: { responseMimeType: "application/json" }
+          });
           const result = await model.generateContent(prompt);
-          // ✅ ĐÃ SỬA: Cách lấy text đúng từ kết quả API
           const response = await result.response;
           const text = response.text();
-          console.log(`✅ AI phản hồi qua ${FALLBACK_MODELS[i]}`);
-          return text;
+          
+          let parsed;
+          try {
+            parsed = JSON.parse(text);
+          } catch(e) {
+            parsed = { reply: text.replace(/```json/g, "").replace(/```/g, ""), sentiment: "neutral" };
+          }
+          console.log(`✅ AI phản hồi thành công ở lần thử ${attempt}`);
+          return parsed;
         } catch (e) {
           const code = e?.status || 0;
-          if ((code === 429 || code === 503 || code === 404) && i < FALLBACK_MODELS.length - 1) {
-            console.warn(`⚠️ Model ${FALLBACK_MODELS[i]} bận, đang chuyển sang model tiếp theo...`);
+          if (code === 429 && attempt < 3) {
+            console.warn(`⚠️ Model ${currentModel} lỗi 429 (Giới hạn requests), đang thử lại sau 2s...`);
             await new Promise((r) => setTimeout(r, 2000));
-          } else {
+          } else if (attempt === 3) {
             throw e;
           }
         }
       }
-      return `Dạ ${userName}, Tiger đang bận một chút, nhân viên sẽ hỗ trợ bạn ngay! 🐯`;
     } catch (error) {
       console.error("Lỗi gọi Gemini AI:", error.message);
-      return `Dạ ${userName}, Tiger đang bận một chút, nhân viên sẽ hỗ trợ bạn ngay! 🐯`;
+      return { reply: `Dạ ${userName}, Tiger đang bận một chút, nhân viên sẽ hỗ trợ bạn ngay! 🐯`, sentiment: "neutral" };
     }
   };
 
@@ -133,7 +147,13 @@ Trả lời:`;
           if (!activeSender) return;
 
           const currentUserName = await getUserName(senderId);
-          const aiReply = await getSmartAiResponse(message, orderId, currentUserName);
+          const aiData = await getSmartAiResponse(message, orderId, currentUserName);
+          
+          const aiReply = aiData?.reply || "Dạ Tiger nghe đây ạ!";
+          const customerSentiment = aiData?.sentiment || "neutral";
+
+          // Cập nhật sentiment cho khách hàng vào tin nhắn vừa được lưu
+          db.query("UPDATE chat_messages SET sentiment = ? WHERE id = ?", [customerSentiment, result.insertId]);
 
           // Tạo hiệu ứng trễ để trông thật hơn
           setTimeout(() => {

@@ -64,8 +64,11 @@ export const register = (name, email, password, phone) =>
 
 /* ================= PRODUCTS ================= */
 
-export const getProducts = () =>
-  fetch(`${API_URL}/products`).then(handleResponse);
+export const getProducts = () => {
+  const token = localStorage.getItem("token");
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  return fetch(`${API_URL}/products`, { headers }).then(handleResponse);
+};
 
 export const getProductById = (id) =>
   fetch(`${API_URL}/products/${id}`).then(handleResponse);
@@ -169,6 +172,25 @@ export const getCategories = () =>
 
 export const getInventoryAlert = () =>
   fetch(`${API_URL}/products/inventory-alert`, { headers: getAuthHeader() }).then(handleResponse);
+
+export const getPendingProducts = () =>
+  fetch(`${API_URL}/products/pending`, { headers: getAuthHeader() }).then(handleResponse);
+
+export const decideProduct = (id, status, reason) =>
+  fetch(`${API_URL}/products/${id}/decision`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ status, reason }),
+  }).then(handleResponse);
+
+export const getDecidedProducts = () =>
+  fetch(`${API_URL}/products/decided`, { headers: getAuthHeader() }).then(handleResponse);
+
+export const restoreProductToPending = (id) =>
+  fetch(`${API_URL}/products/${id}/restore-pending`, {
+    method: "PATCH",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
 
 export const createCategory = (name) =>
   fetch(`${API_URL}/categories`, {
@@ -453,6 +475,16 @@ export const getCategoryRevenueAdmin = () =>
 
 export const getUncompletedOrders = () =>
   fetch(`${API_URL}/orders/admin/uncompleted`, {
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const getMonthlyRevenueAdmin = () =>
+  fetch(`${API_URL}/orders/admin/monthly-revenue`, {
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const getWeeklyRevenueAdmin = () =>
+  fetch(`${API_URL}/orders/admin/weekly-revenue`, {
     headers: getAuthHeader(),
   }).then(handleResponse);
 

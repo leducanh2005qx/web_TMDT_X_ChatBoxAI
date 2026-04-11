@@ -386,3 +386,37 @@ exports.getCategoryRevenue = (req, res) => {
     res.json(rows);
   });
 };
+
+exports.getMonthlyRevenue = (req, res) => {
+  const sql = `
+    SELECT 
+      DATE_FORMAT(created_at, '%m/%Y') AS label,
+      SUM(total) AS revenue
+    FROM orders
+    WHERE status = 'completed'
+    GROUP BY label
+    ORDER BY MIN(created_at) ASC
+    LIMIT 12
+  `;
+  db.query(sql, (err, rows) => {
+    if (err) return res.status(500).json({ message: "Lỗi thống kê theo tháng: " + err.message });
+    res.json(rows);
+  });
+};
+
+exports.getWeeklyRevenue = (req, res) => {
+  const sql = `
+    SELECT 
+      DATE_FORMAT(DATE_SUB(created_at, INTERVAL WEEKDAY(created_at) DAY), '%d/%m') AS label,
+      SUM(total) AS revenue
+    FROM orders
+    WHERE status = 'completed'
+    GROUP BY label
+    ORDER BY MIN(created_at) ASC
+    LIMIT 8
+  `;
+  db.query(sql, (err, rows) => {
+    if (err) return res.status(500).json({ message: "Lỗi thống kê theo tuần: " + err.message });
+    res.json(rows);
+  });
+};

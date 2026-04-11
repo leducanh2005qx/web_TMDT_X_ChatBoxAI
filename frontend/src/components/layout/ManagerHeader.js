@@ -28,6 +28,7 @@ function ManagerHeader() {
           <NavLink to="/manager/workspace">Tổng quan</NavLink>
           <NavLink to="/manager/orders">Đơn hàng</NavLink>
           <NavLink to="/manager/inventory">Kho</NavLink>
+          <NavLink to="/manager/add-product">Thêm SP</NavLink>
           <NavLink to="/manager/payroll">Lương</NavLink>
           <NavLink to="/manager/approvals">Duyệt đơn</NavLink>
           <NavLink to="/manager/attendance">Sửa chấm công</NavLink>

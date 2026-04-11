@@ -32,6 +32,8 @@ import AdminChat from "./pages/admin/AdminChat";
 import AdminCategories from "./pages/admin/AdminCategories";
 import AdminVouchers from "./pages/admin/AdminVouchers";
 import AdminPendingUsers from "./pages/admin/AdminPendingUsers";
+import AdminApproval from "./pages/admin/AdminApproval"; // ✅ Thêm trang phê duyệt sản phẩm
+import AddProduct from "./components/admin/AddProduct";
 import AdminRoute from "./components/admin/AdminRoute";
 import ManagerRoute from "./components/admin/ManagerRoute";
 import ManagerStaff from "./pages/manager/ManagerStaff";
@@ -198,6 +200,17 @@ function App() {
         />
 
         <Route
+          path="/admin/add-product"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <AddProduct />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
+
+        <Route
           path="/admin/categories"
           element={
             <AdminRoute>
@@ -273,6 +286,16 @@ function App() {
             </AdminRoute>
           }
         />
+        <Route
+          path="/admin/product-approvals"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <AdminApproval />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
 
         <Route
           path="/manager/staff"
@@ -285,6 +308,16 @@ function App() {
           }
         />
 
+        <Route
+          path="/manager/add-product"
+          element={
+            <ManagerRoute>
+              <ManagerLayout>
+                <AddProduct />
+              </ManagerLayout>
+            </ManagerRoute>
+          }
+        />
         <Route
           path="/manager/workspace"
           element={
