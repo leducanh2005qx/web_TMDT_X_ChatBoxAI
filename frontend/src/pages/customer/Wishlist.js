@@ -61,7 +61,7 @@ function Wishlist({ wishlist = [], toggleWishlist }) {
                     ❤️
                   </button>
                   <img
-                    src={`http://localhost:5000/${p.image}`}
+                    src={p.image?.startsWith('http') ? p.image : `http://localhost:5000/${p.image}`}
                     alt={p.name}
                     onClick={() => navigate(`/product/${p.id}`)}
                     onError={(e) => (e.target.src = "/no-image.png")}

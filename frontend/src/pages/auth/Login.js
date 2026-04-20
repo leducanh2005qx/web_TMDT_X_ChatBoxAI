@@ -16,7 +16,9 @@ function Login() {
     try {
       const data = await login(email, password);
 
-      // ✅ GIỮ NGUYÊN LOGIC CŨ
+      // ✅ XÓA SẠCH DATA CŨ ĐỂ TRÁNH LỖI FORBIDDEN
+      localStorage.clear();
+      
       localStorage.setItem("token", data.token);
       localStorage.setItem("role", data.role);
       localStorage.setItem("user", JSON.stringify(data.user));

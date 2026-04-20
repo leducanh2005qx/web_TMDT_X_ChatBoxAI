@@ -1,19 +1,37 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getMyOrders } from "../../services/api";
+import { getMyOrders, cancelOrderCustomer } from "../../services/api";
 import "./Orders.css";
 
 function Orders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [cancelling, setCancelling] = useState(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
+  const loadOrders = () => {
+    setLoading(true);
     getMyOrders()
       .then((data) => setOrders(Array.isArray(data) ? data : []))
       .catch(() => console.error("Không lấy được đơn hàng"))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { loadOrders(); }, []);
+
+  const handleCancel = async (orderId) => {
+    if (!window.confirm(`Bạn có chắc muốn hủy đơn #${orderId}? Hành động này không thể hoàn tác.`)) return;
+    setCancelling(orderId);
+    try {
+      await cancelOrderCustomer(orderId);
+      alert("✅ Đã hủy đơn hàng thành công!");
+      loadOrders();
+    } catch (err) {
+      alert("Lỗi: " + (err.message || "Không thể hủy đơn hàng"));
+    } finally {
+      setCancelling(null);
+    }
+  };
 
   const renderStatus = (status) => {
     const statusMap = {
@@ -100,13 +118,23 @@ function Orders() {
                         : "Đang cập nhật"}
                     </td>
                     <td>{renderStatus(o.status)}</td>
-                    <td className="text-right">
+                    <td className="text-right" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                       <button
                         className="btn-view-detail"
                         onClick={() => navigate(`/orders/${o.orderId}`)}
                       >
                         CHI TIẾT
                       </button>
+                      {o.status === "pending" && (
+                        <button
+                          className="btn-view-detail"
+                          style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)', opacity: cancelling === o.orderId ? 0.6 : 1 }}
+                          disabled={cancelling === o.orderId}
+                          onClick={() => handleCancel(o.orderId)}
+                        >
+                          {cancelling === o.orderId ? "Đang hủy..." : "HỦY ĐƠN"}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -1,12 +1,8 @@
-import StaffHeader from "./StaffHeader";
+import React from 'react';
+import DashboardLayout from './DashboardLayout';
 
 function StaffLayout({ children }) {
-  return (
-    <>
-      <StaffHeader />
-      <main style={{ padding: "20px" }}>{children}</main>
-    </>
-  );
+  return <DashboardLayout explicitRole="STAFF">{children}</DashboardLayout>;
 }
 
 export default StaffLayout;

@@ -8,6 +8,7 @@ exports.getAllProducts = (req, res) => {
   // Kiểm tra quyền: Nếu không có token hoặc không phải Admin/Manager thì chỉ lấy 'active'
   const userRole = req.user ? String(req.user.role || "").toUpperCase() : null;
   const canSeeAll = ["ADMIN", "MANAGER"].includes(userRole);
+  const isManager = userRole === "MANAGER";
 
   const sql = `
     SELECT 
@@ -120,66 +121,82 @@ exports.getProductById = (req, res) => {
 
 // ✅ CREATE SẢN PHẨM (Mới)
 exports.createProduct = (req, res) => {
-  const { name, price, description, stock, category_id, display_type, specifications } = req.body;
-  const image = req.file ? `uploads/${req.file.filename}` : null;
+  const { name, price, description, stock, category_id, display_type, specifications, image: imageFromBody } = req.body;
+  const image = req.file ? `uploads/${req.file.filename}` : imageFromBody || null;
 
   if (!name || !price) return res.status(400).json({ message: "Thiếu thông tin sản phẩm" });
 
   const userRole = String(req.user.role || "").toUpperCase();
-  const status = userRole === "ADMIN" ? "active" : "pending";
+  const status = ["ADMIN", "MANAGER"].includes(userRole) ? "active" : "pending";
 
-  Product.create(
-    {
-      name,
-      price: Number(price),
-      description: description || "",
-      stock: stock ? Number(stock) : 0,
-      image,
-      category_id: category_id ? Number(category_id) : null,
-      status,
-      manager_id: req.user.id,
-      display_type: display_type || 'general',
-      specifications: specifications || '{}'
-    },
-    (err, result) => {
-      if (err) return res.status(500).json(err);
-      res.json({ message: "Thành công", id: result.insertId, image, status });
-    },
-  );
+  const executeCreate = (finalCategoryId) => {
+    Product.create(
+      {
+        name,
+        price: Number(price),
+        description: description || "",
+        stock: stock ? Number(stock) : 0,
+        image,
+        category_id: finalCategoryId,
+        status,
+        manager_id: req.user.id,
+        display_type: display_type || 'general',
+        specifications: specifications || '{}'
+      },
+      (err, result) => {
+        if (err) return res.status(500).json(err);
+        res.json({ message: "Thành công", id: result.insertId, image, status });
+      },
+    );
+  };
+
+  executeCreate(category_id ? Number(category_id) : null);
 };
 
 // ✅ UPDATE SẢN PHẨM
 exports.updateProduct = (req, res) => {
   const { id } = req.params;
-  const { name, price, description, stock, category_id, display_type, specifications } = req.body;
-  const image = req.file ? `uploads/${req.file.filename}` : null;
+  const { name, price, description, stock, category_id, display_type, specifications, image: imageFromBody } = req.body;
+  const image = req.file ? `uploads/${req.file.filename}` : imageFromBody || null;
+  const userRole = String(req.user.role || "").toUpperCase();
 
-  Product.update(
-    id,
-    {
-      name,
-      price: Number(price),
-      description: description || "",
-      stock: stock ? Number(stock) : 0,
-      image,
-      category_id: category_id ? Number(category_id) : null,
-      display_type,
-      specifications
-    },
-    (err) => {
-      if (err) return res.status(500).json(err);
-      res.json({ message: "Cập nhật thành công", image });
-    },
-  );
+  const executeUpdate = () => {
+    Product.update(
+      id,
+      {
+        name,
+        price: Number(price),
+        description: description || "",
+        stock: stock ? Number(stock) : 0,
+        image,
+        category_id: category_id ? Number(category_id) : null,
+        display_type,
+        specifications,
+        status: ["ADMIN", "MANAGER"].includes(userRole) ? "active" : "pending"
+      },
+      (err) => {
+        if (err) return res.status(500).json(err);
+        res.json({ message: "Cập nhật thành công", image });
+      },
+    );
+  };
+
+  executeUpdate();
 };
 
 // ✅ XÓA SẢN PHẨM (SOFT DELETE)
 exports.deleteProduct = (req, res) => {
   const { id } = req.params;
-  db.query(`UPDATE products SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?`, [id], (err) => {
-    if (err) return res.status(500).json({ error: "Lỗi xóa sản phẩm" });
-    res.json({ message: "Xóa thành công vào thùng rác" });
-  });
+  const userRole = String(req.user.role || "").toUpperCase();
+
+  const executeDelete = () => {
+    db.query(`UPDATE products SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?`, [id], (err) => {
+      if (err) return res.status(500).json({ error: "Lỗi xóa sản phẩm" });
+      res.json({ message: "Xóa thành công vào thùng rác" });
+    });
+  };
+
+  executeDelete();
 };
 
 exports.restoreProduct = (req, res) => {
@@ -293,12 +310,11 @@ exports.decideProduct = (req, res) => {
   });
 };
 
-// ✅ LẤY DẢNH SÁCH ĐÃ QUYẾT ĐỊNH (active + hidden) cho Admin lịch sử
 exports.getDecidedProducts = (req, res) => {
-  // Chỉ Admin (role_id = 1)
-  const userRole = req.user ? String(req.user.role || "").toUpperCase() : null;
-  if (userRole !== "ADMIN") {
-    return res.status(403).json({ message: "Chỉ Admin mới xem được lịch sử duyệt" });
+  const userRole = String(req.user.role || "").toUpperCase();
+  const isAdminOrManager = ["ADMIN", "MANAGER"].includes(userRole);
+  if (!isAdminOrManager) {
+    return res.status(403).json({ message: "Chỉ Admin và Manager mới xem được lịch sử duyệt" });
   }
   Product.getDecided((err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -306,12 +322,12 @@ exports.getDecidedProducts = (req, res) => {
   });
 };
 
-// ✅ KHÔI PHỤC SẢN PHẨM BỊ TỪ CHỐI về pending
 exports.restoreProductToPending = (req, res) => {
   const { id } = req.params;
-  const userRole = req.user ? String(req.user.role || "").toUpperCase() : null;
-  if (userRole !== "ADMIN") {
-    return res.status(403).json({ message: "Chỉ Admin mới khôi phục sản phẩm" });
+  const userRole = String(req.user.role || "").toUpperCase();
+  const isAdminOrManager = ["ADMIN", "MANAGER"].includes(userRole);
+  if (!isAdminOrManager) {
+    return res.status(403).json({ message: "Chỉ Admin và Manager mới khôi phục sản phẩm" });
   }
 
   // Chỉ cho phép khôi phục sản phẩm 'hidden' (bị từ chối)

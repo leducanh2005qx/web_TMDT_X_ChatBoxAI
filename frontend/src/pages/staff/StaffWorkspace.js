@@ -7,50 +7,28 @@ import {
   staffClockIn,
   staffClockOut,
   getMyPayroll,
+  getMyPayrollDetail,
   createStaffRequest,
   getMyStaffRequests,
+  updateMe,
 } from "../../services/api";
 import {
-  adminGetThreadMessages,
   adminListThreads,
-  adminSendMessage,
 } from "../../services/chatApi";
+import PayslipModal from "../../components/payroll/PayslipModal";
 import "./StaffWorkspace.css";
-
-const QUICK_REPLIES = [
-  "Shop da nhan duoc yeu cau cua ban, ben em kiem tra va phan hoi ngay.",
-  "Don hang cua ban dang duoc xu ly, du kien giao trong 1-3 ngay.",
-  "Ban vui long cho em xin ma don hang de em ho tro nhanh hon.",
-  "San pham hien con hang. Ban co the dat tren web hoac em gui link ngay.",
-  "Neu can doi/tra, ban vui long giu hoa don va san pham nguyen tem.",
-];
-
-const threadMetaKey = "staff_thread_meta";
 
 function StaffWorkspace({ section = "all" }) {
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
   const [threads, setThreads] = useState([]);
-  const [selectedThread, setSelectedThread] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [text, setText] = useState("");
+  const [attendance, setAttendance] = useState(null);
+  const [clockNow, setClockNow] = useState(Date.now());
+  const [messages] = useState([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
   const [orderKeyword, setOrderKeyword] = useState("");
-  const [threadKeyword, setThreadKeyword] = useState("");
-  const [stockKeyword, setStockKeyword] = useState("");
-  const [selectedOrderId, setSelectedOrderId] = useState("");
-  const [followUpText, setFollowUpText] = useState("");
-  const [threadMeta, setThreadMeta] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(threadMetaKey) || "{}");
-    } catch {
-      return {};
-    }
-  });
-  const [attendance, setAttendance] = useState(null);
-  const [clockNow, setClockNow] = useState(Date.now());
   const [payrollMonth, setPayrollMonth] = useState(new Date().toISOString().slice(0, 7));
   const [myPayroll, setMyPayroll] = useState(null);
   const [requestForm, setRequestForm] = useState({
@@ -60,6 +38,16 @@ function StaffWorkspace({ section = "all" }) {
     reason: "",
   });
   const [myStaffRequests, setMyStaffRequests] = useState([]);
+
+  // --- Profile state ---
+  const [showProfile, setShowProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: "", phone: "" });
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  // --- Payslip modal ---
+  const [payslipData, setPayslipData] = useState(null);
+  const [payslipLoading, setPayslipLoading] = useState(false);
+  const [showPayslip, setShowPayslip] = useState(false);
 
   const [orderPage, setOrderPage] = useState(1);
   const orderPageSize = 10;
@@ -97,81 +85,8 @@ function StaffWorkspace({ section = "all" }) {
     return () => clearInterval(timer);
   }, []);
 
-  const openThread = async (thread) => {
-    setSelectedThread(thread);
-    setSuccess("");
-    try {
-      const data = await adminGetThreadMessages(thread.threadId);
-      setMessages(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setError(err.message || "Khong the tai tin nhan");
-    }
-  };
 
-  const sendMessage = async () => {
-    const content = text.trim();
-    if (!content || !selectedThread) return;
-    try {
-      const orderPrefix = selectedOrderId
-        ? `[Ho tro don #${selectedOrderId}] `
-        : "";
-      await adminSendMessage(selectedThread.threadId, `${orderPrefix}${content}`);
-      setText("");
-      setSuccess("Da gui tin nhan cho khach.");
-      await openThread(selectedThread);
-    } catch (err) {
-      setError(err.message || "Gui tin that bai");
-    }
-  };
 
-  const saveThreadMeta = (threadId, updater) => {
-    setThreadMeta((prev) => {
-      const next = {
-        ...prev,
-        [threadId]: {
-          status: "dang_xu_ly",
-          followUp: "",
-          ...prev[threadId],
-          ...updater,
-        },
-      };
-      localStorage.setItem(threadMetaKey, JSON.stringify(next));
-      return next;
-    });
-  };
-
-  const selectedMeta = selectedThread
-    ? threadMeta[selectedThread.threadId] || {}
-    : {};
-
-  const setConversationStatus = (status) => {
-    if (!selectedThread) return;
-    saveThreadMeta(selectedThread.threadId, { status });
-    setSuccess("Da cap nhat trang thai hoi thoai.");
-  };
-
-  const addFollowUp = () => {
-    if (!selectedThread || !followUpText.trim()) return;
-    saveThreadMeta(selectedThread.threadId, { followUp: followUpText.trim() });
-    setFollowUpText("");
-    setSuccess("Da luu ghi chu follow-up.");
-  };
-
-  const insertQuickReply = (reply) => {
-    setText(reply);
-  };
-
-  const escalateToManager = async () => {
-    if (!selectedThread) return;
-    const content = `[ESCALATE] Vui long Manager/Admin ho tro them cho thread #${selectedThread.threadId}.`;
-    try {
-      await adminSendMessage(selectedThread.threadId, content);
-      setSuccess("Da chuyen yeu cau len cap tren.");
-      await openThread(selectedThread);
-    } catch (err) {
-      setError(err.message || "Khong the escalate");
-    }
-  };
 
   const handleClockIn = async () => {
     try {
@@ -190,6 +105,48 @@ function StaffWorkspace({ section = "all" }) {
       await loadOrdersAndThreads();
     } catch (err) {
       setError(err.message || "Khong the check-out");
+    }
+  };
+
+  const handleOpenPayslip = async () => {
+    setPayslipData(null);
+    setShowPayslip(true);
+    setPayslipLoading(true);
+    try {
+      const detail = await getMyPayrollDetail(payrollMonth);
+      setPayslipData(detail);
+    } catch (err) {
+      setError(err.message || "Không thể tải phiếu lương");
+      setShowPayslip(false);
+    } finally {
+      setPayslipLoading(false);
+    }
+  };
+
+  const handleOpenProfile = () => {
+    try {
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        setProfileForm({ name: u.name || "", phone: u.phone || "" });
+      }
+    } catch(e){}
+    setShowProfile(true);
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      setProfileSaving(true);
+      const data = await updateMe(profileForm);
+      setSuccess("Cập nhật hồ sơ thành công!");
+      if (data.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
+      setShowProfile(false);
+    } catch (err) {
+      setError(err.message || "Không thể cập nhật hồ sơ");
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -245,31 +202,6 @@ function StaffWorkspace({ section = "all" }) {
     Math.ceil(filteredOrders.length / orderPageSize),
   );
 
-  const filteredThreads = useMemo(() => {
-    const query = threadKeyword.trim().toLowerCase();
-    return threads.filter((t) => {
-      if (!query) return true;
-      return (
-        String(t.threadId).includes(query) ||
-        String(t.email || "")
-          .toLowerCase()
-          .includes(query)
-      );
-    });
-  }, [threads, threadKeyword]);
-
-  const filteredProducts = useMemo(() => {
-    const query = stockKeyword.trim().toLowerCase();
-    return products.filter((p) => {
-      if (!query) return true;
-      return (
-        String(p.id).includes(query) ||
-        String(p.name || "")
-          .toLowerCase()
-          .includes(query)
-      );
-    });
-  }, [products, stockKeyword]);
 
   const todaySummary = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -287,13 +219,19 @@ function StaffWorkspace({ section = "all" }) {
   }, [messages, threads, products]);
 
   return (
+    <>
     <div className="staff-workspace">
       <div className="container py-4">
-        <div className="staff-hero">
-          <h3>Staff Workspace</h3>
-          <p>
-            Tu van don hang, chat ho tro khach hang, theo doi ton kho va cham cong realtime.
-          </p>
+        <div className="staff-hero d-flex justify-content-between align-items-center">
+          <div>
+            <h3>Staff Workspace</h3>
+            <p className="mb-0">
+              Tu van don hang, ho tro khach hang, theo doi ton kho va cham cong realtime.
+            </p>
+          </div>
+          <button className="btn btn-outline-light" onClick={handleOpenProfile}>
+            👤 Hồ sơ cá nhân
+          </button>
         </div>
       {error && <div className="alert alert-danger">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
@@ -381,7 +319,7 @@ function StaffWorkspace({ section = "all" }) {
       {(section === "all" || section === "orders" || section === "chat") && (
       <div className="row g-3">
         {(section === "all" || section === "orders") && (
-        <div className="col-lg-8">
+        <div className="col-lg-12">
           <div className="card shadow-sm h-100">
             <div className="card-header bg-light">
               <strong>Danh sach don hang (chi xem + loc nhanh)</strong>
@@ -428,7 +366,6 @@ function StaffWorkspace({ section = "all" }) {
                         <tr
                           key={orderId}
                           style={{ cursor: "pointer" }}
-                          onClick={() => setSelectedOrderId(String(orderId))}
                         >
                           <td>#{orderId}</td>
                           <td>{o.email || "Khach vang lai"}</td>
@@ -473,201 +410,11 @@ function StaffWorkspace({ section = "all" }) {
         </div>
         )}
 
-        {(section === "all" || section === "chat") && (
-        <div className="col-lg-4">
-          <div className="card shadow-sm h-100">
-            <div className="card-header bg-light">
-              <strong>Tra loi khach hang (Tiger Chat + Quick Reply)</strong>
-            </div>
-            <div className="card-body">
-              <input
-                className="form-control form-control-sm mb-2"
-                placeholder="Tim hoi thoai theo thread/email"
-                value={threadKeyword}
-                onChange={(e) => setThreadKeyword(e.target.value)}
-              />
-              <div className="mb-2">
-                <select
-                  className="form-select"
-                  value={selectedThread?.threadId || ""}
-                  onChange={(e) => {
-                    const t = threads.find(
-                      (x) => String(x.threadId) === String(e.target.value),
-                    );
-                    if (t) openThread(t);
-                  }}
-                >
-                  <option value="">Chon hoi thoai</option>
-                  {filteredThreads.map((t) => (
-                    <option key={t.threadId} value={t.threadId}>
-                      #{t.threadId} - {t.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              <div
-                className="border rounded p-2 mb-2"
-                style={{ height: 280, overflowY: "auto", background: "#fafafa" }}
-              >
-                {messages.map((m) => (
-                  <div key={m.id} className="mb-2">
-                    <strong>{m.sender_role || m.senderRole}:</strong> {m.message}
-                  </div>
-                ))}
-                {messages.length === 0 && (
-                  <div className="text-muted">Chua co tin nhan</div>
-                )}
-              </div>
-
-              <div className="mb-2 d-flex gap-2 flex-wrap">
-                {QUICK_REPLIES.map((reply) => (
-                  <button
-                    key={reply}
-                    className="btn btn-outline-secondary btn-sm"
-                    onClick={() => insertQuickReply(reply)}
-                  >
-                    Mau
-                  </button>
-                ))}
-              </div>
-
-              <div className="d-flex gap-2">
-                <input
-                  className="form-control"
-                  placeholder="Nhap noi dung tu van..."
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                />
-                <button className="btn btn-primary" onClick={sendMessage}>
-                  Gui
-                </button>
-              </div>
-
-              <div className="mt-3 border-top pt-3">
-                <div className="d-flex gap-2 mb-2">
-                  <button
-                    className="btn btn-sm btn-outline-primary"
-                    onClick={() => setConversationStatus("cho_phan_hoi")}
-                  >
-                    Cho phan hoi
-                  </button>
-                  <button
-                    className="btn btn-sm btn-outline-warning"
-                    onClick={() => setConversationStatus("dang_xu_ly")}
-                  >
-                    Dang xu ly
-                  </button>
-                  <button
-                    className="btn btn-sm btn-outline-success"
-                    onClick={() => setConversationStatus("da_xong")}
-                  >
-                    Da xong
-                  </button>
-                </div>
-                <div className="small text-muted mb-2">
-                  Trang thai hoi thoai:{" "}
-                  <strong>{selectedMeta.status || "dang_xu_ly"}</strong>
-                </div>
-                <div className="d-flex gap-2 mb-2">
-                  <input
-                    className="form-control form-control-sm"
-                    placeholder="Ghi chu follow-up"
-                    value={followUpText}
-                    onChange={(e) => setFollowUpText(e.target.value)}
-                  />
-                  <button className="btn btn-sm btn-dark" onClick={addFollowUp}>
-                    Luu
-                  </button>
-                </div>
-                {selectedMeta.followUp && (
-                  <div className="small text-muted mb-2">
-                    Follow-up: {selectedMeta.followUp}
-                  </div>
-                )}
-                <button
-                  className="btn btn-sm btn-outline-danger"
-                  onClick={escalateToManager}
-                >
-                  Chuyen cap tren
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-        )}
       </div>
       )}
 
-      {(section === "all" || section === "stock") && (
-      <div className="row g-3 mt-1">
-        <div className="col-lg-6">
-          <div className="card shadow-sm">
-            <div className="card-header bg-light">
-              <strong>Tra ton kho nhanh de tu van</strong>
-            </div>
-            <div className="card-body">
-              <input
-                className="form-control form-control-sm mb-2"
-                placeholder="Tim san pham theo ten / ID"
-                value={stockKeyword}
-                onChange={(e) => setStockKeyword(e.target.value)}
-              />
-              <div className="table-responsive" style={{ maxHeight: 240 }}>
-                <table className="table table-sm table-bordered mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th>ID</th>
-                      <th>San pham</th>
-                      <th>Ton kho</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredProducts.slice(0, 20).map((p) => (
-                      <tr key={p.id}>
-                        <td>{p.id}</td>
-                        <td>{p.name}</td>
-                        <td>
-                          <span
-                            className={`badge ${Number(p.stock || 0) <= 10 ? "bg-danger" : "bg-success"}`}
-                          >
-                            {Number(p.stock || 0)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <div className="col-lg-6">
-          <div className="card shadow-sm">
-            <div className="card-header bg-light">
-              <strong>Don dang duoc tu van</strong>
-            </div>
-            <div className="card-body">
-              <div className="mb-2">
-                Don da chon:{" "}
-                <strong>{selectedOrderId ? `#${selectedOrderId}` : "Chua chon"}</strong>
-              </div>
-              <p className="text-muted mb-2">
-                Bam vao 1 dong don hang ben trai de gan don vao cuoc chat hien tai.
-              </p>
-              <button
-                className="btn btn-sm btn-outline-secondary"
-                onClick={() => setSelectedOrderId("")}
-              >
-                Bo gan don
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      )}
 
       {(section === "all" || section === "requests" || section === "shifts" || section === "payroll") && (
       <div className="row g-3 mt-1">
@@ -744,24 +491,35 @@ function StaffWorkspace({ section = "all" }) {
         <div className="col-lg-4">
           <div className="card shadow-sm">
             <div className="card-header bg-light">
-              <strong>Luong cua toi</strong>
+              <strong>💰 Lương của tôi</strong>
             </div>
             <div className="card-body">
               <input
                 type="month"
-                className="form-control form-control-sm mb-2"
+                className="form-control form-control-sm mb-3"
                 value={payrollMonth}
                 onChange={(e) => setPayrollMonth(e.target.value)}
               />
-              <div className="small text-muted">Tong gio lam</div>
-              <div className="fw-bold mb-2">{Number(myPayroll?.total_hours || 0)} gio</div>
-              <div className="small text-muted">Tien luong</div>
-              <div className="fw-bold text-success fs-5">
-                {Number(myPayroll?.salary_amount || 0).toLocaleString()} đ
+              <div className="d-flex justify-content-between mb-2">
+                <span className="text-muted small">Tổng giờ làm</span>
+                <strong>{Number(myPayroll?.total_hours || 0)}h</strong>
               </div>
-              <div className="small text-muted mt-2">
-                Trang thai: {myPayroll?.employment_status || attendance?.employment_status || "probation"}
+              <div className="d-flex justify-content-between mb-3">
+                <span className="text-muted small">Tiền lương</span>
+                <strong className="text-success">{Number(myPayroll?.salary_amount || 0).toLocaleString()} đ</strong>
               </div>
+              <div className="d-flex justify-content-between mb-3">
+                <span className="text-muted small">Trạng thái</span>
+                <span className={`badge ${myPayroll?.employment_status === 'official' ? 'bg-success' : 'bg-warning text-dark'}`}>
+                  {myPayroll?.employment_status === 'official' ? 'Chính thức' : 'Thử việc'}
+                </span>
+              </div>
+              <button
+                className="btn btn-primary btn-sm w-100"
+                onClick={handleOpenPayslip}
+              >
+                📄 Xem Phếu Lương Chi Tiết
+              </button>
             </div>
           </div>
         </div>
@@ -813,6 +571,62 @@ function StaffWorkspace({ section = "all" }) {
 
     </div>
     </div>
+
+    {/* Payslip modal */}
+    {showPayslip && (
+      <PayslipModal
+        data={payslipData}
+        loading={payslipLoading}
+        onClose={() => { setShowPayslip(false); setPayslipData(null); }}
+      />
+    )}
+
+    {showProfile && (
+      <div className="modal fade show d-block" tabIndex="-1" style={{ background: "rgba(0,0,0,0.5)" }}>
+        <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-content border-0 shadow">
+            <div className="modal-header bg-primary text-white">
+              <h5 className="modal-title fw-bold">Chỉnh sửa Hồ sơ cá nhân</h5>
+              <button type="button" className="btn-close btn-close-white" onClick={() => setShowProfile(false)}></button>
+            </div>
+            <div className="modal-body p-4">
+              <div className="mb-3">
+                <label className="form-label text-muted fw-bold">Tên hiển thị</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  value={profileForm.name} 
+                  onChange={e => setProfileForm({...profileForm, name: e.target.value})}
+                />
+              </div>
+              <div className="mb-4">
+                <label className="form-label text-muted fw-bold">Số điện thoại</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  value={profileForm.phone} 
+                  onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
+                />
+              </div>
+              <div className="alert alert-info py-2 small mb-0">
+                Lưu ý: Bạn không thể tự sửa chức vụ, mức lương, hay email tài khoản. Nếu cần thay đổi, vui lòng liên hệ Quản lý.
+              </div>
+            </div>
+            <div className="modal-footer bg-light border-top-0">
+              <button className="btn btn-outline-secondary" onClick={() => setShowProfile(false)}>Đóng</button>
+              <button 
+                className="btn btn-primary px-4" 
+                onClick={handleSaveProfile} 
+                disabled={profileSaving}
+              >
+                {profileSaving ? "Đang lưu..." : "Lưu thay đổi"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 

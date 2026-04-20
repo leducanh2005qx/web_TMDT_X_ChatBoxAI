@@ -150,7 +150,7 @@ function ProductDetail({ cart, setCart }) {
 
   const isOutOfStock =
     variants.length > 0
-      ? !selectedVariant || selectedVariant.stock <= 0
+      ? selectedVariant && selectedVariant.stock <= 0
       : product.stock <= 0;
 
   return (
@@ -171,7 +171,7 @@ function ProductDetail({ cart, setCart }) {
             <div className="main-img-container">
               <img
                 ref={imgRef}
-                src={`http://localhost:5000/${product.image}`}
+                src={product.image?.startsWith('http') ? product.image : `http://localhost:5000/${product.image}`}
                 alt={product.name}
                 className="main-product-img"
                 onError={(e) => (e.target.src = "/no-image.png")}
@@ -190,21 +190,23 @@ function ProductDetail({ cart, setCart }) {
               </div>
             </header>
 
-            <div className="variant-box">
-              <label>Phân loại hàng</label>
-              <div className="chips-container">
-                {variants.map((v) => (
-                  <button
-                    key={v.id}
-                    disabled={v.stock <= 0}
-                    className={`chip ${selectedVariant?.id === v.id ? "active" : ""} ${v.stock <= 0 ? "out" : ""}`}
-                    onClick={() => setSelectedVariant(v)}
-                  >
-                    {v.variant_name}
-                  </button>
-                ))}
+            {variants.length > 0 && (
+              <div className="variant-box">
+                <label>Phân loại hàng</label>
+                <div className="chips-container">
+                  {variants.map((v) => (
+                    <button
+                      key={v.id}
+                      disabled={v.stock <= 0}
+                      className={`chip ${selectedVariant?.id === v.id ? "active" : ""} ${v.stock <= 0 ? "out" : ""}`}
+                      onClick={() => setSelectedVariant(v)}
+                    >
+                      {v.variant_name}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="description-area">
               <label>Giới thiệu</label>
@@ -216,18 +218,18 @@ function ProductDetail({ cart, setCart }) {
 
             <div className="footer-actions">
               <div className="stock-info">
-                {selectedVariant ? (
-                  <p
-                    className={
-                      selectedVariant.stock > 0 ? "text-in" : "text-out"
-                    }
-                  >
-                    {selectedVariant.stock > 0
-                      ? `Sẵn sàng: ${selectedVariant.stock} món`
-                      : "Cháy hàng"}
-                  </p>
+                {variants.length > 0 ? (
+                  selectedVariant ? (
+                    <p className={selectedVariant.stock > 0 ? "text-in" : "text-out"}>
+                      {selectedVariant.stock > 0 ? `Sẵn sàng: ${selectedVariant.stock} món` : "Cháy hàng"}
+                    </p>
+                  ) : (
+                    <p className="text-hint">Vui lòng chọn Phân loại</p>
+                  )
                 ) : (
-                  <p className="text-hint">Vui lòng chọn Size</p>
+                  <p className={product.stock > 0 ? "text-in" : "text-out"}>
+                    {product.stock > 0 ? `Sẵn sàng: ${product.stock} món` : "Cháy hàng"}
+                  </p>
                 )}
               </div>
 
@@ -288,7 +290,7 @@ function ProductDetail({ cart, setCart }) {
                   </div>
                   {r.image_url && (
                     <img
-                      src={`http://localhost:5000/${r.image_url}`}
+                      src={r.image_url?.startsWith('http') ? r.image_url : `http://localhost:5000/${r.image_url}`}
                       alt="review"
                       className="review-image"
                     />

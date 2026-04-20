@@ -26,22 +26,17 @@ import Wishlist from "./pages/customer/Wishlist"; // ✅ Thêm trang Wishlist
 /* ================= ADMIN ================= */
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUserManagement from "./pages/admin/AdminUserManagement";
-import AdminOrders from "./pages/admin/AdminOrders";
+import AdminLogs from "./pages/admin/AdminLogs";
 import AdminStats from "./pages/admin/AdminStats";
-import AdminChat from "./pages/admin/AdminChat";
-import AdminCategories from "./pages/admin/AdminCategories";
-import AdminVouchers from "./pages/admin/AdminVouchers";
-import AdminPendingUsers from "./pages/admin/AdminPendingUsers";
-import AdminApproval from "./pages/admin/AdminApproval"; // ✅ Thêm trang phê duyệt sản phẩm
 import AddProduct from "./components/admin/AddProduct";
 import AdminRoute from "./components/admin/AdminRoute";
 import ManagerRoute from "./components/admin/ManagerRoute";
-import ManagerStaff from "./pages/manager/ManagerStaff";
 import ManagerWorkspace from "./pages/manager/ManagerWorkspace";
 import StaffRoute from "./components/admin/StaffRoute";
 import StaffWorkspace from "./pages/staff/StaffWorkspace";
 import StaffShifts from "./pages/staff/StaffShifts";
 import ManagerShifts from "./pages/manager/ManagerShifts";
+import ManagerVoucher from "./components/manager/ManagerVoucher";
 
 /* ================= CHAT ================= */
 import ChatWidget from "./components/chat/ChatWidget";
@@ -65,9 +60,13 @@ function App() {
   const location = useLocation();
   const path = location.pathname;
 
-  // ❌ Ẩn chat với admin & auth
+  // ❌ Ẩn chat với admin, manager, staff & auth
   const hideChat =
-    path.startsWith("/admin") || path === "/login" || path === "/register";
+    path.startsWith("/admin") ||
+    path.startsWith("/manager") ||
+    path.startsWith("/staff") ||
+    path === "/login" ||
+    path === "/register";
 
   return (
     <>
@@ -200,55 +199,11 @@ function App() {
         />
 
         <Route
-          path="/admin/add-product"
-          element={
-            <AdminRoute>
-              <AdminLayout>
-                <AddProduct />
-              </AdminLayout>
-            </AdminRoute>
-          }
-        />
-
-        <Route
-          path="/admin/categories"
-          element={
-            <AdminRoute>
-              <AdminLayout>
-                <AdminCategories />
-              </AdminLayout>
-            </AdminRoute>
-          }
-        />
-
-        <Route
           path="/admin/users"
           element={
             <AdminRoute>
               <AdminLayout>
                 <AdminUserManagement />
-              </AdminLayout>
-            </AdminRoute>
-          }
-        />
-
-        <Route
-          path="/admin/orders"
-          element={
-            <AdminRoute>
-              <AdminLayout>
-                <AdminOrders />
-              </AdminLayout>
-            </AdminRoute>
-          }
-        />
-
-        <Route
-          path="/admin/chat"
-          element={
-            <AdminRoute>
-              <AdminLayout>
-                <AdminChat />
               </AdminLayout>
             </AdminRoute>
           }
@@ -266,32 +221,11 @@ function App() {
         />
 
         <Route
-          path="/admin/vouchers"
+          path="/admin/system-logs"
           element={
             <AdminRoute>
               <AdminLayout>
-                <AdminVouchers />
-              </AdminLayout>
-            </AdminRoute>
-          }
-        />
-
-        <Route
-          path="/admin/staff-approvals"
-          element={
-            <AdminRoute>
-              <AdminLayout>
-                <AdminPendingUsers />
-              </AdminLayout>
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="/admin/product-approvals"
-          element={
-            <AdminRoute>
-              <AdminLayout>
-                <AdminApproval />
+                <AdminLogs />
               </AdminLayout>
             </AdminRoute>
           }
@@ -302,7 +236,7 @@ function App() {
           element={
             <ManagerRoute>
               <ManagerLayout>
-                <ManagerStaff />
+                <ManagerWorkspace />
               </ManagerLayout>
             </ManagerRoute>
           }
@@ -310,6 +244,16 @@ function App() {
 
         <Route
           path="/manager/add-product"
+          element={
+            <ManagerRoute>
+              <ManagerLayout>
+                <AddProduct />
+              </ManagerLayout>
+            </ManagerRoute>
+          }
+        />
+        <Route
+          path="/manager/edit-product/:id"
           element={
             <ManagerRoute>
               <ManagerLayout>
@@ -333,7 +277,7 @@ function App() {
           element={
             <ManagerRoute>
               <ManagerLayout>
-                <ManagerWorkspace section="orders" />
+                <ManagerWorkspace />
               </ManagerLayout>
             </ManagerRoute>
           }
@@ -343,7 +287,7 @@ function App() {
           element={
             <ManagerRoute>
               <ManagerLayout>
-                <ManagerWorkspace section="inventory" />
+                <ManagerWorkspace />
               </ManagerLayout>
             </ManagerRoute>
           }
@@ -353,7 +297,7 @@ function App() {
           element={
             <ManagerRoute>
               <ManagerLayout>
-                <ManagerWorkspace section="payroll" />
+                <ManagerWorkspace />
               </ManagerLayout>
             </ManagerRoute>
           }
@@ -363,7 +307,7 @@ function App() {
           element={
             <ManagerRoute>
               <ManagerLayout>
-                <ManagerWorkspace section="approvals" />
+                <ManagerWorkspace />
               </ManagerLayout>
             </ManagerRoute>
           }
@@ -373,7 +317,7 @@ function App() {
           element={
             <ManagerRoute>
               <ManagerLayout>
-                <ManagerWorkspace section="attendance" />
+                <ManagerWorkspace />
               </ManagerLayout>
             </ManagerRoute>
           }
@@ -384,6 +328,17 @@ function App() {
             <ManagerRoute>
               <ManagerLayout>
                 <ManagerShifts />
+              </ManagerLayout>
+            </ManagerRoute>
+          }
+        />
+
+        <Route
+          path="/manager/vouchers"
+          element={
+            <ManagerRoute>
+              <ManagerLayout>
+                <ManagerVoucher />
               </ManagerLayout>
             </ManagerRoute>
           }

@@ -11,6 +11,7 @@ const User = {
         u.password,
         u.role_id,
         u.status,
+        u.is_active,
         r.name AS role_name
       FROM users u
       JOIN roles r ON u.role_id = r.id
@@ -37,6 +38,25 @@ const User = {
       ],
       callback
     );
+  },
+  findById: (id, callback) => {
+    const sql = `
+      SELECT 
+        u.id,
+        u.name,
+        u.email,
+        u.phone,
+        u.password,
+        u.role_id,
+        u.status,
+        u.is_active,
+        r.name AS role_name
+      FROM users u
+      JOIN roles r ON u.role_id = r.id
+      WHERE u.id = ?
+    `;
+
+    db.query(sql, [id], callback);
   },
 };
 

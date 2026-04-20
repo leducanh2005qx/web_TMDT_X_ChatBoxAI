@@ -11,6 +11,7 @@ function AdminProductForm({ onSubmit, editingProduct, onCancel }) {
   const [categories, setCategories] = useState([]);
 
   const [image, setImage] = useState(null);
+  const [imageUrl, setImageUrl] = useState("");
   const [preview, setPreview] = useState(null);
 
   // load categories
@@ -32,9 +33,12 @@ function AdminProductForm({ onSubmit, editingProduct, onCancel }) {
 
       setPreview(
         editingProduct.image
-          ? `http://localhost:5000/${editingProduct.image}`
+          ? editingProduct.image.startsWith("http")
+            ? editingProduct.image
+            : `http://localhost:5000/${editingProduct.image}`
           : null
       );
+      setImageUrl(editingProduct.image?.startsWith("http") ? editingProduct.image : "");
     } else {
       setName("");
       setPrice("");
@@ -42,6 +46,7 @@ function AdminProductForm({ onSubmit, editingProduct, onCancel }) {
       setStock("");
       setCategoryId("");
       setImage(null);
+      setImageUrl("");
       setPreview(null);
     }
   }, [editingProduct]);
@@ -50,6 +55,7 @@ function AdminProductForm({ onSubmit, editingProduct, onCancel }) {
     const file = e.target.files?.[0];
     if (!file) return;
     setImage(file);
+    setImageUrl("");
     setPreview(URL.createObjectURL(file));
   };
 
@@ -63,6 +69,7 @@ function AdminProductForm({ onSubmit, editingProduct, onCancel }) {
     formData.append("stock", stock);
     formData.append("category_id", categoryId); // ✅ gửi category_id
     if (image) formData.append("image", image);
+    else if (imageUrl) formData.append("image", imageUrl);
 
     onSubmit(formData);
   };
@@ -72,6 +79,21 @@ function AdminProductForm({ onSubmit, editingProduct, onCancel }) {
       <h3>{editingProduct ? "Sửa sản phẩm" : "Thêm sản phẩm"}</h3>
 
       <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: 15 }}>
+          <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>Link ảnh sản phẩm (URL)</label>
+          <input
+            type="text"
+            value={imageUrl}
+            placeholder="Dán link ảnh vào đây..."
+            onChange={(e) => {
+              setImageUrl(e.target.value);
+              setPreview(e.target.value);
+              setImage(null);
+            }}
+            style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
+          />
+        </div>
+
         <input
           type="text"
           value={name}

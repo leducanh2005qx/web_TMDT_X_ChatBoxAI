@@ -1,12 +1,18 @@
 module.exports = (roleOrRoles) => {
   return (req, res, next) => {
-    const userRole = String(req.user.role || "").toUpperCase();
-    const allowedRoles = Array.isArray(roleOrRoles)
-      ? roleOrRoles.map((r) => String(r || "").toUpperCase())
-      : [String(roleOrRoles || "").toUpperCase()];
+    const rawRole = req.user.role;
+    const userRoleStr = String(rawRole || "").trim().toUpperCase();
+    
+    // Đưa tất cả role yêu cầu về chữ hoa để so sánh chính xác
+    const allowedRoles = (Array.isArray(roleOrRoles) ? roleOrRoles : [roleOrRoles])
+      .map(r => String(r || "").trim().toUpperCase());
 
-    if (!allowedRoles.includes(userRole)) {
-      return res.status(403).json({ message: "Access denied" });
+    console.log(`[DEBUG] Check roleMiddleware - Required: ${allowedRoles}, Actual: ${userRoleStr}`);
+
+    if (!allowedRoles.includes(userRoleStr)) {
+      return res.status(403).json({ 
+        message: `Access denied. Yêu cầu một trong các quyền: ${allowedRoles.join(' / ')}` 
+      });
     }
     next();
   };

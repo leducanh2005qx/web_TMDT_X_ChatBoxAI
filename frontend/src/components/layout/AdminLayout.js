@@ -1,12 +1,8 @@
-import AdminHeader from "./AdminHeader";
+import React from 'react';
+import DashboardLayout from './DashboardLayout';
 
 function AdminLayout({ children }) {
-  return (
-    <>
-      <AdminHeader />
-      <main style={{ padding: "20px" }}>{children}</main>
-    </>
-  );
+  return <DashboardLayout explicitRole="ADMIN">{children}</DashboardLayout>;
 }
 
 export default AdminLayout;

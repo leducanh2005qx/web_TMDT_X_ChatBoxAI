@@ -23,6 +23,8 @@ function Shop({ keyword, wishlist = [], toggleWishlist }) {
   const [categories, setCategories] = useState([]);
   const [group, setGroup] = useState("all");
   const [index, setIndex] = useState(0);
+  const [priceRange, setPriceRange] = useState("all");
+  const [sortOrder, setSortOrder] = useState("");
   const navigate = useNavigate();
   const autoPlayRef = useRef(null);
 
@@ -59,7 +61,7 @@ function Shop({ keyword, wishlist = [], toggleWishlist }) {
   }, [group]); // Reset interval khi đổi nhóm hàng
 
   const filtered = useMemo(() => {
-    let list = products;
+    let list = [...products]; // Clone to avoid mutating state directly
     if (group !== "all") {
       list = list.filter(
         (p) => p.category === group || p.category_name === group,
@@ -67,8 +69,25 @@ function Shop({ keyword, wishlist = [], toggleWishlist }) {
     }
     const k = (keyword || "").toLowerCase();
     if (k) list = list.filter((p) => p.name.toLowerCase().includes(k));
+
+    if (priceRange === "under500k") {
+      list = list.filter(p => Number(p.price) < 500000);
+    } else if (priceRange === "500k-2m") {
+      list = list.filter(p => Number(p.price) >= 500000 && Number(p.price) <= 2000000);
+    } else if (priceRange === "over2m") {
+      list = list.filter(p => Number(p.price) > 2000000);
+    }
+
+    if (sortOrder === "priceAsc") {
+      list.sort((a, b) => Number(a.price) - Number(b.price));
+    } else if (sortOrder === "priceDesc") {
+      list.sort((a, b) => Number(b.price) - Number(a.price));
+    } else if (sortOrder === "nameAsc") {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
     return list;
-  }, [products, group, keyword]);
+  }, [products, group, keyword, priceRange, sortOrder]);
 
   const visibleItems = useMemo(() => {
     const total = filtered.length;
@@ -120,6 +139,33 @@ function Shop({ keyword, wishlist = [], toggleWishlist }) {
             </button>
           ))}
         </nav>
+        
+        {/* Lọc Thông Minh */}
+        <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginTop: '15px' }}>
+          <select 
+            value={priceRange} 
+            onChange={e => { setPriceRange(e.target.value); setIndex(0); }} 
+            className="modern-select"
+            style={{ padding: '8px 12px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(0,0,0,0.5)', color: '#fff', outline: 'none', cursor: 'pointer' }}
+          >
+            <option style={{color:'#000'}} value="all">💸 Mức giá (Tất cả)</option>
+            <option style={{color:'#000'}} value="under500k">Dưới 500.000 ₫</option>
+            <option style={{color:'#000'}} value="500k-2m">Từ 500k - 2 Triệu ₫</option>
+            <option style={{color:'#000'}} value="over2m">Trên 2 Triệu ₫</option>
+          </select>
+
+          <select 
+            value={sortOrder} 
+            onChange={e => { setSortOrder(e.target.value); setIndex(0); }} 
+            className="modern-select"
+            style={{ padding: '8px 12px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(0,0,0,0.5)', color: '#fff', outline: 'none', cursor: 'pointer' }}
+          >
+            <option style={{color:'#000'}} value="">🔃 Sắp xếp: Mặc định</option>
+            <option style={{color:'#000'}} value="priceAsc">Giá Thấp ➔ Cao</option>
+            <option style={{color:'#000'}} value="priceDesc">Giá Cao ➔ Thấp</option>
+            <option style={{color:'#000'}} value="nameAsc">Tên A-Z</option>
+          </select>
+        </div>
       </header>
 
       <main className="carousel-container">
@@ -150,7 +196,7 @@ function Shop({ keyword, wishlist = [], toggleWishlist }) {
                     </button>
                   </div>
                   <img
-                    src={`http://localhost:5000/${p.image}`}
+                    src={p.image?.startsWith('http') ? p.image : `http://localhost:5000/${p.image}`}
                     alt={p.name}
                     onClick={() => navigate(`/product/${p.id}`)}
                   />

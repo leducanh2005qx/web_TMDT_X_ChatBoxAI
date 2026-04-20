@@ -27,15 +27,9 @@ function AdminHeader() {
 
         <nav className="admin-nav">
           <NavLink to="/admin/dashboard">Tổng quan</NavLink>
-          <NavLink to="/admin/users">Người dùng</NavLink>
-          <NavLink to="/admin/categories">Danh mục</NavLink>
-          <NavLink to="/admin/orders">Đơn hàng</NavLink>
-          <NavLink to="/admin/add-product">Thêm SP</NavLink>
-          <NavLink to="/admin/vouchers">Khuyến mãi</NavLink>
-          <NavLink to="/admin/staff-approvals">Duyệt NV</NavLink>
-          <NavLink to="/admin/product-approvals">Duyệt SP</NavLink>
-          <NavLink to="/admin/chat">Chat</NavLink>
-          <NavLink to="/admin/stats">Thống kê</NavLink>
+          <NavLink to="/admin/stats">Biểu đồ Doanh thu</NavLink>
+          <NavLink to="/admin/users">Quản lý Tài khoản</NavLink>
+          <NavLink to="/admin/system-logs">Nhật ký Hệ thống</NavLink>
         </nav>
       </div>
 

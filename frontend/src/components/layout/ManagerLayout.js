@@ -1,12 +1,8 @@
-import ManagerHeader from "./ManagerHeader";
+import React from 'react';
+import DashboardLayout from './DashboardLayout';
 
 function ManagerLayout({ children }) {
-  return (
-    <>
-      <ManagerHeader />
-      <main style={{ padding: "20px" }}>{children}</main>
-    </>
-  );
+  return <DashboardLayout explicitRole="MANAGER">{children}</DashboardLayout>;
 }
 
 export default ManagerLayout;

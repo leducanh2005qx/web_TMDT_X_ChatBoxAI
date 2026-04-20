@@ -1,14 +1,11 @@
 import { Navigate } from "react-router-dom";
-
-function normalizeRole(role) {
-  return String(role || "").toUpperCase();
-}
+import { isManagementRole } from "../../utils/roleUtils";
 
 function ManagerRoute({ children }) {
   const token = localStorage.getItem("token");
-  const role = normalizeRole(localStorage.getItem("role"));
+  const role = localStorage.getItem("role");
 
-  if (!token || role !== "MANAGER") {
+  if (!token || !isManagementRole(role)) {
     return <Navigate to="/login" replace />;
   }
 

@@ -173,7 +173,7 @@ function AdminDashboard() {
               <tbody>
                 {trashProducts.map(tp => (
                   <tr key={tp.id}>
-                    <td><img src={`http://localhost:5000/${tp.image}`} alt={tp.name} style={{ width: '40px', borderRadius: '5px' }} /></td>
+                    <td><img src={tp.image?.startsWith('http') ? tp.image : `http://localhost:5000/${tp.image}`} alt={tp.name} style={{ width: '40px', borderRadius: '5px' }} /></td>
                     <td>{tp.name}</td>
                     <td>
                       <button className="icon-btn edit" onClick={() => handleRestore(tp.id)}>Khôi phục</button>
@@ -267,7 +267,10 @@ function AdminDashboard() {
                           </div>
                         ))
                       ) : (
-                        <span className="text-gray-400 italic text-sm">Chưa có phân loại</span>
+                        <div className="px-3 py-1.5 rounded-md border border-blue-200 text-blue-700 bg-blue-50 text-sm shadow-sm">
+                          <span className="mr-2 opacity-80">Tổng kho:</span>
+                          <strong className="font-bold">{p.stock}</strong>
+                        </div>
                       )}
                     </div>
                   </td>

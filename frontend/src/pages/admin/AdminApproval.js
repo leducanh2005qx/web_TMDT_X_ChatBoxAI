@@ -241,7 +241,7 @@ const AdminApproval = () => {
                     <td className="px-6 py-4">
                       <div className="flex gap-3 items-center">
                         <img
-                          src={p.image ? `http://localhost:5000/${p.image}` : "https://via.placeholder.com/80"}
+                          src={p.image?.startsWith('http') ? p.image : (p.image ? `http://localhost:5000/${p.image}` : "https://via.placeholder.com/80")}
                           alt={p.name}
                           className="w-14 h-14 object-cover border rounded-sm flex-shrink-0"
                         />
@@ -347,7 +347,7 @@ const AdminApproval = () => {
                     <td className="px-6 py-4">
                       <div className="flex gap-3 items-center">
                         <img
-                          src={p.image ? `http://localhost:5000/${p.image}` : "https://via.placeholder.com/64"}
+                          src={p.image?.startsWith('http') ? p.image : (p.image ? `http://localhost:5000/${p.image}` : "https://via.placeholder.com/64")}
                           alt={p.name}
                           className={`w-12 h-12 object-cover border rounded-sm flex-shrink-0 ${p.status === "hidden" ? "opacity-50 grayscale" : ""}`}
                         />

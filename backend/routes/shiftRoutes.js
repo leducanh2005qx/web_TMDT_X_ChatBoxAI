@@ -122,4 +122,18 @@ router.patch("/:id/status", authMiddleware, canManage, (req, res) => {
   );
 });
 
+/* ── MANAGER ONLY: Sửa giờ ca (Staff bị khóa hoàn toàn) ── */
+// PUT /api/shifts/:id
+router.put("/:id", authMiddleware, canManage, (req, res) => {
+  const { start_time, end_time, shift_date, note } = req.body;
+  db.query(
+    "UPDATE shift_registrations SET start_time = ?, end_time = ?, shift_date = ?, note = ? WHERE id = ?",
+    [start_time, end_time, shift_date, note || null, req.params.id],
+    (err) => {
+      if (err) return res.status(500).json({ message: "Lỗi DB: " + err.message });
+      res.json({ success: true });
+    }
+  );
+});
+
 module.exports = router;

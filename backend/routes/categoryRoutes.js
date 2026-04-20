@@ -11,21 +11,21 @@ router.get("/", categoryController.getAllCategories);
 router.post(
   "/",
   authMiddleware,
-  roleMiddleware("ADMIN"),
+  roleMiddleware(["ADMIN", "MANAGER"]),
   categoryController.createCategory
 );
 
 router.put(
   "/:id",
   authMiddleware,
-  roleMiddleware("ADMIN"),
+  roleMiddleware(["ADMIN", "MANAGER"]),
   categoryController.updateCategory
 );
 
 router.delete(
   "/:id",
   authMiddleware,
-  roleMiddleware("ADMIN"),
+  roleMiddleware(["ADMIN", "MANAGER"]),
   categoryController.deleteCategory
 );
 

@@ -220,8 +220,11 @@ exports.getOrdersByUser = (req, res) => {
     FROM orders WHERE user_id = ? ORDER BY created_at DESC
   `;
   db.query(sql, [req.user.id], (err, rows) => {
-    if (err) return res.status(500).json({ message: "Lỗi lấy đơn hàng" });
-    res.json(rows);
+    if (err) {
+      console.error("Lỗi getOrdersByUser:", err.message);
+      return res.status(500).json({ message: "Lỗi lấy đơn hàng" });
+    }
+    res.json(rows.map(r => ({ ...r, totalSold: r.totalSold?Number(r.totalSold):undefined, total_revenue: r.total_revenue?Number(r.total_revenue):undefined, revenue: r.revenue?Number(r.revenue):undefined, count: r.count?Number(r.count):undefined })));
   });
 };
 
@@ -274,8 +277,11 @@ exports.getAllOrdersAdmin = (req, res) => {
     ORDER BY o.created_at DESC
   `;
   db.query(sql, (err, rows) => {
-    if (err) return res.status(500).json({ message: "Lỗi admin orders" });
-    res.json(rows);
+    if (err) {
+      console.error("Lỗi getAllOrdersAdmin:", err.message);
+      return res.status(500).json({ message: "Lỗi admin orders" });
+    }
+    res.json(rows.map(r => ({ ...r, totalSold: r.totalSold?Number(r.totalSold):undefined, total_revenue: r.total_revenue?Number(r.total_revenue):undefined, revenue: r.revenue?Number(r.revenue):undefined, count: r.count?Number(r.count):undefined })));
   });
 };
 
@@ -322,23 +328,125 @@ exports.updateOrderStatus = (req, res) => {
     "UPDATE orders SET status = ? WHERE id = ?",
     [req.body.status, req.params.id],
     (err) => {
-      if (err) return res.status(500).json({ message: "Lỗi cập nhật" });
+      if (err) {
+        console.error("Lỗi updateOrderStatus:", err.message);
+        return res.status(500).json({ message: "Lỗi cập nhật" });
+      }
       res.json({ success: true });
     },
   );
 };
 
 /* =====================================================
+   CANCEL ORDER – Staff & Customer (stock restore)
+===================================================== */
+exports.cancelOrder = (req, res) => {
+  const orderId = req.params.id;
+  const userId  = req.user.id;
+  const userRole = String(req.user.role || "").toUpperCase();
+  const { reason } = req.body;
+
+  // Staff PHẢI có lý do hủy
+  if (userRole === "STAFF" && !reason?.trim()) {
+    return res.status(400).json({ message: "Staff phải nhập lý do hủy đơn" });
+  }
+
+  // 1. Lấy đơn hàng để kiểm tra quyền và trạng thái
+  const getOrderSql = `
+    SELECT o.id, o.status, o.user_id,
+           oi.variant_id, oi.quantity
+    FROM orders o
+    JOIN order_items oi ON oi.order_id = o.id
+    WHERE o.id = ?
+  `;
+
+  db.query(getOrderSql, [orderId], (err, rows) => {
+    if (err) return res.status(500).json({ message: "Lỗi truy vấn đơn hàng" });
+    if (!rows.length) return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+
+    const order = rows[0];
+
+    // Khách hàng chỉ hủy đơn của mình và chỉ khi Pending
+    if (userRole !== "STAFF" && userRole !== "ADMIN" && userRole !== "MANAGER") {
+      if (order.user_id !== userId) {
+        return res.status(403).json({ message: "Bạn không có quyền hủy đơn hàng này" });
+      }
+      if (order.status !== "pending") {
+        return res.status(400).json({ message: "Chỉ có thể hủy đơn hàng ở trạng thái Pending" });
+      }
+    }
+
+    // Không hủy đơn đã completed
+    if (order.status === "completed" || order.status === "cancelled") {
+      return res.status(400).json({ message: `Không thể hủy đơn hàng đã ${order.status}` });
+    }
+
+    db.beginTransaction((txErr) => {
+      if (txErr) return res.status(500).json({ message: "Lỗi transaction" });
+
+      // 2. Cập nhật trạng thái đơn
+      const cancelNote = reason ? `Lý do: ${reason}` : null;
+      db.query(
+        "UPDATE orders SET status = 'cancelled', cancel_reason = ? WHERE id = ?",
+        [cancelNote, orderId],
+        (updateErr) => {
+          if (updateErr) {
+            return db.rollback(() =>
+              res.status(500).json({ message: "Lỗi hủy đơn hàng" })
+            );
+          }
+
+          // 3. HOÀN TRẢ KHO – Cộng lại stock cho từng variant
+          const restorePromises = rows.map(item => {
+            return new Promise((resolve, reject) => {
+              db.query(
+                "UPDATE product_variants SET stock = stock + ? WHERE id = ?",
+                [item.quantity, item.variant_id],
+                (stockErr) => {
+                  if (stockErr) reject(stockErr);
+                  else resolve();
+                }
+              );
+            });
+          });
+
+          Promise.all(restorePromises)
+            .then(() => {
+              db.commit((commitErr) => {
+                if (commitErr) {
+                  return db.rollback(() =>
+                    res.status(500).json({ message: "Lỗi commit transaction" })
+                  );
+                }
+                res.json({ success: true, message: "Đã hủy đơn hàng và hoàn trả kho thành công" });
+              });
+            })
+            .catch((stockErr) => {
+              db.rollback(() =>
+                res.status(500).json({ message: "Lỗi hoàn trả kho: " + stockErr.message })
+              );
+            });
+        }
+      );
+    });
+  });
+};
+
+
+/* =====================================================
     STATISTICS (GIỮ NGUYÊN)
 ===================================================== */
 exports.getStatistics = (req, res) => {
-  db.query(
-    "SELECT COUNT(*) AS totalOrders, IFNULL(SUM(total), 0) AS totalRevenue FROM orders WHERE status = 'completed'",
-    (err, rows) => {
-      if (err) return res.status(500).json({ message: "Lỗi thống kê" });
-      res.json(rows[0]);
-    },
-  );
+  const sql = `
+    SELECT 
+      (SELECT COUNT(*) FROM orders WHERE status = 'completed') AS totalOrders,
+      (SELECT IFNULL(SUM(total), 0) FROM orders WHERE status = 'completed') AS totalRevenue,
+      (SELECT COUNT(*) FROM users) AS totalCustomers
+  `;
+  db.query(sql, (err, rows) => {
+    if (err) return res.status(500).json({ message: "Lỗi thống kê" });
+    res.json(rows[0]);
+  });
 };
 
 exports.getBestSellingProducts = (req, res) => {
@@ -354,7 +462,7 @@ exports.getBestSellingProducts = (req, res) => {
   `;
   db.query(sql, (err, rows) => {
     if (err) return res.status(500).json({ message: "Lỗi sản phẩm bán chạy" });
-    res.json(rows);
+    res.json(rows.map(r => ({ ...r, totalSold: r.totalSold?Number(r.totalSold):undefined, total_revenue: r.total_revenue?Number(r.total_revenue):undefined, revenue: r.revenue?Number(r.revenue):undefined, count: r.count?Number(r.count):undefined })));
   });
 };
 
@@ -383,7 +491,7 @@ exports.getCategoryRevenue = (req, res) => {
   `;
   db.query(sql, (err, rows) => {
     if (err) return res.status(500).json({ message: "Lỗi doanh thu theo danh mục" });
-    res.json(rows);
+    res.json(rows.map(r => ({ ...r, totalSold: r.totalSold?Number(r.totalSold):undefined, total_revenue: r.total_revenue?Number(r.total_revenue):undefined, revenue: r.revenue?Number(r.revenue):undefined, count: r.count?Number(r.count):undefined })));
   });
 };
 
@@ -400,7 +508,7 @@ exports.getMonthlyRevenue = (req, res) => {
   `;
   db.query(sql, (err, rows) => {
     if (err) return res.status(500).json({ message: "Lỗi thống kê theo tháng: " + err.message });
-    res.json(rows);
+    res.json(rows.map(r => ({ ...r, totalSold: r.totalSold?Number(r.totalSold):undefined, total_revenue: r.total_revenue?Number(r.total_revenue):undefined, revenue: r.revenue?Number(r.revenue):undefined, count: r.count?Number(r.count):undefined })));
   });
 };
 
@@ -417,6 +525,21 @@ exports.getWeeklyRevenue = (req, res) => {
   `;
   db.query(sql, (err, rows) => {
     if (err) return res.status(500).json({ message: "Lỗi thống kê theo tuần: " + err.message });
-    res.json(rows);
+    res.json(rows.map(r => ({ ...r, totalSold: r.totalSold?Number(r.totalSold):undefined, total_revenue: r.total_revenue?Number(r.total_revenue):undefined, revenue: r.revenue?Number(r.revenue):undefined, count: r.count?Number(r.count):undefined })));
+  });
+};
+exports.getMonthlyCustomerGrowth = (req, res) => {
+  const sql = `
+    SELECT 
+      DATE_FORMAT(created_at, '%m/%Y') AS label,
+      COUNT(*) AS count
+    FROM users
+    GROUP BY label
+    ORDER BY MIN(created_at) ASC
+    LIMIT 12
+  `;
+  db.query(sql, (err, rows) => {
+    if (err) return res.status(500).json({ message: "Lỗi thống kê tăng trưởng khách hàng: " + err.message });
+    res.json(rows.map(r => ({ ...r, totalSold: r.totalSold?Number(r.totalSold):undefined, total_revenue: r.total_revenue?Number(r.total_revenue):undefined, revenue: r.revenue?Number(r.revenue):undefined, count: r.count?Number(r.count):undefined })));
   });
 };

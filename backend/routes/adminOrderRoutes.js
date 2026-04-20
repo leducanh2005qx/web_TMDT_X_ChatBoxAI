@@ -15,25 +15,26 @@ const orderController = require("../controllers/orderController");
 // ✅ Middleware: bắt buộc đăng nhập + ADMIN
 router.use(authMiddleware);
 const canViewOrders = roleMiddleware(["ADMIN", "MANAGER", "STAFF"]);
-const canManageOrders = roleMiddleware(["ADMIN", "MANAGER"]);
+const canManageOrders = roleMiddleware(["ADMIN", "MANAGER", "STAFF"]);
 
 /* ================= STATISTICS ================= */
 
 // 📊 Thống kê doanh thu & tổng đơn (chỉ completed)
-router.get("/stats", isAdmin, orderController.getStatistics);
+router.get("/stats", roleMiddleware(["ADMIN", "MANAGER"]), orderController.getStatistics);
 
 // 🔥 Sản phẩm bán chạy
-router.get("/best-products", isAdmin, orderController.getBestSellingProducts);
+router.get("/best-products", roleMiddleware(["ADMIN", "MANAGER"]), orderController.getBestSellingProducts);
 
 // ⏳ Đơn hàng chưa hoàn thành (pending + confirmed)
-router.get("/uncompleted", isAdmin, orderController.getUncompletedOrders);
+router.get("/uncompleted", roleMiddleware(["ADMIN", "MANAGER"]), orderController.getUncompletedOrders);
 
 // 📈 Doanh thu theo danh mục
-router.get("/category-revenue", isAdmin, orderController.getCategoryRevenue);
+router.get("/category-revenue", roleMiddleware(["ADMIN", "MANAGER"]), orderController.getCategoryRevenue);
 
 // 📅 Doanh thu theo tháng & tuần
-router.get("/monthly-revenue", isAdmin, orderController.getMonthlyRevenue);
-router.get("/weekly-revenue", isAdmin, orderController.getWeeklyRevenue);
+router.get("/monthly-revenue", roleMiddleware(["ADMIN", "MANAGER"]), orderController.getMonthlyRevenue);
+router.get("/weekly-revenue", roleMiddleware(["ADMIN", "MANAGER"]), orderController.getWeeklyRevenue);
+router.get("/customer-growth", roleMiddleware(["ADMIN", "MANAGER"]), orderController.getMonthlyCustomerGrowth);
 
 /* ================= ORDERS ================= */
 

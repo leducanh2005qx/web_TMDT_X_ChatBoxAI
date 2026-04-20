@@ -9,25 +9,25 @@ const chatController = require("../controllers/chatController");
 router.get(
   "/threads",
   authMiddleware,
-  roleMiddleware("admin"),
+  roleMiddleware(["ADMIN", "MANAGER"]),
   chatController.listThreadsAdmin
 );
 router.get(
   "/threads/:threadId/messages",
   authMiddleware,
-  roleMiddleware("admin"),
+  roleMiddleware(["ADMIN", "MANAGER"]),
   chatController.getThreadMessagesAdmin
 );
 router.post(
   "/threads/:threadId/messages",
   authMiddleware,
-  roleMiddleware("admin"),
+  roleMiddleware(["ADMIN", "MANAGER"]),
   chatController.sendMessageAdmin
 );
 router.get(
   "/users/:userId/orders",
   authMiddleware,
-  roleMiddleware("admin"),
+  roleMiddleware(["ADMIN", "MANAGER"]),
   chatController.getOrdersSummaryOfUserAdmin
 );
 

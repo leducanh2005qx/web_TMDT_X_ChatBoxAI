@@ -1,19 +1,14 @@
 import { Navigate } from "react-router-dom";
-
-function normalizeRole(role) {
-  return String(role || "").toUpperCase();
-}
+import { isManagementRole } from "../../utils/roleUtils";
 
 function AdminRoute({ children }) {
   const token = localStorage.getItem("token");
-  const role = normalizeRole(localStorage.getItem("role"));
+  const role = localStorage.getItem("role");
 
-  // ❌ Không đăng nhập hoặc không phải ADMIN
-  if (!token || role !== "ADMIN") {
+  if (!token || !isManagementRole(role)) {
     return <Navigate to="/login" replace />;
   }
 
-  // ✅ Đúng admin
   return children;
 }
 

@@ -70,11 +70,11 @@ const Product = {
     db.query(sql, [status, reason || null, id], callback);
   },
 
-  // UPDATE (có thêm các trường mới)
+  // UPDATE (có thêm trường status)
   update: (id, product, callback) => {
     let sql = `
       UPDATE products
-      SET name = ?, price = ?, description = ?, stock = ?, category_id = ?, display_type = ?, specifications = ?
+      SET name = ?, price = ?, description = ?, stock = ?, category_id = ?, display_type = ?, specifications = ?, status = ?
     `;
     const params = [
       product.name,
@@ -83,7 +83,8 @@ const Product = {
       product.stock,
       product.category_id || null,
       product.display_type || 'general',
-      product.specifications || '{}'
+      product.specifications || '{}',
+      product.status || 'pending'
     ];
 
     if (product.image) {

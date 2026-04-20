@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const productController = require("../controllers/productController");
 const authMiddleware = require("../middlewares/authMiddleware");
+const roleMiddleware = require("../middlewares/roleMiddleware");
 const optionalAuth = require("../middlewares/optionalAuth");
 
 const multer = require("multer");
@@ -55,14 +56,14 @@ router.get("/inventory-alert", authMiddleware, productController.getInventoryAle
  * @route   GET /api/products/pending
  * @access  Private (Admin)
  */
-router.get("/pending", authMiddleware, productController.getPendingProducts);
+router.get("/pending", authMiddleware, roleMiddleware(["ADMIN", "MANAGER"]), productController.getPendingProducts);
 
 /**
  * @route   GET /api/products/decided
  * @desc    Lịch sử sản phẩm đã duyệt / từ chối
- * @access  Private (Admin)
+ * @access  Private (Admin, Manager)
  */
-router.get("/decided", authMiddleware, productController.getDecidedProducts);
+router.get("/decided", authMiddleware, roleMiddleware(["ADMIN", "MANAGER"]), productController.getDecidedProducts);
 
 /**
  * @route   POST /api/products
@@ -90,10 +91,10 @@ router.put("/:id", authMiddleware, upload.single("image"), productController.upd
  * @route   DELETE /api/products/:id
  * @access  Private (Admin)
  */
-router.delete("/:id", authMiddleware, productController.deleteProduct);
-router.patch("/:id/restore", authMiddleware, productController.restoreProduct);
-router.patch("/:id/restore-pending", authMiddleware, productController.restoreProductToPending);
+router.delete("/:id", authMiddleware, roleMiddleware(["ADMIN", "MANAGER"]), productController.deleteProduct);
+router.patch("/:id/restore", authMiddleware, roleMiddleware(["ADMIN", "MANAGER"]), productController.restoreProduct);
+router.patch("/:id/restore-pending", authMiddleware, roleMiddleware(["ADMIN", "MANAGER"]), productController.restoreProductToPending);
 router.post("/:id/reviews", authMiddleware, upload.single("image"), productController.createOrUpdateProductReview);
-router.patch("/:id/decision", authMiddleware, productController.decideProduct);
+router.patch("/:id/decision", authMiddleware, roleMiddleware(["ADMIN", "MANAGER"]), productController.decideProduct);
 
 module.exports = router;

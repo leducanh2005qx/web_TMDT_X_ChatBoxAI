@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { X, Laptop, Shirt, Utensils, Box } from "lucide-react";
-import { getCategories, createProduct } from "../../services/api";
+import { useParams, useNavigate } from "react-router-dom";
+import { Laptop, Shirt, Utensils, Box } from "lucide-react";
+import { getCategories, createProduct, getProductById, updateProduct } from "../../services/api";
 
 const AddProduct = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [selectedCategoryType, setSelectedCategoryType] = useState("general");
@@ -10,6 +13,8 @@ const AddProduct = () => {
   // Basic states
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState(null);
   const [price, setPrice] = useState("");
   const [originalPrice, setOriginalPrice] = useState("");
   const [stock, setStock] = useState("");
@@ -17,34 +22,65 @@ const AddProduct = () => {
   // Specification state (Gathers all dynamic data)
   const [specifications, setSpecifications] = useState({});
 
-  // Fashion specific: Variant Table (Size, Color, Qty)
-  const [fashionVariants, setFashionVariants] = useState([]);
-  const [newVariant, setNewVariant] = useState({ size: "S", color: "", qty: "" });
-
   const SIZES = ["S", "M", "L", "XL"];
 
+  const resolveCategoryType = (cat) => {
+    if (!cat) return "general";
+    let type = cat.display_type || "general";
+    const name = (cat.name || "").toLowerCase();
+    if (name.includes("điện tử") || name.includes("laptop")) type = "electronics";
+    else if (name.includes("thời trang")) type = "fashion";
+    else if (name.includes("nội thất")) type = "furniture";
+    return type;
+  };
+
   useEffect(() => {
-    // Tải danh mục thực tế từ backend
+    let loadedCategories = [];
+    
     getCategories()
       .then((data) => {
-        setCategories(Array.isArray(data) ? data : []);
-        if (data.length > 0) {
-          setSelectedCategoryId(data[0].id);
-          setSelectedCategoryType(data[0].display_type || "general");
+        loadedCategories = Array.isArray(data) ? data : [];
+        setCategories(loadedCategories);
+        if (!id && loadedCategories.length > 0) {
+          const firstCat = loadedCategories[0];
+          setSelectedCategoryId(firstCat.id);
+          setSelectedCategoryType(resolveCategoryType(firstCat));
         }
       })
-      .catch((err) => console.error("Lỗi tải danh mục:", err));
-  }, []);
+      .then(() => {
+        if (id) {
+          return getProductById(id).then(product => {
+            setName(product.name || "");
+            setDescription(product.description || "");
+            setPrice(product.price || "");
+            setOriginalPrice(product.original_price || "");
+            setStock(product.stock || "");
+            setSelectedCategoryId(product.category_id);
+            setSelectedCategoryType(product.display_type || resolveCategoryType(loadedCategories.find(c => c.id === product.category_id)));
+            if (product.image) {
+              setImageUrl(product.image.startsWith('http') ? product.image : `http://localhost:5000/${product.image}`);
+            }
+            if (product.specifications) {
+              try {
+                setSpecifications(typeof product.specifications === 'string' ? JSON.parse(product.specifications) : product.specifications);
+              } catch(e) {}
+            }
+          });
+        }
+      })
+      .catch((err) => console.error("Lỗi:", err));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
 
   const handleCategoryChange = (e) => {
     const id = e.target.value;
     setSelectedCategoryId(id);
     const cat = categories.find((c) => String(c.id) === String(id));
     if (cat) {
-      setSelectedCategoryType(cat.display_type || "general");
+      setSelectedCategoryType(resolveCategoryType(cat));
       // Reset specifications when category changes to avoid mixing data
       setSpecifications({});
-      setFashionVariants([]);
     }
   };
 
@@ -52,14 +88,14 @@ const AddProduct = () => {
     setSpecifications((prev) => ({ ...prev, [key]: value }));
   };
 
-  const addFashionVariant = () => {
-    if (!newVariant.color || !newVariant.qty) return;
-    setFashionVariants([...fashionVariants, { ...newVariant }]);
-    setNewVariant({ size: "S", color: "", qty: "" });
-  };
-
-  const removeFashionVariant = (index) => {
-    setFashionVariants(fashionVariants.filter((_, i) => i !== index));
+  const handleSpecialListToggle = (listName, item) => {
+    let currentList = specifications[listName] || [];
+    if (currentList.includes(item)) {
+      currentList = currentList.filter(s => s !== item);
+    } else {
+      currentList = [...currentList, item];
+    }
+    setSpecifications(prev => ({ ...prev, [listName]: currentList }));
   };
 
   // Logic tổng hợp dữ liệu cuối cùng để gửi đi
@@ -70,12 +106,6 @@ const AddProduct = () => {
       // Lấy thông tin user từ localStorage
       const userRole = localStorage.getItem("role") || "";
 
-      // Gộp variant vào specifications nếu là fashion
-      const finalSpecs = { ...specifications };
-      if (selectedCategoryType === 'fashion') {
-        finalSpecs.variants = fashionVariants;
-      }
-
       // FormData để gửi cả ảnh (nếu sau này thêm upload thực tế)
       const formData = new FormData();
       formData.append("name", name);
@@ -85,13 +115,28 @@ const AddProduct = () => {
       formData.append("original_price", originalPrice);
       formData.append("stock", stock);
       formData.append("display_type", selectedCategoryType);
-      formData.append("specifications", JSON.stringify(finalSpecs));
+      formData.append("specifications", JSON.stringify(specifications));
+      if (imageFile) {
+        formData.append("image", imageFile);
+      } else if (imageUrl) {
+        formData.append("image", imageUrl);
+      }
 
       // Gọi API thực tế
-      await createProduct(formData);
+      if (id) {
+        await updateProduct(id, formData);
+        alert("🎉 Sản phẩm đã được cập nhật thành công!");
+      } else {
+        await createProduct(formData);
+        alert("🎉 Sản phẩm đã được gửi và trạng thái là Đã Kích Hoạt!");
+      }
 
-      alert("🎉 Sản phẩm đã được gửi! " + (userRole === "Admin" ? "Đã kích hoạt." : "Đang chờ Admin duyệt."));
-      window.location.href = "/admin/dashboard";
+      const role = userRole.toUpperCase();
+      if (role === "MANAGER") {
+         navigate("/manager/inventory");
+      } else {
+         navigate("/admin/dashboard");
+      }
     } catch (err) {
       alert("Lỗi: " + err.message);
     }
@@ -103,13 +148,55 @@ const AddProduct = () => {
         {/* Tiêu đề */}
         <div className="mb-6 flex justify-between items-center">
           <h1 className="text-[20px] font-medium text-gray-800 flex items-center gap-2">
-            Thêm 1 sản phẩm mới 🐯
+            {id ? "Sửa sản phẩm 🐯" : "Thêm 1 sản phẩm mới 🐯"}
           </h1>
         </div>
 
         {/* PHẦN 1: THÔNG TIN CƠ BẢN */}
         <section className="bg-white p-6 rounded-[3px] shadow-sm space-y-6">
           <h2 className="text-[18px] font-medium mb-6">Thông tin cơ bản</h2>
+
+          <div className="grid grid-cols-[150px_1fr] gap-6 items-start">
+            <label className="text-right text-gray-600 font-medium mt-2">Ảnh sản phẩm</label>
+            <div className="w-full space-y-3">
+              <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+                <input
+                  type="text"
+                  className="w-full lg:w-1/2 border border-gray-300 px-3 py-2 rounded-sm focus:border-[#ee4d2d] outline-none"
+                  placeholder="Nhập link ảnh (VD: https://...)"
+                  value={imageUrl}
+                  onChange={(e) => {
+                    setImageUrl(e.target.value);
+                    setImageFile(null);
+                  }}
+                />
+                <span className="text-gray-400 font-medium px-2">HOẶC</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setImageFile(file);
+                      setImageUrl("");
+                    }
+                  }}
+                  className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-sm file:border-0 file:text-sm file:font-semibold file:bg-[#feede9] file:text-[#ee4d2d] hover:file:bg-[#fcdbc3] cursor-pointer outline-none"
+                />
+              </div>
+              
+              {(imageUrl || imageFile) && (
+                <div className="w-32 h-32 border border-gray-200 rounded-sm overflow-hidden flex items-center justify-center bg-gray-50">
+                  <img 
+                    src={imageFile ? URL.createObjectURL(imageFile) : imageUrl} 
+                    alt="Preview" 
+                    className="max-w-full max-h-full object-contain" 
+                    onError={(e) => e.target.src = 'https://via.placeholder.com/150?text=Lỗi+Ảnh'} 
+                  />
+                </div>
+              )}
+            </div>
+          </div>
 
           <div className="grid grid-cols-[150px_1fr] gap-6 items-center">
             <label className="text-right text-gray-600 font-medium">Tên sản phẩm</label>
@@ -149,10 +236,10 @@ const AddProduct = () => {
           </div>
         </section>
 
-        {/* PHẦN 2: THÔNG TIN CHI TIẾT DỰA VÀO DISPLAY_TYPE */}
+        {/* PHẦN 2: THÔNG TIN KỸ THUẬT */}
         <section className="bg-white p-6 rounded-[3px] shadow-sm space-y-6 border-l-4 border-[#ee4d2d]">
           <div className="flex items-center justify-between">
-            <h2 className="text-[18px] font-medium">Thông tin chi tiết ({selectedCategoryType.toUpperCase()})</h2>
+            <h2 className="text-[18px] font-medium">Thông số kỹ thuật ({selectedCategoryType.toUpperCase()})</h2>
             <div className="text-[#ee4d2d]">
               {selectedCategoryType === 'electronics' && <Laptop size={24} />}
               {selectedCategoryType === 'fashion' && <Shirt size={24} />}
@@ -163,77 +250,44 @@ const AddProduct = () => {
 
           {/* DYNAMIC FORMS */}
           {selectedCategoryType === "fashion" && (
-            <div className="space-y-4">
-              <div className="p-4 bg-gray-50 border rounded-sm flex gap-4 items-end">
-                <div className="flex-1 space-y-1">
-                  <label className="text-[11px] font-bold text-gray-500">Size</label>
-                  <select 
-                    className="w-full border p-2 bg-white outline-none focus:border-[#ee4d2d]"
-                    value={newVariant.size}
-                    onChange={(e) => setNewVariant({...newVariant, size: e.target.value})}
-                  >
-                    {SIZES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div className="flex-1 space-y-1">
-                  <label className="text-[11px] font-bold text-gray-500">Màu sắc</label>
-                  <input 
-                    className="w-full border p-2 outline-none focus:border-[#ee4d2d]" 
-                    placeholder="Đen, Trắng..." 
-                    value={newVariant.color}
-                    onChange={(e) => setNewVariant({...newVariant, color: e.target.value})}
-                  />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <label className="text-[11px] font-bold text-gray-500">Số lượng</label>
-                  <input 
-                    type="number"
-                    className="w-full border p-2 outline-none focus:border-[#ee4d2d]" 
-                    placeholder="0" 
-                    value={newVariant.qty}
-                    onChange={(e) => setNewVariant({...newVariant, qty: e.target.value})}
-                  />
-                </div>
-                <button 
-                  type="button"
-                  onClick={addFashionVariant}
-                  className="bg-[#ee4d2d] text-white px-4 py-2 rounded-sm hover:bg-[#d73f22] font-medium"
-                >
-                  Thêm biến thể
-                </button>
-              </div>
-
-              {/* Bảng biến thể đã thêm */}
-              <table className="w-full border border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 text-xs font-bold text-gray-400">
-                    <th className="border p-2 text-left">Size</th>
-                    <th className="border p-2 text-left">Màu sắc</th>
-                    <th className="border p-2 text-left">Số lượng</th>
-                    <th className="border p-2 text-center w-20">Xóa</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {fashionVariants.map((v, i) => (
-                    <tr key={i} className="text-sm">
-                      <td className="border p-2">{v.size}</td>
-                      <td className="border p-2">{v.color}</td>
-                      <td className="border p-2 font-bold text-[#ee4d2d]">{v.qty}</td>
-                      <td className="border p-2 text-center">
-                        <button onClick={() => removeFashionVariant(i)} className="text-gray-300 hover:text-red-500"><X size={16}/></button>
-                      </td>
-                    </tr>
+            <div className="grid grid-cols-1 gap-6 bg-gray-50 p-6 border rounded-sm">
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-gray-500 uppercase block">Size</label>
+                <div className="flex gap-4">
+                  {SIZES.map(s => (
+                    <label key={s} className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={(specifications.sizes || []).includes(s)}
+                        onChange={() => handleSpecialListToggle('sizes', s)}
+                        className="w-4 h-4 text-[#ee4d2d] focus:ring-[#ee4d2d] border-gray-300 rounded"
+                      />
+                      <span className="text-gray-700 font-medium">{s}</span>
+                    </label>
                   ))}
-                  {fashionVariants.length === 0 && (
-                    <tr><td colSpan="4" className="border p-6 text-center text-gray-400 italic">Chưa có biến thể nào được thêm.</td></tr>
-                  )}
-                </tbody>
-              </table>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-gray-500 uppercase">Màu sắc</label>
+                <input 
+                  className="w-full border p-2 outline-none focus:border-[#ee4d2d]" 
+                  placeholder="VD: Đen, Trắng, Đỏ..." 
+                  onChange={(e) => handleSpecChange('colors', e.target.value)}
+                />
+              </div>
             </div>
           )}
 
           {selectedCategoryType === "electronics" && (
             <div className="grid grid-cols-2 gap-6 bg-gray-50 p-6 border rounded-sm">
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-gray-500 uppercase">CPU</label>
+                <input 
+                  className="w-full border p-2 outline-none focus:border-[#ee4d2d]" 
+                  placeholder="VD: Core i7, M1..." 
+                  onChange={(e) => handleSpecChange('cpu', e.target.value)}
+                />
+              </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-bold text-gray-500 uppercase">Dung lượng RAM</label>
                 <input 
@@ -243,27 +297,40 @@ const AddProduct = () => {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-gray-500 uppercase">Dung lượng ổ cứng</label>
+                <label className="text-[11px] font-bold text-gray-500 uppercase">SSD (Ổ cứng)</label>
                 <input 
                   className="w-full border p-2 outline-none focus:border-[#ee4d2d]" 
                   placeholder="VD: 256GB SSD, 512GB..." 
-                  onChange={(e) => handleSpecChange('storage', e.target.value)}
+                  onChange={(e) => handleSpecChange('ssd', e.target.value)}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-gray-500 uppercase">Chip xử lý (CPU)</label>
+                <label className="text-[11px] font-bold text-gray-500 uppercase">VGA (Card đồ họa)</label>
                 <input 
                   className="w-full border p-2 outline-none focus:border-[#ee4d2d]" 
-                  placeholder="VD: Core i7, M1..." 
-                  onChange={(e) => handleSpecChange('cpu', e.target.value)}
+                  placeholder="VD: RTX 3060, Integrated..." 
+                  onChange={(e) => handleSpecChange('vga', e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {selectedCategoryType === "furniture" && (
+            <div className="grid grid-cols-2 gap-6 bg-gray-50 p-6 border rounded-sm">
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-gray-500 uppercase">Kích thước</label>
+                <input 
+                  className="w-full border p-2 outline-none focus:border-[#ee4d2d]" 
+                  placeholder="VD: 120x60x75 cm..." 
+                  onChange={(e) => handleSpecChange('dimensions', e.target.value)}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-gray-500 uppercase">Thời gian Bảo hành</label>
+                <label className="text-[11px] font-bold text-gray-500 uppercase">Chất liệu</label>
                 <input 
                   className="w-full border p-2 outline-none focus:border-[#ee4d2d]" 
-                  placeholder="VD: 12 tháng, 2 năm..." 
-                  onChange={(e) => handleSpecChange('warranty', e.target.value)}
+                  placeholder="VD: Gỗ Sồi, Da bò..." 
+                  onChange={(e) => handleSpecChange('material', e.target.value)}
                 />
               </div>
             </div>
@@ -283,14 +350,14 @@ const AddProduct = () => {
                 <label className="text-[11px] font-bold text-gray-500 uppercase">Ghi chú chế biến</label>
                 <input 
                   className="w-full border p-2 outline-none focus:border-[#ee4d2d]" 
-                  placeholder="VD: Ăn lạnh ngon hơn, cần lò vi sóng..." 
+                  placeholder="VD: Ăn lạnh ngon hơn..." 
                   onChange={(e) => handleSpecChange('processing_notes', e.target.value)}
                 />
               </div>
             </div>
           )}
 
-          {(selectedCategoryType === "general" || !["fashion", "electronics", "food"].includes(selectedCategoryType)) && (
+          {(selectedCategoryType === "general" || !["fashion", "electronics", "food", "furniture"].includes(selectedCategoryType)) && (
             <div className="bg-gray-50 p-6 border rounded-sm">
                <label className="text-[11px] font-bold text-gray-500 uppercase block mb-1">Mô tả ngắn gọn</label>
                <input 
@@ -343,11 +410,11 @@ const AddProduct = () => {
 
         {/* NÚT SUBMIT */}
         <div className="flex justify-end gap-3 pt-6 border-t mt-8">
-           <button type="button" className="px-6 py-2 bg-white border rounded hover:bg-gray-50 transition-colors">
+           <button type="button" className="px-6 py-2 bg-white border rounded hover:bg-gray-50 transition-colors" onClick={() => navigate(-1)}>
              Hủy bỏ
            </button>
            <button type="submit" className="px-10 py-2 bg-[#ee4d2d] text-white font-bold rounded shadow-sm hover:bg-[#d73f22] transition-colors">
-             Lưu & Đăng bán
+             {id ? "Lưu thay đổi" : "Lưu & Đăng bán"}
            </button>
         </div>
       </form>

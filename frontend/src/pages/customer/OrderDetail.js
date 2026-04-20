@@ -156,7 +156,7 @@ function OrderDetail() {
                 {order.items.map((item, idx) => (
                   <div className="order-item-premium-row" key={idx}>
                     <img
-                      src={`http://localhost:5000/${item.image}`}
+                      src={item.image?.startsWith('http') ? item.image : `http://localhost:5000/${item.image}`}
                       alt={item.name}
                       onError={(e) => (e.target.src = "/no-image.png")}
                     />

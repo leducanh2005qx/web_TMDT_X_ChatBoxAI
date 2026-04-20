@@ -70,7 +70,7 @@ function ProductList({ cart, setCart }) {
               {/* IMAGE SECTION */}
               <div className="card-media" onClick={() => goDetail(p.id)}>
                 <img
-                  src={`http://localhost:5000/${p.image}`}
+                  src={p.image?.startsWith('http') ? p.image : `http://localhost:5000/${p.image}`}
                   alt={p.name}
                   onError={(e) => (e.target.src = "/no-image.png")}
                 />

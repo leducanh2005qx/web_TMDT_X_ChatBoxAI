@@ -50,11 +50,17 @@ exports.login = (req, res) => {
       return res.status(401).json({ message: "User not found" });
     }
 
-    const user = result[0];
+     const user = result[0];
 
     if (user.status === "pending") {
       return res.status(403).json({
         message: "Tài khoản đang chờ duyệt. Vui lòng liên hệ Admin.",
+      });
+    }
+
+    if (user.is_active === 0 || user.is_active === false) {
+      return res.status(403).json({
+        message: "Tài khoản của bạn đã bị khóa, vui lòng liên hệ sếp Đức Anh!",
       });
     }
 
@@ -74,6 +80,7 @@ exports.login = (req, res) => {
       {
         id: user.id,
         role: user.role_name, // "ADMIN" | "CUSTOMER"
+        is_active: user.is_active,
       },
       process.env.JWT_SECRET,
       { expiresIn: "1h" },

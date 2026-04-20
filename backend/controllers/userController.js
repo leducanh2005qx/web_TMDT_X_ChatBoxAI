@@ -37,6 +37,8 @@ const checkStaffActive = (userId, callback) => {
   );
 };
 
+
+// ✅ LẤY TẤT CẢ NHÂN VIÊN VÀ QUẢN LÝ (Cho Manager/Admin xem)
 exports.getMe = (req, res) => {
   db.query(
     "SELECT id, name, email, phone FROM users WHERE id = ?",
@@ -46,28 +48,6 @@ exports.getMe = (req, res) => {
       res.json(rows[0]);
     },
   );
-};
-
-exports.getAllUsers = (req, res) => {
-  db.query("SELECT id, role_id FROM users WHERE id = ?", [req.user.id], (err, rows) => {
-    if (err) return res.status(500).json({ message: "Lỗi server" });
-    if (!rows.length || rows[0].role_id !== 1) {
-      return res.status(403).json({ message: "Chỉ Admin được xem tất cả user" });
-    }
-    
-    const showDeleted = req.query.deleted === "true";
-    const sql = `
-      SELECT u.id, u.name, u.email, u.phone, u.status, u.role_id, r.name as role_name 
-      FROM users u 
-      LEFT JOIN roles r ON u.role_id = r.id 
-      WHERE ${showDeleted ? "u.deleted_at IS NOT NULL" : "u.deleted_at IS NULL"}
-      ORDER BY u.id DESC
-    `;
-    db.query(sql, (listErr, listRows) => {
-      if (listErr) return res.status(500).json({ message: "Không thể lấy danh sách" });
-      return res.json(listRows);
-    });
-  });
 };
 
 exports.updateMe = (req, res) => {
@@ -113,6 +93,49 @@ exports.storeUser = (req, res) => {
         message: "Tạo nhân viên thành công, chờ Admin duyệt",
         user_id: result.insertId,
         status: "pending",
+      });
+    });
+  });
+};
+
+exports.directCreateUser = (req, res) => {
+  const { name, email, password, phone, role_id } = req.body;
+
+  if (!name || !email || !password || !role_id) {
+    return res.status(400).json({ message: "Thiếu thông tin tạo tài khoản" });
+  }
+
+  checkManager(req.user.id, (checkErr, actor) => {
+    if (checkErr) return res.status(checkErr.code).json({ message: checkErr.message });
+
+    // Check email existence first
+    db.query("SELECT id, name, role_id FROM users WHERE email = ?", [email], (emailErr, emailRows) => {
+      if (emailErr) return res.status(500).json({ message: "Lỗi kiểm tra email" });
+      
+      if (emailRows.length > 0) {
+        const existingUser = emailRows[0];
+        if (existingUser.role_id === 5) {
+          return res.status(409).json({ 
+            message: `Email này đã có tài khoản Khách hàng (@${existingUser.name}). Bạn có muốn nâng cấp họ lên nhân viên không?`,
+            type: "UPGRADE_REQUIRED",
+            userId: existingUser.id
+          });
+        }
+        return res.status(400).json({ message: "Email này đã được sử dụng bởi một tài khoản khác." });
+      }
+
+      const hashedPassword = bcrypt.hashSync(password, 10);
+      const sql = `
+        INSERT INTO users (name, email, password, phone, role_id, status, is_active, created_by)
+        VALUES (?, ?, ?, ?, ?, 'active', 1, ?)
+      `;
+      db.query(sql, [name, email, hashedPassword, phone || null, role_id, actor.id], (insertErr, result) => {
+        if (insertErr) return res.status(500).json({ message: "Không thể tạo tài khoản trực tiếp" });
+        return res.status(201).json({
+          message: "Đã tạo tài khoản nhân viên thành công!",
+          user_id: result.insertId,
+          status: "active"
+        });
       });
     });
   });
@@ -222,13 +245,14 @@ exports.getCreatedStaff = (req, res) => {
       return res.status(403).json({ message: "Chỉ Manager được xem danh sách nhân viên đã tạo" });
     }
 
+    // Removed created_by = ? filter to show all staff to Managers
     const sql = `
       SELECT id, name, email, phone, status, created_by
       FROM users
-      WHERE role_id = 3 AND created_by = ?
+      WHERE role_id = 3
       ORDER BY id DESC
     `;
-    db.query(sql, [rows[0].id], (listErr, staffRows) => {
+    db.query(sql, (listErr, staffRows) => {
       if (listErr) return res.status(500).json({ message: "Không thể lấy danh sách nhân viên" });
       return res.json(staffRows);
     });
@@ -284,6 +308,7 @@ exports.getInventoryLogs = (req, res) => {
   checkManager(req.user.id, (checkErr) => {
     if (checkErr) return res.status(checkErr.code).json({ message: checkErr.message });
 
+    // Removed manager_id = ? filter to show all inventory logs to Managers
     const sql = `
       SELECT
         l.id,
@@ -296,11 +321,10 @@ exports.getInventoryLogs = (req, res) => {
         l.created_at
       FROM inventory_logs l
       JOIN products p ON p.id = l.product_id
-      WHERE l.manager_id = ?
       ORDER BY l.id DESC
       LIMIT 100
     `;
-    db.query(sql, [req.user.id], (err, rows) => {
+    db.query(sql, (err, rows) => {
       if (err) return res.status(500).json({ message: "Không thể lấy lịch sử nhập kho" });
       return res.json(rows);
     });
@@ -390,7 +414,25 @@ exports.getStaffPayroll = (req, res) => {
 
     db.query(sql, [month], (err, rows) => {
       if (err) return res.status(500).json({ message: "Không thể tính lương nhân viên" });
-      return res.json(rows);
+      
+      // Calculate current stats for AI Tiger
+      const statsSql = `
+        SELECT 
+          COUNT(*) as workingCount, 
+          IFNULL(SUM(wage_rate * TIMESTAMPDIFF(SECOND, check_in_at, NOW()) / 3600), 0) as estimatedCost
+        FROM attendance_sessions
+        WHERE status = 'open' AND DATE(check_in_at) = CURDATE()
+      `;
+      db.query(statsSql, (statsErr, statsRows) => {
+        const stats = statsRows[0] || { workingCount: 0, estimatedCost: 0 };
+        return res.json({
+          rows,
+          stats: {
+            workingCount: stats.workingCount,
+            estimatedCost: Math.round(stats.estimatedCost)
+          }
+        });
+      });
     });
   });
 };
@@ -804,6 +846,25 @@ exports.fixAttendanceCheckout = (req, res) => {
   });
 };
 
+// ✅ LẤY TẤT CẢ NHÂN VIÊN VÀ QUẢN LÝ (Cho Manager/Admin xem)
+exports.getAllUsers = (req, res) => {
+  checkManager(req.user.id, (checkErr) => {
+    if (checkErr) return res.status(checkErr.code).json({ message: checkErr.message });
+
+    const sql = `
+      SELECT id, name, email, phone, role_id, status, is_active,
+             probation_hourly_rate, official_hourly_rate, employment_status
+      FROM users 
+      WHERE deleted_at IS NULL 
+      ORDER BY role_id ASC, name ASC
+    `;
+    db.query(sql, (err, rows) => {
+      if (err) return res.status(500).json({ message: "Lỗi lấy danh sách nhân sự: " + err.message });
+      res.json(rows);
+    });
+  });
+};
+
 exports.getActiveStaff = (req, res) => {
   checkManager(req.user.id, (checkErr) => {
     if (checkErr) return res.status(checkErr.code).json({ message: checkErr.message });
@@ -832,5 +893,179 @@ exports.restoreUser = (req, res) => {
   db.query("UPDATE users SET deleted_at = NULL WHERE id = ?", [userId], (err) => {
     if (err) return res.status(500).json({ message: "Lỗi khôi phục người dùng" });
     res.json({ message: "Khôi phục người dùng thành công" });
+  });
+};
+
+// ✅ CHANGE ROLE
+exports.changeRole = (req, res) => {
+  const { userId } = req.params;
+  const { role_id } = req.body;
+  
+  if (!role_id) return res.status(400).json({ message: "Thiếu role_id" });
+
+  db.query("UPDATE users SET role_id = ? WHERE id = ?", [role_id, userId], (err) => {
+    if (err) return res.status(500).json({ message: "Lỗi phân quyền" });
+    res.json({ message: "Cập nhật quyền thành công" });
+  });
+};
+
+// ✅ CẬP NHẬT THÔNG TIN CÔNG VIỆC NHÂN VIÊN (Manager/Admin)
+exports.changeJobInfo = (req, res) => {
+  const { userId } = req.params;
+  const { role_id, probation_hourly_rate, official_hourly_rate } = req.body;
+  if (!role_id || !probation_hourly_rate || !official_hourly_rate) {
+    return res.status(400).json({ message: "Thiếu thông tin công việc" });
+  }
+
+  const sql = `
+    UPDATE users 
+    SET role_id = ?, probation_hourly_rate = ?, official_hourly_rate = ?
+    WHERE id = ?
+  `;
+
+  db.query(sql, [role_id, probation_hourly_rate, official_hourly_rate, userId], (err, result) => {
+    if (err) return res.status(500).json({ message: "Lỗi hệ thống: " + err.message });
+    if (result.affectedRows === 0) return res.status(404).json({ message: "Không tìm thấy nhân viên" });
+    res.json({ message: "Cập nhật thông tin công việc thành công" });
+  });
+};
+
+// ✅ TOGGLE LOCK STATUS
+exports.toggleStatus = (req, res) => {
+  const { userId } = req.params;
+  const { is_active } = req.body;
+
+  if (is_active === undefined) return res.status(400).json({ message: "Thiếu trạng thái is_active" });
+
+  db.query("UPDATE users SET is_active = ? WHERE id = ?", [is_active ? 1 : 0, userId], (err) => {
+    if (err) return res.status(500).json({ message: "Lỗi khóa tài khoản" });
+    res.json({ message: is_active ? "Đã mở khóa tài khoản" : "Tài khoản đã bị khóa" });
+  });
+};
+
+// ✅ CHI TIẾT PHIẾU LƯƠNG THEO NGÀY (STAFF TỰ XEM)
+exports.getMyPayrollDetail = (req, res) => {
+  const month = req.query.month;
+  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    return res.status(400).json({ message: "month phải theo định dạng YYYY-MM" });
+  }
+  checkStaffActive(req.user.id, (checkErr) => {
+    if (checkErr) return res.status(checkErr.code).json({ message: checkErr.message });
+
+    // Lấy thông tin nhân viên
+    db.query(
+      "SELECT id, name, email, employment_status, probation_hourly_rate, official_hourly_rate FROM users WHERE id = ?",
+      [req.user.id],
+      (userErr, userRows) => {
+        if (userErr || !userRows.length) return res.status(500).json({ message: "Lỗi lấy thông tin nhân viên" });
+        const user = userRows[0];
+
+        // Lấy từng ca chấm công đã đóng trong tháng
+        const sql = `
+          SELECT
+            DATE(check_in_at) AS work_date,
+            TIME(check_in_at) AS check_in_time,
+            TIME(check_out_at) AS check_out_time,
+            ROUND(worked_seconds / 3600, 2) AS hours_worked,
+            wage_rate,
+            ROUND((worked_seconds / 3600) * wage_rate, 0) AS daily_pay,
+            id AS session_id
+          FROM attendance_sessions
+          WHERE staff_id = ?
+            AND status = 'closed'
+            AND DATE_FORMAT(check_in_at, '%Y-%m') = ?
+          ORDER BY check_in_at ASC
+        `;
+        db.query(sql, [req.user.id, month], (err, days) => {
+          if (err) return res.status(500).json({ message: "Không thể lấy chi tiết phiếu lương" });
+
+          const totalHours = days.reduce((s, d) => s + Number(d.hours_worked || 0), 0);
+          const totalPay = days.reduce((s, d) => s + Number(d.daily_pay || 0), 0);
+
+          return res.json({
+            staff: {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              employment_status: user.employment_status,
+              hourly_rate: user.employment_status === "official"
+                ? Number(user.official_hourly_rate || 25000)
+                : Number(user.probation_hourly_rate || 20000),
+            },
+            month,
+            days,
+            summary: {
+              total_days: days.length,
+              total_hours: Math.round(totalHours * 100) / 100,
+              total_pay: Math.round(totalPay),
+            },
+          });
+        });
+      }
+    );
+  });
+};
+
+// ✅ CHI TIẾT PHIẾU LƯƠNG THEO NGÀY (MANAGER XEM CHO TỪNG NHÂN VIÊN)
+exports.getStaffPayrollDetail = (req, res) => {
+  const month = req.query.month;
+  const staffId = req.query.staff_id;
+  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    return res.status(400).json({ message: "month phải theo định dạng YYYY-MM" });
+  }
+  if (!staffId) return res.status(400).json({ message: "Thiếu staff_id" });
+
+  checkManager(req.user.id, (checkErr) => {
+    if (checkErr) return res.status(checkErr.code).json({ message: checkErr.message });
+
+    db.query(
+      "SELECT id, name, email, employment_status, probation_hourly_rate, official_hourly_rate FROM users WHERE id = ? AND role_id = 3",
+      [staffId],
+      (userErr, userRows) => {
+        if (userErr || !userRows.length) return res.status(404).json({ message: "Không tìm thấy nhân viên" });
+        const user = userRows[0];
+
+        const sql = `
+          SELECT
+            DATE(check_in_at) AS work_date,
+            TIME(check_in_at) AS check_in_time,
+            TIME(check_out_at) AS check_out_time,
+            ROUND(worked_seconds / 3600, 2) AS hours_worked,
+            wage_rate,
+            ROUND((worked_seconds / 3600) * wage_rate, 0) AS daily_pay,
+            id AS session_id
+          FROM attendance_sessions
+          WHERE staff_id = ?
+            AND status = 'closed'
+            AND DATE_FORMAT(check_in_at, '%Y-%m') = ?
+          ORDER BY check_in_at ASC
+        `;
+        db.query(sql, [staffId, month], (err, days) => {
+          if (err) return res.status(500).json({ message: "Không thể lấy chi tiết phiếu lương" });
+
+          const totalHours = days.reduce((s, d) => s + Number(d.hours_worked || 0), 0);
+          const totalPay = days.reduce((s, d) => s + Number(d.daily_pay || 0), 0);
+
+          return res.json({
+            staff: {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              employment_status: user.employment_status,
+              hourly_rate: user.employment_status === "official"
+                ? Number(user.official_hourly_rate || 25000)
+                : Number(user.probation_hourly_rate || 20000),
+            },
+            month,
+            days,
+            summary: {
+              total_days: days.length,
+              total_hours: Math.round(totalHours * 100) / 100,
+              total_pay: Math.round(totalPay),
+            },
+          });
+        });
+      }
+    );
   });
 };

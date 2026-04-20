@@ -102,80 +102,88 @@ function AdminOrders() {
                 </tr>
               </thead>
               <tbody>
-                {orders.map((o) => {
-                  const orderId = o.orderId ?? o.id;
-                  return (
-                    <tr key={orderId}>
-                      <td className="order-id">#{orderId}</td>
-                      <td>
-                        <span className="email-cell">
-                          {o.email || "Khách vãng lai"}
-                        </span>
-                      </td>
-                      <td className="total-cell">
-                        {Number(o.total).toLocaleString()} đ
-                      </td>
-                      <td>
-                        <span className={`badge ${o.status}`}>
-                          {statusLabel(o.status)}
-                        </span>
-                      </td>
-                      <td>
-                        {new Date(o.created_at).toLocaleDateString("vi-VN")}
-                      </td>
-                      <td className="text-right">
-                        <div className="action-group">
-                          {o.status === "pending" && (
-                            <>
-                              <button
-                                className="btn-action confirm"
-                                onClick={() =>
-                                  triggerModal(orderId, "confirmed")
-                                }
-                              >
-                                Duyệt
-                              </button>
-                              <button
-                                className="btn-action delete"
-                                onClick={() =>
-                                  triggerModal(orderId, "cancelled")
-                                }
-                              >
-                                Hủy
-                              </button>
-                            </>
-                          )}
-                          {o.status === "confirmed" && (
-                            <>
-                              <button
-                                className="btn-action complete"
-                                onClick={() =>
-                                  triggerModal(orderId, "completed")
-                                }
-                              >
-                                Xong
-                              </button>
-                              <button
-                                className="btn-action delete"
-                                onClick={() =>
-                                  triggerModal(orderId, "cancelled")
-                                }
-                              >
-                                Hủy
-                              </button>
-                            </>
-                          )}
-                          {o.status === "completed" && (
-                            <span className="text-success">✔ Thành công</span>
-                          )}
-                          {o.status === "cancelled" && (
-                            <span className="text-muted">✖ Đã hủy</span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {orders.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="text-center py-5 text-muted">
+                      📦 Không có đơn hàng nào được tìm thấy.
+                    </td>
+                  </tr>
+                ) : (
+                  orders.map((o) => {
+                    const orderId = o.orderId ?? o.id;
+                    return (
+                      <tr key={orderId}>
+                        <td className="order-id">#{orderId}</td>
+                        <td>
+                          <span className="email-cell">
+                            {o.email || "Khách vãng lai"}
+                          </span>
+                        </td>
+                        <td className="total-cell">
+                          {Number(o.total).toLocaleString()} đ
+                        </td>
+                        <td>
+                          <span className={`badge ${o.status}`}>
+                            {statusLabel(o.status)}
+                          </span>
+                        </td>
+                        <td>
+                          {new Date(o.created_at).toLocaleDateString("vi-VN")}
+                        </td>
+                        <td className="text-right">
+                          <div className="action-group">
+                            {o.status === "pending" && (
+                              <>
+                                <button
+                                  className="btn-action confirm"
+                                  onClick={() =>
+                                    triggerModal(orderId, "confirmed")
+                                  }
+                                >
+                                  Duyệt
+                                </button>
+                                <button
+                                  className="btn-action delete"
+                                  onClick={() =>
+                                    triggerModal(orderId, "cancelled")
+                                  }
+                                >
+                                  Hủy
+                                </button>
+                              </>
+                            )}
+                            {o.status === "confirmed" && (
+                              <>
+                                <button
+                                  className="btn-action complete"
+                                  onClick={() =>
+                                    triggerModal(orderId, "completed")
+                                  }
+                                >
+                                  Xong
+                                </button>
+                                <button
+                                  className="btn-action delete"
+                                  onClick={() =>
+                                    triggerModal(orderId, "cancelled")
+                                  }
+                                >
+                                  Hủy
+                                </button>
+                              </>
+                            )}
+                            {o.status === "completed" && (
+                              <span className="text-success">✔ Thành công</span>
+                            )}
+                            {o.status === "cancelled" && (
+                              <span className="text-muted">✖ Đã hủy</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>

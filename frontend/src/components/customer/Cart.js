@@ -116,7 +116,7 @@ function Cart({ cart, setCart }) {
 
                 <div className="item-media">
                   <img
-                    src={`http://localhost:5000/${item.image}`}
+                    src={item.image?.startsWith('http') ? item.image : `http://localhost:5000/${item.image}`}
                     alt={item.name}
                   />
                 </div>

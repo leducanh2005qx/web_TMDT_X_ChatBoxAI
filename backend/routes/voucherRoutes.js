@@ -1,17 +1,25 @@
 const express = require("express");
 const router = express.Router();
 const voucherController = require("../controllers/voucherController");
+const authMiddleware = require("../middlewares/authMiddleware");
+const roleMiddleware = require("../middlewares/roleMiddleware");
 
-// ✅ Lấy danh sách từ MySQL
-router.get("/", voucherController.getAll);
-
-// ✅ Tạo voucher mới (Dùng hàm create trong controller)
-router.post("/", voucherController.create);
-
-// ✅ Bật/Tắt trạng thái
-router.put("/:id/toggle", voucherController.toggle);
-
-// ✅ Áp dụng cho khách hàng
+// ✅ Áp dụng voucher cho khách hàng (Public - PHẢI đặt trước /:id)
 router.post("/apply", voucherController.apply);
+
+// ✅ Lấy danh sách công khai (Customer)
+router.get("/public", authMiddleware, voucherController.getAvailable);
+
+// ✅ Lấy danh sách (Admin/Manager)
+router.get("/", authMiddleware, roleMiddleware(["ADMIN", "MANAGER"]), voucherController.getAll);
+
+// ✅ Tạo voucher mới (Admin/Manager)
+router.post("/", authMiddleware, roleMiddleware(["ADMIN", "MANAGER"]), voucherController.create);
+
+// ✅ Cập nhật voucher (Admin/Manager)
+router.put("/:id", authMiddleware, roleMiddleware(["ADMIN", "MANAGER"]), voucherController.update);
+
+// ✅ Bật/Tắt trạng thái (Admin/Manager)
+router.put("/:id/toggle", authMiddleware, roleMiddleware(["ADMIN", "MANAGER"]), voucherController.toggle);
 
 module.exports = router;

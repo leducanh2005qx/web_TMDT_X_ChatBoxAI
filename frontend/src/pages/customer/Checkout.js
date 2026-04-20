@@ -171,7 +171,7 @@ function Checkout({ cart, setCart }) {
                 {checkoutItems.map((i) => (
                   <div key={i.cartKey || i.id} className="checkout-item-card">
                     <img
-                      src={`http://localhost:5000/${i.image}`}
+                      src={i.image?.startsWith('http') ? i.image : `http://localhost:5000/${i.image}`}
                       alt={i.name}
                     />
                     <div className="item-info">

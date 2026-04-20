@@ -126,7 +126,7 @@
 
 .detail-price {
   color: #ee4d2d;
-  font-size: 2.5rem;
+  font-size: 3.2rem;
   font-weight: 800;
   margin-bottom: 40px;
 }
@@ -183,9 +183,10 @@
 /* Mô tả */
 .description-area p {
   color: #475569;
-  line-height: 1.6;
+  line-height: 1.8;
   margin-bottom: 40px;
-  font-size: 1rem;
+  font-size: 1.05rem;
+  white-space: pre-line;
 }
 
 /* Footer & Button */

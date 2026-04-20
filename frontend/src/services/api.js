@@ -26,6 +26,12 @@ const handleResponse = async (res) => {
       window.location.href = "/login?expired=true";
     }
     if (res.status === 403) {
+      if (data.message && data.message.includes("Tài khoản của bạn đã bị khóa")) {
+        localStorage.clear();
+        alert(data.message);
+        window.location.href = "/login";
+        return;
+      }
       throw new Error(data.message || "Không có quyền truy cập");
     }
     if (res.status >= 500) {
@@ -60,6 +66,13 @@ export const register = (name, email, password, phone) =>
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, email, password, phone }),
+  }).then(handleResponse);
+
+export const updateMe = (payload) =>
+  fetch(`${API_URL}/users/me`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
   }).then(handleResponse);
 
 /* ================= PRODUCTS ================= */
@@ -132,6 +145,13 @@ export const deleteVariant = (variantId) =>
   fetch(`${API_URL}/variants/${variantId}`, {
     method: "DELETE",
     headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const bulkUpdateVariantStock = (productId, updates) =>
+  fetch(`${API_URL}/variants/bulk-stock`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ productId, updates }),
   }).then(handleResponse);
 
 /* ================= ORDERS (USER & ADMIN) ================= */
@@ -262,6 +282,13 @@ export const getActiveStaff = () =>
     handleResponse,
   );
 
+export const directCreateUser = (payload) =>
+  fetch(`${API_URL}/users/direct-create`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
+
 export const addInventoryStock = (payload) =>
   fetch(`${API_URL}/users/inventory/restock`, {
     method: "POST",
@@ -308,14 +335,36 @@ export const staffClockIn = () =>
     headers: getAuthHeader(),
   }).then(handleResponse);
 
+export const staffClockInByAdmin = (staffId) =>
+  fetch(`${API_URL}/users/attendance/clock-in/${staffId}`, {
+    method: "POST",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
 export const staffClockOut = () =>
   fetch(`${API_URL}/users/attendance/clock-out`, {
     method: "POST",
     headers: getAuthHeader(),
   }).then(handleResponse);
 
+export const staffClockOutByAdmin = (staffId) =>
+  fetch(`${API_URL}/users/attendance/clock-out/${staffId}`, {
+    method: "POST",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
 export const getMyPayroll = (month) =>
   fetch(`${API_URL}/users/staff/payroll/me?month=${encodeURIComponent(month)}`, {
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const getMyPayrollDetail = (month) =>
+  fetch(`${API_URL}/users/staff/payroll/me/detail?month=${encodeURIComponent(month)}`, {
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const getStaffPayrollDetail = (staffId, month) =>
+  fetch(`${API_URL}/users/staff/payroll/detail?staff_id=${staffId}&month=${encodeURIComponent(month)}`, {
     headers: getAuthHeader(),
   }).then(handleResponse);
 
@@ -488,6 +537,11 @@ export const getWeeklyRevenueAdmin = () =>
     headers: getAuthHeader(),
   }).then(handleResponse);
 
+export const getCustomerGrowthAdmin = () =>
+  fetch(`${API_URL}/orders/admin/customer-growth`, {
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
 /* ================= ADMIN USER MANAGEMENT ================= */
 export const deleteUserAdmin = (id) =>
   fetch(`${API_URL}/users/${id}`, {
@@ -500,3 +554,56 @@ export const restoreUserAdmin = (id) =>
     method: "PATCH",
     headers: getAuthHeader(),
   }).then(handleResponse);
+
+export const changeRoleAdmin = (id, roleId) =>
+  fetch(`${API_URL}/users/${id}/role`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ role_id: roleId }),
+  }).then(handleResponse);
+
+export const changeJobInfoAdmin = (id, payload) =>
+  fetch(`${API_URL}/users/${id}/job-info`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
+
+export const toggleUserStatusAdmin = (id, isActive) =>
+  fetch(`${API_URL}/users/${id}/status`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ is_active: isActive }),
+  }).then(handleResponse);
+
+export const cancelOrderCustomer = (orderId) =>
+  fetch(`${API_URL}/orders/${orderId}/cancel`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({}),
+  }).then(handleResponse);
+
+export const cancelOrderStaff = (orderId, reason) =>
+  fetch(`${API_URL}/orders/staff/${orderId}/cancel`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ reason }),
+  }).then(handleResponse);
+
+export const getManagerVouchers = () =>
+  fetch(`${API_URL}/vouchers`, { headers: getAuthHeader() }).then(handleResponse);
+
+export const createManagerVoucher = (payload) =>
+  fetch(`${API_URL}/vouchers`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
+
+export const toggleManagerVoucher = (id) =>
+  fetch(`${API_URL}/vouchers/${id}/toggle`, {
+    method: "PUT",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const getAllUsersAdmin = () => fetch(`${API_URL}/users`, { headers: getAuthHeader() }).then(handleResponse);
