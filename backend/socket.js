@@ -106,7 +106,75 @@ JSON:`;
   io.on("connection", (socket) => {
     socket.on("join_thread", (data) => {
       const threadId = data?.threadId || data;
-      if (threadId) socket.join(String(threadId));
+      if (threadId) {
+        socket.join(String(threadId));
+        console.log(`📡 Socket ${socket.id} joined thread ${threadId}`);
+      }
+    });
+
+    // 🙋‍♂️ KHÁCH HÀNG YÊU CẦU NHÂN VIÊN
+    socket.on("request_staff", async (data) => {
+      const { threadId } = data;
+      if (!threadId) return;
+
+      db.query("UPDATE threads SET status = 'staff_needed' WHERE id = ?", [threadId], (err) => {
+        if (err) return;
+        
+        // Gửi tin nhắn hệ thống thông báo cho cả 2 bên
+        const sysMsg = {
+          threadId,
+          senderRole: "SYSTEM",
+          senderId: 0,
+          message: "⚠️ Đã gửi yêu cầu đến nhân viên. Vui lòng đợi trong giây lát... 🐅",
+          createdAt: new Date(),
+        };
+        io.to(String(threadId)).emit("newMessage", sysMsg);
+        
+        // Thông báo cho toàn bộ nhân viên đang online (room specific or broadcast)
+        io.emit("staff_notification", { type: "JOIN_REQUEST", threadId });
+      });
+    });
+
+    // 👨‍💼 NHÂN VIÊN NHẢY VÀO CHAT
+    socket.on("staff_join", async (data) => {
+      const { threadId, staffId } = data;
+      if (!threadId) return;
+
+      db.query("UPDATE threads SET status = 'staff_active', is_ai_muted = 1 WHERE id = ?", [threadId], (err) => {
+        if (err) return;
+
+        const sysMsg = {
+          threadId,
+          senderRole: "SYSTEM",
+          senderId: 0,
+          message: "👨‍💼 Nhân viên đã tham gia cuộc hội thoại. AI sẽ tạm nghỉ để sếp tư vấn ạ!",
+          createdAt: new Date(),
+        };
+        io.to(String(threadId)).emit("newMessage", sysMsg);
+        io.to(String(threadId)).emit("thread_status_updated", { threadId, status: "staff_active", isAiMuted: 1 });
+      });
+    });
+
+    // 🔄 NHÂN VIÊN BẬT/TẮT AI (TOGGLE AI)
+    socket.on("staff_toggle_ai", async (data) => {
+      const { threadId, isAiMuted } = data;
+      if (!threadId) return;
+
+      db.query("UPDATE threads SET is_ai_muted = ? WHERE id = ?", [isAiMuted ? 1 : 0, threadId], (err) => {
+        if (err) return;
+        
+        const sysMsg = {
+          threadId,
+          senderRole: "SYSTEM",
+          senderId: 0,
+          message: isAiMuted 
+            ? "⚠️ Nhân viên đã TẮT AI Tiger. Sếp sẽ trực tiếp tư vấn." 
+            : "✅ Nhân viên đã BẬT lại AI Tiger để hỗ trợ trả lời khách.",
+          createdAt: new Date(),
+        };
+        io.to(String(threadId)).emit("newMessage", sysMsg);
+        io.to(String(threadId)).emit("thread_status_updated", { threadId, isAiMuted: isAiMuted ? 1 : 0 });
+      });
     });
 
     socket.on("send_message", async (data) => {
@@ -141,8 +209,14 @@ JSON:`;
         const msgPayload = { id: result.insertId, ...data, createdAt: new Date() };
         io.to(String(threadId)).emit("newMessage", msgPayload);
 
-        // AI PHẢN HỒI TỰ ĐỘNG
+        // AI PHẢN HỒI TỰ ĐỘNG (CHỈ KHI CHƯA BỊ MUTE)
         if (senderRole === "CUSTOMER" || senderRole === "USER") {
+          const [threadRows] = await db.promise().query("SELECT is_ai_muted FROM threads WHERE id = ?", [threadId]);
+          if (threadRows.length > 0 && threadRows[0].is_ai_muted === 1) {
+            console.log(`🤖 AI is muted for thread ${threadId}. Skipping...`);
+            return;
+          }
+
           const activeSender = await isUserActive(senderId);
           if (!activeSender) return;
 

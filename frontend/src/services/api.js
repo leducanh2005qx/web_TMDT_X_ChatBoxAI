@@ -61,11 +61,11 @@ export const login = async (email, password) => {
   return data;
 };
 
-export const register = (name, email, password, phone) =>
+export const register = (name, email, password, phone, birthday) =>
   fetch(`${API_URL}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, email, password, phone }),
+    body: JSON.stringify({ name, email, password, phone, birthday: birthday || undefined }),
   }).then(handleResponse);
 
 export const updateMe = (payload) =>
@@ -74,6 +74,23 @@ export const updateMe = (payload) =>
     headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify(payload),
   }).then(handleResponse);
+
+export const changePassword = (currentPassword, newPassword) =>
+  fetch(`${API_URL}/users/me/change-password`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  }).then(handleResponse);
+
+export const uploadAvatar = (file) => {
+  const formData = new FormData();
+  formData.append("avatar", file);
+  return fetch(`${API_URL}/users/me/avatar`, {
+    method: "POST",
+    headers: { ...getAuthHeader() },
+    body: formData,
+  }).then(handleResponse);
+};
 
 /* ================= PRODUCTS ================= */
 
@@ -507,30 +524,35 @@ export const getMessagesByRoom = (roomId) =>
 
 /* ================= ADMIN STATISTICS ================= */
 
-export const getOrderStatsAdmin = () =>
-  fetch(`${API_URL}/orders/admin/stats`, { headers: getAuthHeader() }).then(
-    handleResponse,
-  );
+export const getOrderStatsAdmin = (categoryId) => {
+  const url = categoryId ? `${API_URL}/orders/admin/stats?categoryId=${categoryId}` : `${API_URL}/orders/admin/stats`;
+  return fetch(url, { headers: getAuthHeader() }).then(handleResponse);
+};
 
-export const getBestSellingProducts = () =>
-  fetch(`${API_URL}/orders/admin/best-products`, {
-    headers: getAuthHeader(),
-  }).then(handleResponse);
+export const getBestSellingProducts = (categoryId) => {
+  const url = categoryId ? `${API_URL}/orders/admin/best-products?categoryId=${categoryId}` : `${API_URL}/orders/admin/best-products`;
+  return fetch(url, { headers: getAuthHeader() }).then(handleResponse);
+};
 
-export const getCategoryRevenueAdmin = () =>
-  fetch(`${API_URL}/orders/admin/category-revenue`, {
-    headers: getAuthHeader(),
-  }).then(handleResponse);
+export const getTopProfitProductsAdmin = (categoryId) => {
+  const url = categoryId ? `${API_URL}/orders/admin/top-profit-products?categoryId=${categoryId}` : `${API_URL}/orders/admin/top-profit-products`;
+  return fetch(url, { headers: getAuthHeader() }).then(handleResponse);
+};
+
+export const getCategoryRevenueAdmin = (categoryId) => {
+  const url = categoryId ? `${API_URL}/orders/admin/category-revenue?categoryId=${categoryId}` : `${API_URL}/orders/admin/category-revenue`;
+  return fetch(url, { headers: getAuthHeader() }).then(handleResponse);
+};
 
 export const getUncompletedOrders = () =>
   fetch(`${API_URL}/orders/admin/uncompleted`, {
     headers: getAuthHeader(),
   }).then(handleResponse);
 
-export const getMonthlyRevenueAdmin = () =>
-  fetch(`${API_URL}/orders/admin/monthly-revenue`, {
-    headers: getAuthHeader(),
-  }).then(handleResponse);
+export const getMonthlyRevenueAdmin = (categoryId) => {
+  const url = categoryId ? `${API_URL}/orders/admin/monthly-revenue?categoryId=${categoryId}` : `${API_URL}/orders/admin/monthly-revenue`;
+  return fetch(url, { headers: getAuthHeader() }).then(handleResponse);
+};
 
 export const getWeeklyRevenueAdmin = () =>
   fetch(`${API_URL}/orders/admin/weekly-revenue`, {
@@ -576,6 +598,17 @@ export const toggleUserStatusAdmin = (id, isActive) =>
     body: JSON.stringify({ is_active: isActive }),
   }).then(handleResponse);
 
+export const resetUserPasswordAdmin = (id) =>
+  fetch(`${API_URL}/users/${id}/reset-password`, {
+    method: "POST",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const getSystemLogsAdmin = () =>
+  fetch(`${API_URL}/users/logs`, {
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
 export const cancelOrderCustomer = (orderId) =>
   fetch(`${API_URL}/orders/${orderId}/cancel`, {
     method: "POST",
@@ -607,3 +640,23 @@ export const toggleManagerVoucher = (id) =>
   }).then(handleResponse);
 
 export const getAllUsersAdmin = () => fetch(`${API_URL}/users`, { headers: getAuthHeader() }).then(handleResponse);
+
+export const sendOrderInvoice = (orderId) =>
+  fetch(`${API_URL}/orders/staff/${orderId}/invoice`, {
+    method: "POST",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const requestOrderRefund = (orderId, reason) =>
+  fetch(`${API_URL}/orders/staff/${orderId}/request-refund`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ reason }),
+  }).then(handleResponse);
+
+export const updateOrderStatus = (id, status) =>
+  fetch(`${API_URL}/orders/admin/${id}/status`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ status }),
+  }).then(handleResponse);

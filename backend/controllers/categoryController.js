@@ -30,6 +30,12 @@ exports.createCategory = (req, res) => {
         return res.status(500).json({ message: "Create category failed" });
       }
 
+      // Ghi log
+      db.query(
+        "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
+        [req.user.id, `Đã tạo danh mục mới: ${name}`, result.insertId]
+      );
+
       res.json({
         id: result.insertId,
         name,
@@ -44,18 +50,32 @@ exports.updateCategory = (req, res) => {
   const { name, display_type } = req.body;
   const { id } = req.params;
 
-  db.query(
-    "UPDATE categories SET name=?, display_type=? WHERE id=?",
-    [name, display_type || "general", id],
-    (err, result) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ message: "Update category failed" });
-      }
+  // 1. Lấy tên cũ
+  db.query("SELECT name FROM categories WHERE id = ?", [id], (errRows, rows) => {
+    if (errRows || !rows.length) return res.status(404).json({ message: "Không tìm thấy danh mục" });
+    const oldName = rows[0].name;
 
-      res.json({ message: "Category updated" });
-    }
-  );
+    // 2. Cập nhật
+    db.query(
+      "UPDATE categories SET name=?, display_type=? WHERE id=?",
+      [name, display_type || "general", id],
+      (err, result) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).json({ message: "Update category failed" });
+        }
+
+        // Ghi log chi tiết
+        const logAction = `Đã cập nhật danh mục #${id} từ '${oldName}' sang '${name}'`;
+        db.query(
+          "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
+          [req.user.id, logAction, id]
+        );
+
+        res.json({ message: "Category updated" });
+      }
+    );
+  });
 };
 
 /* ===== DELETE ===== */
@@ -67,6 +87,12 @@ exports.deleteCategory = (req, res) => {
       console.error(err);
       return res.status(500).json({ message: "Delete category failed" });
     }
+
+    // Ghi log
+    db.query(
+      "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
+      [req.user.id, `Đã xóa danh mục #${id}`, id]
+    );
 
     res.json({ message: "Category deleted" });
   });

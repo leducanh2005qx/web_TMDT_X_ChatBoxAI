@@ -82,6 +82,11 @@ export default function ChatWidget() {
     setOrderId("");
   };
 
+  const onRequestStaff = () => {
+    if (!threadId || !socket) return;
+    socket.emit("request_staff", { threadId });
+  };
+
   if (!token || role !== "CUSTOMER") return null;
 
   return (
@@ -145,6 +150,12 @@ export default function ChatWidget() {
               );
             })}
             <div ref={bottomRef} />
+          </div>
+
+          <div className="chat-actions-bar">
+            <button className="btn-request-staff" onClick={onRequestStaff}>
+              🙋‍♂️ Chat với nhân viên
+            </button>
           </div>
 
           <div className="chat-input-area">

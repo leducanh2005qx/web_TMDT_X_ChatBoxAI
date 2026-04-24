@@ -50,6 +50,11 @@ exports.create = (req, res) => {
           .status(400)
           .json({ message: "Lỗi lưu Database (Có thể trùng mã)" });
       }
+      // Ghi log
+      db.query(
+        "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
+        [req.user.id, `Đã tạo voucher mới: ${code}`, 0]
+      );
       res.json({ success: true });
     },
   );
@@ -68,40 +73,60 @@ exports.update = (req, res) => {
     end_date,
   } = req.body;
 
-  db.query(
-    `UPDATE vouchers SET
-      type=?, value=?, min_order_value=?, max_discount=?,
-      quantity=?, start_date=?, end_date=?
-     WHERE voucher_id=?`,
-    [
-      type,
-      value,
-      min_order_value,
-      max_discount,
-      quantity,
-      start_date,
-      end_date,
-      id,
-    ],
-    (err) => {
-      if (err) return res.status(500).json({ message: "Lỗi cập nhật voucher" });
-      res.json({ success: true });
-    },
-  );
+  // 1. Lấy thông tin cũ
+  db.query("SELECT code FROM vouchers WHERE voucher_id = ?", [id], (errRows, rows) => {
+    if (errRows || !rows.length) return res.status(404).json({ message: "Không tìm thấy voucher" });
+    const voucherCode = rows[0].code;
+
+    // 2. Cập nhật
+    db.query(
+      `UPDATE vouchers SET
+        type=?, value=?, min_order_value=?, max_discount=?,
+        quantity=?, start_date=?, end_date=?
+       WHERE voucher_id=?`,
+      [type, value, min_order_value, max_discount, quantity, start_date, end_date, id],
+      (err) => {
+        if (err) return res.status(500).json({ message: "Lỗi cập nhật voucher" });
+        
+        // Ghi log chi tiết
+        const logAction = `Đã cập nhật thông tin voucher '${voucherCode}' (ID: ${id})`;
+        db.query(
+          "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
+          [req.user.id, logAction, id]
+        );
+        res.json({ success: true });
+      },
+    );
+  });
 };
 
 /* ===== TOGGLE (ADMIN) ===== */
 exports.toggle = (req, res) => {
-  db.query(
-    `UPDATE vouchers
-     SET status = IF(status='active','inactive','active')
-     WHERE voucher_id=?`,
-    [req.params.id],
-    (err) => {
-      if (err) return res.status(500).json({ message: "Lỗi toggle voucher" });
-      res.json({ success: true });
-    },
-  );
+  const { id } = req.params;
+
+  // 1. Lấy trạng thái cũ
+  db.query("SELECT status FROM vouchers WHERE voucher_id = ?", [id], (errRows, rows) => {
+    if (errRows || !rows.length) return res.status(404).json({ message: "Không tìm thấy voucher" });
+    const oldStatus = rows[0].status;
+    const newStatus = oldStatus === 'active' ? 'inactive' : 'active';
+
+    // 2. Cập nhật
+    db.query(
+      "UPDATE vouchers SET status = ? WHERE voucher_id=?",
+      [newStatus, id],
+      (err) => {
+        if (err) return res.status(500).json({ message: "Lỗi toggle voucher" });
+        
+        // Ghi log chi tiết
+        const logAction = `Đã đổi trạng thái voucher #${id} từ ${oldStatus.toUpperCase()} sang ${newStatus.toUpperCase()}`;
+        db.query(
+          "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
+          [req.user.id, logAction, id]
+        );
+        res.json({ success: true });
+      },
+    );
+  });
 };
 
 /* ================= CUSTOMER ================= */

@@ -1,632 +1,438 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ShiftSchedule from "../../components/shift/ShiftSchedule";
 import {
   getAllOrdersAdmin,
-  getProducts,
+  updateOrderStatus,
+  sendOrderInvoice,
+  requestOrderRefund,
   getMyAttendanceStatus,
   staffClockIn,
-  staffClockOut,
-  getMyPayroll,
-  getMyPayrollDetail,
-  createStaffRequest,
-  getMyStaffRequests,
-  updateMe,
+  staffClockOut
 } from "../../services/api";
-import {
-  adminListThreads,
-} from "../../services/chatApi";
-import PayslipModal from "../../components/payroll/PayslipModal";
+import { 
+  Package, 
+  Send, 
+  RotateCcw, 
+  CheckCircle, 
+  Clock, 
+  Search, 
+  Filter,
+  ChevronRight,
+  MoreVertical,
+  Mail,
+  Smartphone,
+  Layout as LayoutIcon,
+  User,
+  MessageCircle,
+  Briefcase
+} from "lucide-react";
+import StaffSupportCenter from "./StaffSupportCenter";
+import StaffPayroll from "./StaffPayroll";
+import StaffShifts from "./StaffShifts"; // ✅ NEW
 import "./StaffWorkspace.css";
 
-function StaffWorkspace({ section = "all" }) {
+function StaffWorkspace({ section = "dashboard" }) {
   const [orders, setOrders] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [threads, setThreads] = useState([]);
   const [attendance, setAttendance] = useState(null);
-  const [clockNow, setClockNow] = useState(Date.now());
-  const [messages] = useState([]);
+  const [activeSection, setActiveSection] = useState(section); // orders, support, attendance, payroll
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [orderStatusFilter, setOrderStatusFilter] = useState("all");
+  
+  // Filters
+  const [orderStatusFilter, setOrderStatusFilter] = useState("pending");
   const [orderKeyword, setOrderKeyword] = useState("");
-  const [payrollMonth, setPayrollMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [myPayroll, setMyPayroll] = useState(null);
-  const [requestForm, setRequestForm] = useState({
-    request_type: "late",
-    request_date: new Date().toISOString().slice(0, 10),
-    minutes_late: 15,
-    reason: "",
-  });
-  const [myStaffRequests, setMyStaffRequests] = useState([]);
+  
+  // Refund Modal
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [refundReason, setRefundReason] = useState("");
 
-  // --- Profile state ---
-  const [showProfile, setShowProfile] = useState(false);
-  const [profileForm, setProfileForm] = useState({ name: "", phone: "" });
-  const [profileSaving, setProfileSaving] = useState(false);
-
-  // --- Payslip modal ---
-  const [payslipData, setPayslipData] = useState(null);
-  const [payslipLoading, setPayslipLoading] = useState(false);
-  const [showPayslip, setShowPayslip] = useState(false);
-
-  const [orderPage, setOrderPage] = useState(1);
-  const orderPageSize = 10;
-
-  const loadOrdersAndThreads = useCallback(async () => {
+  const loadData = useCallback(async () => {
+    setLoading(true);
     try {
-      const [orderData, threadData, productData] = await Promise.all([
+      const [orderData, attendanceData] = await Promise.all([
         getAllOrdersAdmin(),
-        adminListThreads(),
-        getProducts(),
-      ]);
-      const [attendanceData, payrollData, staffRequestsData] = await Promise.all([
-        getMyAttendanceStatus(),
-        getMyPayroll(payrollMonth),
-        getMyStaffRequests(),
+        getMyAttendanceStatus()
       ]);
       setOrders(Array.isArray(orderData) ? orderData : []);
-      setThreads(Array.isArray(threadData) ? threadData : []);
-      setProducts(Array.isArray(productData) ? productData : []);
       setAttendance(attendanceData || null);
-      setMyPayroll(payrollData || null);
-      setMyStaffRequests(Array.isArray(staffRequestsData) ? staffRequestsData : []);
-      setError("");
     } catch (err) {
-      setError(err.message || "Khong the tai du lieu staff");
+      setError("Không thể tải dữ liệu: " + err.message);
+    } finally {
+      setLoading(false);
     }
-  }, [payrollMonth]);
-
-  useEffect(() => {
-    loadOrdersAndThreads();
-  }, [loadOrdersAndThreads]);
-
-  useEffect(() => {
-    const timer = setInterval(() => setClockNow(Date.now()), 1000);
-    return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
+  // Sync section prop with activeSection
+  useEffect(() => {
+    setActiveSection(section);
+  }, [section]);
 
-
-  const handleClockIn = async () => {
+  const handleUpdateStatus = async (id, status, actionName) => {
+    if (!window.confirm(`Xác nhận ${actionName} cho đơn hàng #${id}?`)) return;
+    setSubmitting(true);
     try {
-      await staffClockIn();
-      setSuccess("Check-in thanh cong.");
-      await loadOrdersAndThreads();
+      await updateOrderStatus(id, status);
+      setSuccess(`${actionName} thành công!`);
+      loadData();
     } catch (err) {
-      setError(err.message || "Khong the check-in");
-    }
-  };
-
-  const handleClockOut = async () => {
-    try {
-      const data = await staffClockOut();
-      setSuccess(data.message || "Check-out thanh cong.");
-      await loadOrdersAndThreads();
-    } catch (err) {
-      setError(err.message || "Khong the check-out");
-    }
-  };
-
-  const handleOpenPayslip = async () => {
-    setPayslipData(null);
-    setShowPayslip(true);
-    setPayslipLoading(true);
-    try {
-      const detail = await getMyPayrollDetail(payrollMonth);
-      setPayslipData(detail);
-    } catch (err) {
-      setError(err.message || "Không thể tải phiếu lương");
-      setShowPayslip(false);
+      setError(err.message);
     } finally {
-      setPayslipLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const handleOpenProfile = () => {
+  const handleSendInvoice = async (id) => {
+    setSubmitting(true);
     try {
-      const userStr = localStorage.getItem("user");
-      if (userStr) {
-        const u = JSON.parse(userStr);
-        setProfileForm({ name: u.name || "", phone: u.phone || "" });
-      }
-    } catch(e){}
-    setShowProfile(true);
-  };
-
-  const handleSaveProfile = async () => {
-    try {
-      setProfileSaving(true);
-      const data = await updateMe(profileForm);
-      setSuccess("Cập nhật hồ sơ thành công!");
-      if (data.user) {
-        localStorage.setItem("user", JSON.stringify(data.user));
-      }
-      setShowProfile(false);
+      await sendOrderInvoice(id);
+      setSuccess(`Đã gửi hóa đơn đơn hàng #${id} tới email khách hàng.`);
     } catch (err) {
-      setError(err.message || "Không thể cập nhật hồ sơ");
+      setError("Lỗi gửi hóa đơn: " + err.message);
     } finally {
-      setProfileSaving(false);
+      setSubmitting(false);
     }
   };
 
-  const submitLateOrLeave = async (e) => {
-    e.preventDefault();
+  const handleOpenRefund = (order) => {
+    setSelectedOrder(order);
+    setRefundReason("");
+    setShowRefundModal(true);
+  };
+
+  const handleSubmitRefund = async () => {
+    if (!refundReason.trim()) return alert("Vui lòng nhập lý do");
+    setSubmitting(true);
     try {
-      await createStaffRequest(requestForm);
-      setSuccess("Da gui don thanh cong.");
-      setRequestForm((prev) => ({ ...prev, reason: "" }));
-      await loadOrdersAndThreads();
+      await requestOrderRefund(selectedOrder.id, refundReason);
+      setSuccess("Đã gửi yêu cầu hoàn trả tới Manager.");
+      setShowRefundModal(false);
     } catch (err) {
-      setError(err.message || "Khong the gui don");
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-
-
-  const openSessionSeconds = useMemo(() => {
-    const checkInAt = attendance?.open_session?.check_in_at;
-    if (!checkInAt) return 0;
-    const diff = Math.floor((clockNow - new Date(checkInAt).getTime()) / 1000);
-    return diff > 0 ? diff : 0;
-  }, [attendance, clockNow]);
-
-  const formatSeconds = (seconds) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  const handleClockToggle = async () => {
+    try {
+      if (attendance?.open_session) {
+        await staffClockOut();
+        setSuccess("Check-out thành công.");
+      } else {
+        await staffClockIn();
+        setSuccess("Check-in thành công.");
+      }
+      loadData();
+    } catch (err) {
+      setError(err.message);
+    }
   };
-
-  // shiftsByDate removed – now handled by ShiftSchedule component
 
   const filteredOrders = useMemo(() => {
-    return orders.filter((o) => {
-      const orderId = String(o.orderId ?? o.id);
-      const email = String(o.email || "").toLowerCase();
-      const query = orderKeyword.trim().toLowerCase();
-      const matchStatus =
-        orderStatusFilter === "all" ? true : o.status === orderStatusFilter;
-      const matchQuery = !query || orderId.includes(query) || email.includes(query);
+    return orders.filter(o => {
+      const matchStatus = orderStatusFilter === "all" ? true : o.status === orderStatusFilter;
+      const query = orderKeyword.toLowerCase();
+      const matchQuery = !query || String(o.id).includes(query) || (o.email && o.email.toLowerCase().includes(query));
       return matchStatus && matchQuery;
     });
-  }, [orders, orderKeyword, orderStatusFilter]);
+  }, [orders, orderStatusFilter, orderKeyword]);
 
-  const pagedOrders = useMemo(() => {
-    const start = (orderPage - 1) * orderPageSize;
-    return filteredOrders.slice(start, start + orderPageSize);
-  }, [filteredOrders, orderPage]);
+  const renderStatusTag = (status) => {
+    switch (status) {
+      case 'pending': return <span className="status-tag status-pending">Chờ xử lý</span>;
+      case 'confirmed': return <span className="status-tag status-confirmed">Đã soạn</span>;
+      case 'shipping': return <span className="status-tag status-shipping">Đang giao</span>;
+      case 'completed': return <span className="status-tag status-completed">Hoàn tất</span>;
+      case 'cancelled': return <span className="status-tag status-cancelled">Đã hủy</span>;
+      default: return <span className="status-tag">{status}</span>;
+    }
+  };
 
-  const totalOrderPages = Math.max(
-    1,
-    Math.ceil(filteredOrders.length / orderPageSize),
+  const renderOrders = () => (
+    <>
+      <div className="stats-strip">
+        <div className="stat-item">
+          <span className="stat-label">Đơn chờ xử lý</span>
+          <span className="stat-value">{orders.filter(o => o.status === 'pending').length}</span>
+        </div>
+        <div className="stat-item">
+          <span className="stat-label">Đã soạn hôm nay</span>
+          <span className="stat-value text-success">{orders.filter(o => o.status === 'confirmed').length}</span>
+        </div>
+        <div className="stat-item">
+          <span className="stat-label">Tỷ lệ hoàn tất</span>
+          <span className="stat-value text-blue">98%</span>
+        </div>
+      </div>
+
+      <div className="workspace-controls">
+        <div className="filter-group">
+          {['pending', 'confirmed', 'shipping', 'all'].map(s => (
+            <button 
+              key={s} 
+              className={`filter-btn ${orderStatusFilter === s ? 'active' : ''}`}
+              onClick={() => setOrderStatusFilter(s)}
+            >
+              {s === 'all' ? 'Tất cả' : renderStatusTag(s)}
+            </button>
+          ))}
+        </div>
+        <div className="search-box">
+          <Search size={18} />
+          <input 
+            type="text" 
+            placeholder="Tìm mã đơn hoặc khách..." 
+            value={orderKeyword}
+            onChange={(e) => setOrderKeyword(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="orders-container">
+        {filteredOrders.length === 0 ? (
+          <div className="empty-state">
+            <Package size={48} />
+            <p>Tuyệt vời! Không có đơn hàng nào đang chờ.</p>
+          </div>
+        ) : (
+          <>
+            <div className="desktop-orders-table">
+              <table className="modern-table">
+                <thead>
+                  <tr>
+                    <th>Mã Đơn</th>
+                    <th>Khách Hàng</th>
+                    <th>Tổng Tiền</th>
+                    <th>Trạng Thái</th>
+                    <th>Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOrders.map(order => (
+                    <tr key={order.id}>
+                      <td className="fw-bold">#{order.id}</td>
+                      <td>
+                        <div className="user-info">
+                          <span className="user-name">{order.receiver_name}</span>
+                          <span className="user-email">{order.email}</span>
+                        </div>
+                      </td>
+                      <td className="fw-bold">{Number(order.total).toLocaleString()}đ</td>
+                      <td>{renderStatusTag(order.status)}</td>
+                      <td className="text-end">
+                        <div className="action-btns">
+                          {order.status === 'pending' && (
+                            <button className="btn-action btn-soan" onClick={() => handleUpdateStatus(order.id, 'confirmed', 'Soạn hàng')}>
+                              <Package size={16} /> Soạn
+                            </button>
+                          )}
+                          <button className="btn-action btn-invoice" onClick={() => handleSendInvoice(order.id)}>
+                            <Mail size={16} /> Mail
+                          </button>
+                          <button className="btn-action btn-refund" onClick={() => handleOpenRefund(order)}>
+                            <RotateCcw size={16} /> Hoàn
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mobile-orders-grid">
+              {filteredOrders.map(order => (
+                <div key={order.id} className="order-card-mobile">
+                  <div className="card-header">
+                    <span className="order-id">Đơn #{order.id}</span>
+                    {renderStatusTag(order.status)}
+                  </div>
+                  <div className="card-body">
+                    <div className="info-row">
+                      <User size={14} /> <span>{order.receiver_name}</span>
+                    </div>
+                    <div className="price-row">
+                      <span>Tổng tiền:</span> <span className="price">{Number(order.total).toLocaleString()}đ</span>
+                    </div>
+                  </div>
+                  <div className="card-footer">
+                    {order.status === 'pending' && (
+                      <button className="mobile-btn mobile-btn-primary" onClick={() => handleUpdateStatus(order.id, 'confirmed', 'Soạn')}>
+                        <Package size={18} /> Soạn
+                      </button>
+                    )}
+                    <button className="mobile-btn mobile-btn-info" onClick={() => handleSendInvoice(order.id)}>
+                      <Mail size={18} /> Hóa đơn
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </>
   );
 
+  const renderDashboard = () => (
+    <div className="staff-dashboard-view">
+      <div className="stats-grid">
+        <div className="dashboard-stat-card">
+          <div className="stat-icon pending"><Package size={24} /></div>
+          <div className="stat-info">
+            <span className="stat-label">Đơn hàng mới</span>
+            <span className="stat-value">{orders.filter(o => o.status === 'pending').length}</span>
+          </div>
+        </div>
+        <div className="dashboard-stat-card">
+          <div className="stat-icon attendance"><Clock size={24} /></div>
+          <div className="stat-info">
+            <span className="stat-label">Trạng thái</span>
+            <span className="stat-value text-success">{attendance?.open_session ? "Đang làm" : "Nghỉ"}</span>
+          </div>
+        </div>
+        <div className="dashboard-stat-card">
+          <div className="stat-icon processed"><CheckCircle size={24} /></div>
+          <div className="stat-info">
+            <span className="stat-label">Hàng đã soạn</span>
+            <span className="stat-value text-blue">{orders.filter(o => o.status === 'confirmed').length}</span>
+          </div>
+        </div>
+      </div>
 
-  const todaySummary = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const sentToday = messages.filter((m) => {
-      const isStaff = String(m.sender_role || m.senderRole).toUpperCase() === "ADMIN";
-      const createdAt = m.created_at || m.createdAt;
-      if (!createdAt) return false;
-      return isStaff && String(createdAt).slice(0, 10) === today;
-    }).length;
-    return {
-      totalThreads: threads.length,
-      sentToday,
-      lowStockCount: products.filter((p) => Number(p.stock || 0) <= 10).length,
-    };
-  }, [messages, threads, products]);
+      <div className="dashboard-recent-orders mt-4">
+        <div className="section-header">
+          <h3>📦 Đơn hàng cần xử lý gấp</h3>
+          <button className="btn-view-all" onClick={() => setActiveSection("orders")}>Xem tất cả <ChevronRight size={16} /></button>
+        </div>
+        <div className="mini-orders-list">
+          {orders.filter(o => o.status === 'pending').slice(0, 5).map(o => (
+            <div key={o.id} className="mini-order-item">
+              <div className="order-main">
+                <span className="oid">#{o.id}</span>
+                <span className="oname">{o.receiver_name}</span>
+              </div>
+              <div className="order-meta">
+                <span className="oprice">{Number(o.total).toLocaleString()}đ</span>
+                <button className="btn-quick-confirm" onClick={() => handleUpdateStatus(o.id, 'confirmed', 'Soạn hàng')}>Soạn ngay</button>
+              </div>
+            </div>
+          ))}
+          {orders.filter(o => o.status === 'pending').length === 0 && (
+            <div className="empty-mini">🎉 Không có đơn hàng tồn đọng!</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderAttendance = () => (
+    <div className="attendance-section card p-4 border-0 shadow-sm rounded-4">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h3 className="m-0 d-flex align-items-center gap-2"><Clock /> Máy Chấm Công</h3>
+        <span className={`badge ${attendance?.open_session ? 'bg-success' : 'bg-secondary'}`}>
+          {attendance?.open_session ? 'Đang trong ca' : 'Ngoài giờ làm'}
+        </span>
+      </div>
+      
+      <div className="clock-display text-center py-5 bg-light rounded-4 mb-4">
+        <div className="current-time h1 fw-bold text-primary mb-2">
+          {new Date().toLocaleTimeString()}
+        </div>
+        <p className="text-muted">{new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+      </div>
+
+      <div className="clock-action-large">
+        <button 
+          className={`btn w-100 py-3 fw-bold rounded-pill shadow-sm transition-all ${attendance?.open_session ? 'btn-danger' : 'btn-success'}`} 
+          onClick={handleClockToggle}
+          style={{ fontSize: '1.2rem', letterSpacing: '1px' }}
+        >
+          {attendance?.open_session 
+            ? <><RotateCcw size={20} className="me-2" /> KẾT THÚC CA LÀM (CLOCK-OUT)</> 
+            : <><CheckCircle size={20} className="me-2" /> BẮT ĐẦU CA LÀM (CLOCK-IN)</>
+          }
+        </button>
+      </div>
+      
+      <div className="mt-4 p-3 bg-blue-50 rounded-3 border border-blue-100">
+        <small className="text-blue-700">
+          <Clock size={14} className="me-1" /> <strong>Lưu ý:</strong> Vui lòng Clock-out trước khi ra về để hệ thống tính công chính xác.
+        </small>
+      </div>
+    </div>
+  );
+
+  const renderRequests = () => (
+    <div className="requests-section">
+       <h3 className="mb-4 d-flex align-items-center gap-2"><Briefcase /> Lịch sử yêu cầu hoàn trả</h3>
+       <div className="alert alert-info border-0 rounded-4 shadow-sm">
+         💡 Các yêu cầu hoàn trả của bạn sẽ được Manager xem xét và phê duyệt tại đây.
+       </div>
+       <p className="text-center text-muted py-5">Đang tải danh sách yêu cầu...</p>
+    </div>
+  );
+
+  if (loading) return <div className="staff-loading">🐯 Tiger đang chuẩn bị...</div>;
 
   return (
-    <>
-    <div className="staff-workspace">
-      <div className="container py-4">
-        <div className="staff-hero d-flex justify-content-between align-items-center">
-          <div>
-            <h3>Staff Workspace</h3>
-            <p className="mb-0">
-              Tu van don hang, ho tro khach hang, theo doi ton kho va cham cong realtime.
-            </p>
-          </div>
-          <button className="btn btn-outline-light" onClick={handleOpenProfile}>
-            👤 Hồ sơ cá nhân
-          </button>
+    <div className="staff-workspace-v2">
+      <div className="workspace-header">
+        <div className="header-info">
+          <h1><LayoutIcon size={24} /> Workspace Nhân Viên</h1>
+          <p>Tiger Shop - Trạm xử lý đơn hàng & Tư vấn</p>
         </div>
-      {error && <div className="alert alert-danger">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
-
-      {(section === "all" || section === "attendance") && (
-      <div className="card shadow-sm mb-3">
-        <div className="card-header bg-light">
-          <strong>Cham cong theo thoi gian thuc</strong>
-        </div>
-        <div className="card-body">
-          <div className="row g-3 align-items-center">
-            <div className="col-md-3">
-              <div>
-                <div className="text-muted small">Trang thai nhan su</div>
-                <span
-                  className={`badge ${attendance?.employment_status === "official" ? "bg-success" : "bg-warning text-dark"}`}
-                >
-                  {attendance?.employment_status === "official" ? "Chinh thuc" : "Thu viec"}
-                </span>
-              </div>
-            </div>
-            <div className="col-md-3">
-              <div className="text-muted small">Luong thu viec</div>
-              <strong>{Number(attendance?.probation_hourly_rate || 20000).toLocaleString()} đ/h</strong>
-            </div>
-            <div className="col-md-3">
-              <div className="text-muted small">Luong chinh thuc</div>
-              <strong>{Number(attendance?.official_hourly_rate || 25000).toLocaleString()} đ/h</strong>
-            </div>
-            <div className="col-md-3">
-              <div className="text-muted small">Thoi gian ca hien tai</div>
-              <strong>{formatSeconds(openSessionSeconds)}</strong>
-            </div>
-          </div>
-          <div className="d-flex gap-2 mt-3">
-            <button
-              className="btn btn-success"
-              onClick={handleClockIn}
-              disabled={Boolean(attendance?.open_session)}
-            >
-              Check-in
-            </button>
-            <button
-              className="btn btn-danger"
-              onClick={handleClockOut}
-              disabled={!attendance?.open_session}
-            >
-              Check-out
-            </button>
-          </div>
-          <p className="text-muted small mt-2 mb-0">
-            Thu viec tinh 20.000 đ/gio. Khi len chinh thuc tinh 25.000 đ/gio. Tu dong len chinh thuc sau du 3 ngay lam hoac duoc Manager duyet som.
-          </p>
-        </div>
-      </div>
-      )}
-
-      <div className="row g-3 mb-3">
-        <div className="col-md-4">
-          <div className="card border-primary">
-            <div className="card-body">
-              <div className="text-muted">Hoi thoai dang phu trach</div>
-              <h5 className="mb-0">{todaySummary.totalThreads}</h5>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-4">
-          <div className="card border-success">
-            <div className="card-body">
-              <div className="text-muted">Tin nhan da gui hom nay</div>
-              <h5 className="mb-0">{todaySummary.sentToday}</h5>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-4">
-          <div className="card border-danger">
-            <div className="card-body">
-              <div className="text-muted">San pham sap het hang</div>
-              <h5 className="mb-0">{todaySummary.lowStockCount}</h5>
-            </div>
+        <div className="header-actions">
+          <div className={`clock-status ${attendance?.open_session ? 'in' : 'out'}`}>
+            <Clock size={16} /> <span>{attendance?.open_session ? 'Đang làm' : 'Nghỉ'}</span>
           </div>
         </div>
       </div>
 
-      {(section === "all" || section === "orders" || section === "chat") && (
-      <div className="row g-3">
-        {(section === "all" || section === "orders") && (
-        <div className="col-lg-12">
-          <div className="card shadow-sm h-100">
-            <div className="card-header bg-light">
-              <strong>Danh sach don hang (chi xem + loc nhanh)</strong>
-            </div>
-            <div className="card-body">
-              <div className="row g-2 mb-2">
-                <div className="col-md-8 d-flex gap-2 flex-wrap">
-                  {["all", "pending", "confirmed", "completed", "cancelled"].map(
-                    (status) => (
-                      <button
-                        key={status}
-                        className={`btn btn-sm ${orderStatusFilter === status ? "btn-primary" : "btn-outline-primary"}`}
-                        onClick={() => setOrderStatusFilter(status)}
-                      >
-                        {status === "all" ? "Tat ca" : status}
-                      </button>
-                    ),
-                  )}
-                </div>
-                <div className="col-md-4">
-                  <input
-                    className="form-control form-control-sm"
-                    placeholder="Tim ma don / email"
-                    value={orderKeyword}
-                    onChange={(e) => setOrderKeyword(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="table-responsive">
-                <table className="table table-bordered table-hover align-middle mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th style={{ width: 90 }}>Ma don</th>
-                      <th>Khach hang</th>
-                      <th>Tong tien</th>
-                      <th>Trang thai</th>
-                      <th>Ngay dat</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pagedOrders.map((o) => {
-                      const orderId = o.orderId ?? o.id;
-                      return (
-                        <tr
-                          key={orderId}
-                          style={{ cursor: "pointer" }}
-                        >
-                          <td>#{orderId}</td>
-                          <td>{o.email || "Khach vang lai"}</td>
-                          <td>{Number(o.total || 0).toLocaleString()} đ</td>
-                          <td>{o.status}</td>
-                          <td>
-                            {o.created_at
-                              ? new Date(o.created_at).toLocaleDateString("vi-VN")
-                              : "-"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <div className="d-flex justify-content-between align-items-center mt-2">
-                <small className="text-muted">
-                  Trang {orderPage}/{totalOrderPages} - {filteredOrders.length} don
-                </small>
-                <div className="d-flex gap-2">
-                  <button
-                    className="btn btn-sm btn-outline-secondary"
-                    disabled={orderPage <= 1}
-                    onClick={() => setOrderPage((p) => Math.max(1, p - 1))}
-                  >
-                    Truoc
-                  </button>
-                  <button
-                    className="btn btn-sm btn-outline-secondary"
-                    disabled={orderPage >= totalOrderPages}
-                    onClick={() =>
-                      setOrderPage((p) => Math.min(totalOrderPages, p + 1))
-                    }
-                  >
-                    Sau
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        )}
+      {error && <div className="workspace-alert alert-error">{error}<button onClick={() => setError("")}>×</button></div>}
+      {success && <div className="workspace-alert alert-success">{success}<button onClick={() => setSuccess("")}>×</button></div>}
 
-
+      <div className="workspace-content">
+        {activeSection === "dashboard" && renderDashboard()}
+        {activeSection === "orders" && renderOrders()}
+        {activeSection === "support" && <StaffSupportCenter />}
+        {activeSection === "attendance" && renderAttendance()}
+        {activeSection === "shifts" && <StaffShifts />}
+        {activeSection === "payroll" && <StaffPayroll />}
+        {activeSection === "requests" && renderRequests()}
       </div>
-      )}
 
-
-
-      {(section === "all" || section === "requests" || section === "shifts" || section === "payroll") && (
-      <div className="row g-3 mt-1">
-        {(section === "all" || section === "requests") && (
-        <div className="col-lg-4">
-          <div className="card shadow-sm">
-            <div className="card-header bg-light">
-              <strong>Xin den muon / xin nghi</strong>
+      {showRefundModal && (
+        <div className="workspace-modal-overlay">
+          <div className="workspace-modal">
+            <div className="modal-header">
+              <h3>Yêu cầu Hoàn trả #{selectedOrder?.id}</h3>
+              <button className="btn-close" onClick={() => setShowRefundModal(false)}>×</button>
             </div>
-            <div className="card-body">
-              <form onSubmit={submitLateOrLeave} className="row g-2">
-                <div className="col-12">
-                  <select
-                    className="form-select form-select-sm"
-                    value={requestForm.request_type}
-                    onChange={(e) =>
-                      setRequestForm((prev) => ({ ...prev, request_type: e.target.value }))
-                    }
-                  >
-                    <option value="late">Xin den muon</option>
-                    <option value="leave">Xin nghi</option>
-                  </select>
-                </div>
-                <div className="col-6">
-                  <input
-                    type="date"
-                    className="form-control form-control-sm"
-                    value={requestForm.request_date}
-                    onChange={(e) =>
-                      setRequestForm((prev) => ({ ...prev, request_date: e.target.value }))
-                    }
-                    required
-                  />
-                </div>
-                <div className="col-6">
-                  <input
-                    type="number"
-                    min="0"
-                    className="form-control form-control-sm"
-                    value={requestForm.minutes_late}
-                    onChange={(e) =>
-                      setRequestForm((prev) => ({ ...prev, minutes_late: e.target.value }))
-                    }
-                    disabled={requestForm.request_type !== "late"}
-                  />
-                </div>
-                <div className="col-12">
-                  <textarea
-                    className="form-control form-control-sm"
-                    rows={2}
-                    placeholder="Ly do"
-                    value={requestForm.reason}
-                    onChange={(e) =>
-                      setRequestForm((prev) => ({ ...prev, reason: e.target.value }))
-                    }
-                    required
-                  />
-                </div>
-                <div className="col-12">
-                  <button className="btn btn-sm btn-primary w-100" type="submit">
-                    Gui don
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-        )}
-
-
-
-
-        {(section === "all" || section === "payroll") && (
-        <div className="col-lg-4">
-          <div className="card shadow-sm">
-            <div className="card-header bg-light">
-              <strong>💰 Lương của tôi</strong>
-            </div>
-            <div className="card-body">
-              <input
-                type="month"
-                className="form-control form-control-sm mb-3"
-                value={payrollMonth}
-                onChange={(e) => setPayrollMonth(e.target.value)}
+            <div className="modal-body">
+              <textarea 
+                placeholder="Lý do (khách boom hàng, hàng lỗi...)"
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                rows={4}
               />
-              <div className="d-flex justify-content-between mb-2">
-                <span className="text-muted small">Tổng giờ làm</span>
-                <strong>{Number(myPayroll?.total_hours || 0)}h</strong>
-              </div>
-              <div className="d-flex justify-content-between mb-3">
-                <span className="text-muted small">Tiền lương</span>
-                <strong className="text-success">{Number(myPayroll?.salary_amount || 0).toLocaleString()} đ</strong>
-              </div>
-              <div className="d-flex justify-content-between mb-3">
-                <span className="text-muted small">Trạng thái</span>
-                <span className={`badge ${myPayroll?.employment_status === 'official' ? 'bg-success' : 'bg-warning text-dark'}`}>
-                  {myPayroll?.employment_status === 'official' ? 'Chính thức' : 'Thử việc'}
-                </span>
-              </div>
-              <button
-                className="btn btn-primary btn-sm w-100"
-                onClick={handleOpenPayslip}
-              >
-                📄 Xem Phếu Lương Chi Tiết
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setShowRefundModal(false)}>Hủy</button>
+              <button className="btn-submit" onClick={handleSubmitRefund} disabled={submitting}>
+                {submitting ? 'Đang gửi...' : 'Gửi yêu cầu'}
               </button>
             </div>
           </div>
         </div>
-        )}
-      </div>
       )}
-
-      {(section === "all" || section === "shifts") && (
-        <div style={{ marginTop: 12 }}>
-          <ShiftSchedule role="STAFF" />
-          
-          <div className="card shadow-sm mt-3">
-            <div className="card-header bg-white">
-              <strong>Lịch sử yêu cầu của tôi</strong>
-            </div>
-            <div className="card-body p-0">
-               <table className="table table-sm table-hover mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th>Loại</th>
-                      <th>Ngày</th>
-                      <th>Lý do</th>
-                      <th>Trạng thái</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {myStaffRequests.length === 0 ? (
-                      <tr><td colSpan="4" className="text-center py-3 text-muted">Chưa có yêu cầu nào</td></tr>
-                    ) : (
-                      myStaffRequests.map(r => (
-                        <tr key={r.id}>
-                          <td>{r.request_type}</td>
-                          <td>{new Date(r.request_date).toLocaleDateString()}</td>
-                          <td>{r.reason}</td>
-                          <td>
-                            <span className={`badge bg-${r.status === 'approved' ? 'success' : r.status === 'rejected' ? 'danger' : 'warning'}`}>
-                              {r.status === 'approved' ? 'Đã duyệt' : r.status === 'rejected' ? 'Từ chối' : 'Chờ duyệt'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-               </table>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
-    </div>
-
-    {/* Payslip modal */}
-    {showPayslip && (
-      <PayslipModal
-        data={payslipData}
-        loading={payslipLoading}
-        onClose={() => { setShowPayslip(false); setPayslipData(null); }}
-      />
-    )}
-
-    {showProfile && (
-      <div className="modal fade show d-block" tabIndex="-1" style={{ background: "rgba(0,0,0,0.5)" }}>
-        <div className="modal-dialog modal-dialog-centered">
-          <div className="modal-content border-0 shadow">
-            <div className="modal-header bg-primary text-white">
-              <h5 className="modal-title fw-bold">Chỉnh sửa Hồ sơ cá nhân</h5>
-              <button type="button" className="btn-close btn-close-white" onClick={() => setShowProfile(false)}></button>
-            </div>
-            <div className="modal-body p-4">
-              <div className="mb-3">
-                <label className="form-label text-muted fw-bold">Tên hiển thị</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  value={profileForm.name} 
-                  onChange={e => setProfileForm({...profileForm, name: e.target.value})}
-                />
-              </div>
-              <div className="mb-4">
-                <label className="form-label text-muted fw-bold">Số điện thoại</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  value={profileForm.phone} 
-                  onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
-                />
-              </div>
-              <div className="alert alert-info py-2 small mb-0">
-                Lưu ý: Bạn không thể tự sửa chức vụ, mức lương, hay email tài khoản. Nếu cần thay đổi, vui lòng liên hệ Quản lý.
-              </div>
-            </div>
-            <div className="modal-footer bg-light border-top-0">
-              <button className="btn btn-outline-secondary" onClick={() => setShowProfile(false)}>Đóng</button>
-              <button 
-                className="btn btn-primary px-4" 
-                onClick={handleSaveProfile} 
-                disabled={profileSaving}
-              >
-                {profileSaving ? "Đang lưu..." : "Lưu thay đổi"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
-    </>
   );
 }
 

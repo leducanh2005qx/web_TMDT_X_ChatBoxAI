@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import {
-  getAllUsers,
+  getAllUsersAdmin,
   deleteUserAdmin,
   restoreUserAdmin,
   changeRoleAdmin,
   toggleUserStatusAdmin,
+  resetUserPasswordAdmin
 } from "../../services/api";
 
 export default function AdminUserManagement() {
@@ -12,14 +13,15 @@ export default function AdminUserManagement() {
   const [trashUsers, setTrashUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [filterRole, setFilterRole] = useState(""); // empty means All
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const data = await getAllUsers();
+      const data = await getAllUsersAdmin();
       setUsers(Array.isArray(data) ? data : []);
 
-      const trash = await getAllUsers(true);
+      const trash = await getAllUsersAdmin(true);
       setTrashUsers(Array.isArray(trash) ? trash : []);
       setError("");
     } catch (err) {
@@ -65,7 +67,11 @@ export default function AdminUserManagement() {
   };
 
   const handleToggleStatus = async (id, currentStatus) => {
-    const isCurrentlyActive = currentStatus !== 0; // null defaults to true logically
+    if (id === 1) {
+      alert("Không thể khóa tài khoản Admin gốc!");
+      return;
+    }
+    const isCurrentlyActive = currentStatus !== 0; 
     const nextStatus = !isCurrentlyActive;
     if (!window.confirm(`Bạn muốn ${nextStatus ? 'mở khóa' : 'KHÓA'} người dùng này?`)) return;
     
@@ -75,6 +81,16 @@ export default function AdminUserManagement() {
       fetchUsers();
     } catch (err) {
       alert(err.message);
+    }
+  };
+
+  const handleResetPassword = async (id) => {
+    if (!window.confirm("Bạn có chắc chắn muốn reset mật khẩu tài khoản này về mặc định (tiger@123)?")) return;
+    try {
+      const res = await resetUserPasswordAdmin(id);
+      alert(res.message || "Đã reset mật khẩu thành công!");
+    } catch (err) {
+      alert(err.message || "Lỗi reset mật khẩu");
     }
   };
 
@@ -106,8 +122,22 @@ export default function AdminUserManagement() {
 
       {/* ACTIVE USERS TABLE */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
           <h3 className="text-lg font-semibold text-gray-800">Tài khoản hoạt động</h3>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-500">Lọc theo chức vụ:</span>
+            <select
+              className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 px-4 shadow-sm outline-none transition-all"
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+            >
+              <option value="">Tất cả chức vụ</option>
+              <option value="1">Admin (Chủ)</option>
+              <option value="2">Manager (Quản lý)</option>
+              <option value="3">Staff (Nhân viên)</option>
+              <option value="5">Customer (Khách hàng)</option>
+            </select>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left text-gray-600">
@@ -128,14 +158,18 @@ export default function AdminUserManagement() {
                     <span className="text-gray-500 hover:text-blue-500 transition-colors">Đang tải dữ liệu...</span>
                   </td>
                 </tr>
-              ) : users.length === 0 ? (
+              ) : users
+                    .filter(u => filterRole ? String(u.role_id) === String(filterRole) : true)
+                    .length === 0 ? (
                 <tr>
                   <td colSpan="6" className="text-center py-8 text-gray-500">
-                    Không có người dùng nào.
+                    Không tìm thấy người dùng nào phù hợp với bộ lọc.
                   </td>
                 </tr>
               ) : (
-                users.map((u) => {
+                users
+                .filter(u => filterRole ? String(u.role_id) === String(filterRole) : true)
+                .map((u) => {
                   const isActive = u.is_active !== 0; // fallback null to true
                   return (
                     <tr key={u.id} className={`bg-white hover:bg-gray-50 transition-colors ${!isActive ? 'opacity-60 grayscale' : ''}`}>
@@ -176,8 +210,17 @@ export default function AdminUserManagement() {
                       </td>
                       <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
                         <button
+                          onClick={() => handleResetPassword(u.id)}
+                          className="px-3 py-2 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-all"
+                          title="Reset về tiger@123"
+                        >
+                          Reset Pass
+                        </button>
+                        <button
                           onClick={() => handleToggleStatus(u.id, u.is_active)}
+                          disabled={u.id === 1}
                           className={`px-4 py-2 text-sm font-semibold rounded-lg shadow-sm transition-all focus:ring-2 focus:ring-offset-1 ${
+                            u.id === 1 ? "opacity-30 cursor-not-allowed bg-gray-200 text-gray-400 border-gray-200" :
                             isActive
                               ? "text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 hover:text-red-800 hover:border-red-300 focus:ring-red-500"
                               : "text-white bg-green-600 border border-transparent hover:bg-green-700 focus:ring-green-500"
@@ -187,7 +230,11 @@ export default function AdminUserManagement() {
                         </button>
                         <button
                           onClick={() => handleDeleteUser(u.id)}
-                          className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white rounded-lg border border-gray-300 shadow-sm hover:bg-gray-50 hover:text-red-600 focus:ring-2 focus:ring-offset-1 focus:ring-red-500 transition-all"
+                          disabled={u.id === 1}
+                          className={`px-4 py-2 text-sm font-semibold rounded-lg border shadow-sm transition-all ${
+                            u.id === 1 ? "opacity-30 cursor-not-allowed bg-gray-200 text-gray-400 border-gray-300" :
+                            "text-gray-700 bg-white border-gray-300 hover:bg-gray-50 hover:text-red-600 focus:ring-2 focus:ring-offset-1 focus:ring-red-500"
+                          }`}
                         >
                           Xóa
                         </button>

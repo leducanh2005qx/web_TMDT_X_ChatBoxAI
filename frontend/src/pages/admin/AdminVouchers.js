@@ -124,6 +124,19 @@ function AdminVouchers() {
     return v.value;
   };
 
+  const renderSource = (source) => {
+    switch (source) {
+      case 'WELCOME':
+        return <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0' }}>🎁 Tự động - Đăng ký</span>;
+      case 'BIRTHDAY':
+        return <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#f5f3ff', color: '#7c3aed', border: '1px solid #c4b5fd' }}>🎂 Tự động - Sinh nhật</span>;
+      case 'SYSTEM':
+        return <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' }}>⚙️ Hệ thống</span>;
+      default:
+        return <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#fff7ed', color: '#ea580c', border: '1px solid #fed7aa' }}>✍️ Thủ công - Manager</span>;
+    }
+  };
+
   return (
     <div className="admin-voucher-page">
       <h2>🎁 Quản lý Voucher</h2>
@@ -252,6 +265,7 @@ function AdminVouchers() {
                 <tr>
                   <th>Mã</th>
                   <th>Loại</th>
+                  <th>Nguồn gốc</th>
                   <th>Giá trị</th>
                   <th>Đơn tối thiểu</th>
                   <th>HSD</th>
@@ -266,6 +280,7 @@ function AdminVouchers() {
                     <td>
                       <span className={`type-tag ${v.type}`}>{v.type}</span>
                     </td>
+                    <td>{renderSource(v.source)}</td>
                     <td className="value-cell">{renderValue(v)}</td>
                     <td>{Number(v.min_order_value || 0).toLocaleString()} đ</td>
                     <td>

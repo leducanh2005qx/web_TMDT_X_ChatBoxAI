@@ -8,6 +8,7 @@ function Register() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [birthday, setBirthday] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
@@ -16,8 +17,11 @@ function Register() {
     setError("");
 
     try {
-      await register(name, email, password, phone);
-      alert("✅ Đăng ký thành công! Hãy đăng nhập ngay.");
+      const result = await register(name, email, password, phone, birthday);
+      const welcomeMsg = result.welcomeVoucher
+        ? "\n🎁 Bạn đã nhận được mã giảm giá Welcome 10%!"
+        : "";
+      alert(`✅ Đăng ký thành công! Hãy đăng nhập ngay.${welcomeMsg}`);
       navigate("/login");
     } catch (err) {
       setError(err.message || "Đăng ký thất bại");
@@ -84,6 +88,18 @@ function Register() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+          </div>
+
+          <div className="form-group">
+            <label>Ngày sinh <span style={{ color: '#94a3b8', fontWeight: 400, fontSize: '0.85em' }}>(tùy chọn)</span></label>
+            <input
+              type="date"
+              value={birthday}
+              onChange={(e) => setBirthday(e.target.value)}
+            />
+            <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#f97316', fontStyle: 'italic' }}>
+              🎁 Nhập ngày sinh để nhận quà bí mật từ Tiger Shop!
+            </p>
           </div>
 
           <button className="register-btn" type="submit">

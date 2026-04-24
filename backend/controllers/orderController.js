@@ -324,17 +324,37 @@ exports.getOrderDetailAdmin = (req, res) => {
 };
 
 exports.updateOrderStatus = (req, res) => {
-  db.query(
-    "UPDATE orders SET status = ? WHERE id = ?",
-    [req.body.status, req.params.id],
-    (err) => {
-      if (err) {
-        console.error("Lỗi updateOrderStatus:", err.message);
-        return res.status(500).json({ message: "Lỗi cập nhật" });
-      }
-      res.json({ success: true });
-    },
-  );
+  const { status } = req.body;
+  const orderId = req.params.id;
+  const actorId = req.user.id;
+
+  // 1. Lấy trạng thái cũ
+  db.query("SELECT status FROM orders WHERE id = ?", [orderId], (errRows, rows) => {
+    if (errRows || !rows.length) return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+    const oldStatus = rows[0].status;
+
+    // 2. Cập nhật (Thêm processed_by để tính hoa hồng cho nhân viên)
+    const sql = "UPDATE orders SET status = ?, processed_by = ? WHERE id = ?";
+    db.query(
+      sql,
+      [status, actorId, orderId],
+      (err) => {
+        if (err) {
+          console.error("Lỗi updateOrderStatus:", err.message);
+          return res.status(500).json({ message: "Lỗi cập nhật" });
+        }
+
+        // Ghi log chi tiết
+        const logAction = `Đã đổi trạng thái đơn hàng #${orderId} từ ${oldStatus.toUpperCase()} sang ${status.toUpperCase()}`;
+        db.query(
+          "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
+          [actorId, logAction, orderId]
+        );
+
+        res.json({ success: true });
+      },
+    );
+  });
 };
 
 /* =====================================================
@@ -418,6 +438,14 @@ exports.cancelOrder = (req, res) => {
                     res.status(500).json({ message: "Lỗi commit transaction" })
                   );
                 }
+
+                // Ghi log hủy đơn
+                const logAction = `Đã hủy đơn hàng #${orderId}. ${reason ? `Lý do: ${reason}` : ""}`;
+                db.query(
+                  "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
+                  [req.user.id, logAction, orderId]
+                );
+
                 res.json({ success: true, message: "Đã hủy đơn hàng và hoàn trả kho thành công" });
               });
             })
@@ -437,32 +465,82 @@ exports.cancelOrder = (req, res) => {
     STATISTICS (GIỮ NGUYÊN)
 ===================================================== */
 exports.getStatistics = (req, res) => {
-  const sql = `
-    SELECT 
-      (SELECT COUNT(*) FROM orders WHERE status = 'completed') AS totalOrders,
-      (SELECT IFNULL(SUM(total), 0) FROM orders WHERE status = 'completed') AS totalRevenue,
-      (SELECT COUNT(*) FROM users) AS totalCustomers
-  `;
-  db.query(sql, (err, rows) => {
-    if (err) return res.status(500).json({ message: "Lỗi thống kê" });
-    res.json(rows[0]);
-  });
+  const categoryId = req.query.categoryId;
+  
+  if (categoryId) {
+    const sql = `
+      SELECT 
+        COUNT(DISTINCT o.id) AS totalOrders,
+        SUM(oi.quantity * oi.price) AS totalRevenue,
+        COUNT(DISTINCT o.user_id) AS totalCustomers
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      JOIN product_variants pv ON oi.variant_id = pv.id
+      JOIN products p ON pv.product_id = p.id
+      WHERE o.status = 'completed' AND p.category_id = ?
+    `;
+    db.query(sql, [categoryId], (err, rows) => {
+      if (err) return res.status(500).json({ message: "Lỗi thống kê theo category" });
+      res.json(rows[0] || { totalOrders: 0, totalRevenue: 0, totalCustomers: 0 });
+    });
+  } else {
+    const sql = `
+      SELECT 
+        (SELECT COUNT(*) FROM orders WHERE status = 'completed') AS totalOrders,
+        (SELECT IFNULL(SUM(total), 0) FROM orders WHERE status = 'completed') AS totalRevenue,
+        (SELECT COUNT(*) FROM users) AS totalCustomers
+    `;
+    db.query(sql, (err, rows) => {
+      if (err) return res.status(500).json({ message: "Lỗi thống kê" });
+      res.json(rows[0]);
+    });
+  }
 };
 
 exports.getBestSellingProducts = (req, res) => {
+  const categoryId = req.query.categoryId;
+  const params = categoryId ? [categoryId] : [];
+  const categoryFilter = categoryId ? " AND p.category_id = ? " : "";
+
   const sql = `
     SELECT p.id, p.name, p.image, SUM(oi.quantity) AS totalSold 
     FROM order_items oi 
     JOIN product_variants pv ON oi.variant_id = pv.id 
     JOIN products p ON pv.product_id = p.id 
     JOIN orders o ON oi.order_id = o.id 
-    WHERE o.status = 'completed' 
+    WHERE o.status = 'completed' ${categoryFilter}
     GROUP BY p.id 
     ORDER BY totalSold DESC LIMIT 5
   `;
-  db.query(sql, (err, rows) => {
+  db.query(sql, params, (err, rows) => {
     if (err) return res.status(500).json({ message: "Lỗi sản phẩm bán chạy" });
-    res.json(rows.map(r => ({ ...r, totalSold: r.totalSold?Number(r.totalSold):undefined, total_revenue: r.total_revenue?Number(r.total_revenue):undefined, revenue: r.revenue?Number(r.revenue):undefined, count: r.count?Number(r.count):undefined })));
+    res.json(rows);
+  });
+};
+
+exports.getTopProfitProducts = (req, res) => {
+  const categoryId = req.query.categoryId;
+  const params = categoryId ? [categoryId] : [];
+  const categoryFilter = categoryId ? " AND p.category_id = ? " : "";
+
+  const sql = `
+    SELECT p.id, p.name, p.image, SUM(oi.quantity * oi.price) AS totalRevenue 
+    FROM order_items oi 
+    JOIN product_variants pv ON oi.variant_id = pv.id 
+    JOIN products p ON pv.product_id = p.id 
+    JOIN orders o ON oi.order_id = o.id 
+    WHERE o.status = 'completed' ${categoryFilter}
+    GROUP BY p.id 
+    ORDER BY totalRevenue DESC LIMIT 5
+  `;
+  db.query(sql, params, (err, rows) => {
+    if (err) return res.status(500).json({ message: "Lỗi sản phẩm lợi nhuận" });
+    const results = rows.map(r => ({
+      ...r,
+      totalProfit: r.totalRevenue * 0.35,
+      totalSold: r.totalRevenue
+    }));
+    res.json(results);
   });
 };
 
@@ -478,6 +556,10 @@ exports.getUncompletedOrders = (req, res) => {
 };
 
 exports.getCategoryRevenue = (req, res) => {
+  const categoryId = req.query.categoryId;
+  const params = categoryId ? [categoryId] : [];
+  const categoryFilter = categoryId ? " AND p.category_id = ? " : "";
+
   const sql = `
     SELECT c.name AS category_name, SUM(oi.quantity * oi.price) AS total_revenue
     FROM order_items oi
@@ -485,31 +567,52 @@ exports.getCategoryRevenue = (req, res) => {
     JOIN product_variants pv ON oi.variant_id = pv.id
     JOIN products p ON pv.product_id = p.id
     JOIN categories c ON p.category_id = c.id
-    WHERE o.status = 'completed'
+    WHERE o.status = 'completed' ${categoryFilter}
     GROUP BY c.id, c.name
     ORDER BY total_revenue DESC
   `;
-  db.query(sql, (err, rows) => {
+  db.query(sql, params, (err, rows) => {
     if (err) return res.status(500).json({ message: "Lỗi doanh thu theo danh mục" });
-    res.json(rows.map(r => ({ ...r, totalSold: r.totalSold?Number(r.totalSold):undefined, total_revenue: r.total_revenue?Number(r.total_revenue):undefined, revenue: r.revenue?Number(r.revenue):undefined, count: r.count?Number(r.count):undefined })));
+    res.json(rows);
   });
 };
 
 exports.getMonthlyRevenue = (req, res) => {
-  const sql = `
-    SELECT 
-      DATE_FORMAT(created_at, '%m/%Y') AS label,
-      SUM(total) AS revenue
-    FROM orders
-    WHERE status = 'completed'
-    GROUP BY label
-    ORDER BY MIN(created_at) ASC
-    LIMIT 12
-  `;
-  db.query(sql, (err, rows) => {
-    if (err) return res.status(500).json({ message: "Lỗi thống kê theo tháng: " + err.message });
-    res.json(rows.map(r => ({ ...r, totalSold: r.totalSold?Number(r.totalSold):undefined, total_revenue: r.total_revenue?Number(r.total_revenue):undefined, revenue: r.revenue?Number(r.revenue):undefined, count: r.count?Number(r.count):undefined })));
-  });
+  const categoryId = req.query.categoryId;
+  if (!categoryId) {
+    const sql = `
+      SELECT 
+        DATE_FORMAT(created_at, '%m/%Y') AS label,
+        SUM(total) AS revenue
+      FROM orders
+      WHERE status = 'completed'
+      GROUP BY label
+      ORDER BY MIN(created_at) ASC
+      LIMIT 12
+    `;
+    db.query(sql, (err, rows) => {
+      if (err) return res.status(500).json({ message: "Lỗi thống kê theo tháng: " + err.message });
+      res.json(rows);
+    });
+  } else {
+    const sql = `
+      SELECT 
+        DATE_FORMAT(o.created_at, '%m/%Y') AS label,
+        SUM(oi.quantity * oi.price) AS revenue
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      JOIN product_variants pv ON oi.variant_id = pv.id
+      JOIN products p ON pv.product_id = p.id
+      WHERE o.status = 'completed' AND p.category_id = ?
+      GROUP BY label
+      ORDER BY MIN(o.created_at) ASC
+      LIMIT 12
+    `;
+    db.query(sql, [categoryId], (err, rows) => {
+      if (err) return res.status(500).json({ message: "Lỗi thống kê theo tháng: " + err.message });
+      res.json(rows);
+    });
+  }
 };
 
 exports.getWeeklyRevenue = (req, res) => {
@@ -541,5 +644,94 @@ exports.getMonthlyCustomerGrowth = (req, res) => {
   db.query(sql, (err, rows) => {
     if (err) return res.status(500).json({ message: "Lỗi thống kê tăng trưởng khách hàng: " + err.message });
     res.json(rows.map(r => ({ ...r, totalSold: r.totalSold?Number(r.totalSold):undefined, total_revenue: r.total_revenue?Number(r.total_revenue):undefined, revenue: r.revenue?Number(r.revenue):undefined, count: r.count?Number(r.count):undefined })));
+  });
+};
+
+/* ================= STAFF WORKSPACE EXTRAS ================= */
+
+/**
+ * Gửi hóa đơn Email cho khách (Staff gọi)
+ */
+exports.sendInvoiceAPI = async (req, res) => {
+  const orderId = req.params.id;
+
+  try {
+    // 1. Lấy thông tin đơn hàng + User Email
+    const sqlMatch = `
+      SELECT o.*, u.email 
+      FROM orders o
+      JOIN users u ON o.user_id = u.id
+      WHERE o.id = ?
+    `;
+
+    db.query(sqlMatch, [orderId], async (err, rows) => {
+      if (err || !rows.length) return res.status(404).json({ message: "Không tìm thấy đơn hoặc email khách" });
+      
+      const order = rows[0];
+
+      // 2. Lấy danh sách sản phẩm trong đơn
+      const sqlItems = `
+        SELECT oi.*, p.name 
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.id
+        WHERE oi.order_id = ?
+      `;
+
+      db.query(sqlItems, [orderId], async (errItems, itemRows) => {
+        if (errItems) return res.status(500).json({ message: "Lỗi lấy chi tiết sản phẩm" });
+
+        order.items = itemRows;
+
+        // 3. Gọi mailService
+        const { sendInvoice } = require("../services/mailService");
+        try {
+          await sendInvoice(order);
+          
+          // Ghi log
+          db.query(
+            "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
+            [req.user.id, `Đã gửi hóa đơn đơn hàng #${orderId} tới email ${order.email}`, orderId]
+          );
+
+          res.json({ success: true, message: "Đã gửi hóa đơn thành công" });
+        } catch (mailErr) {
+          console.error("Mail error:", mailErr);
+          res.status(500).json({ message: "Lỗi gửi email: " + mailErr.message });
+        }
+      });
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * Tạo yêu cầu hoàn tiền (Staff gọi)
+ */
+exports.requestRefundAPI = (req, res) => {
+  const orderId = req.params.id;
+  const { reason } = req.body;
+
+  if (!reason) return res.status(400).json({ message: "Vui lòng nhập lý do hoàn trả" });
+
+  const sql = `
+    INSERT INTO staff_requests (staff_id, order_id, request_type, request_date, reason, status)
+    VALUES (?, ?, 'refund', CURDATE(), ?, 'pending')
+  `;
+
+  db.query(sql, [req.user.id, orderId, reason], (err) => {
+    if (err) {
+      console.error("Lỗi requestRefund:", err.message);
+      return res.status(500).json({ message: "Lỗi tạo yêu cầu" });
+    }
+
+    // Ghi log
+    const logAction = `Đã tạo yêu cầu hoàn trả cho đơn hàng #${orderId}. Lý do: ${reason}`;
+    db.query(
+      "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
+      [req.user.id, logAction, orderId]
+    );
+
+    res.json({ success: true, message: "Đã gửi yêu cầu hoàn trả tới Manager" });
   });
 };

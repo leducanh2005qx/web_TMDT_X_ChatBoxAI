@@ -4,6 +4,7 @@ const authMiddleware = require("../middlewares/authMiddleware");
 const isAdmin = require("../middlewares/isAdmin");
 const roleMiddleware = require("../middlewares/roleMiddleware");
 const userController = require("../controllers/userController");
+const upload = require("../middlewares/uploadMiddleware");
 
 // GET ALL USERS (ADMIN)
 router.get("/", authMiddleware, isAdmin, userController.getAllUsers);
@@ -13,6 +14,12 @@ router.get("/me", authMiddleware, userController.getMe);
 
 // UPDATE MY PROFILE
 router.put("/me", authMiddleware, userController.updateMe);
+
+// CHANGE PASSWORD
+router.put("/me/change-password", authMiddleware, userController.changePassword);
+
+// UPLOAD AVATAR
+router.post("/me/avatar", authMiddleware, upload.single("avatar"), userController.uploadAvatar);
 router.get("/staff/created", authMiddleware, userController.getCreatedStaff);
 router.get("/staff/pending", authMiddleware, userController.getPendingStaff);
 router.get("/staff/active", authMiddleware, userController.getActiveStaff);
@@ -49,5 +56,7 @@ router.patch("/:userId/restore", authMiddleware, roleMiddleware(['ADMIN', 'MANAG
 router.put("/:userId/role", authMiddleware, roleMiddleware(['ADMIN', 'MANAGER']), userController.changeRole);
 router.put("/:userId/job-info", authMiddleware, roleMiddleware(['ADMIN', 'MANAGER']), userController.changeJobInfo);
 router.put("/:userId/status", authMiddleware, roleMiddleware(['ADMIN', 'MANAGER']), userController.toggleStatus);
+router.post("/:userId/reset-password", authMiddleware, roleMiddleware(['ADMIN', 'MANAGER']), userController.resetUserPassword);
+router.get("/logs", authMiddleware, isAdmin, userController.getSystemLogs);
 
 module.exports = router;

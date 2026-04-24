@@ -25,7 +25,7 @@ router.post(
 router.get(
   "/admin",
   authMiddleware,
-  roleMiddleware(["ADMIN", "MANAGER"]),
+  roleMiddleware(["ADMIN", "MANAGER", "STAFF"]),
   orderController.getAllOrdersAdmin
 );
 
@@ -34,8 +34,23 @@ router.get(
 router.put(
   "/admin/:id/status",
   authMiddleware,
-  roleMiddleware(["ADMIN", "MANAGER"]),
+  roleMiddleware(["ADMIN", "MANAGER", "STAFF"]),
   orderController.updateOrderStatus
+);
+
+// Gửi hóa đơn & Yêu cầu hoàn trả (Staff)
+router.post(
+  "/staff/:id/invoice",
+  authMiddleware,
+  roleMiddleware(["STAFF", "MANAGER", "ADMIN"]),
+  orderController.sendInvoiceAPI
+);
+
+router.post(
+  "/staff/:id/request-refund",
+  authMiddleware,
+  roleMiddleware(["STAFF", "MANAGER", "ADMIN"]),
+  orderController.requestRefundAPI
 );
 
 router.get(
@@ -69,7 +84,7 @@ router.get(
 router.get(
   "/admin/:id",
   authMiddleware,
-  roleMiddleware(["ADMIN", "MANAGER"]),
+  roleMiddleware(["ADMIN", "MANAGER", "STAFF"]),
   orderController.getOrderDetailAdmin // ✅ THÊM
 );
 

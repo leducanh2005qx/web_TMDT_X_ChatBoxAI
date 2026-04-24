@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import "./Cart.css";
+import { useNavigate, Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from "lucide-react";
 
 function Cart({ cart, setCart }) {
   const navigate = useNavigate();
@@ -23,34 +24,26 @@ function Cart({ cart, setCart }) {
   const selectedItems = cart.filter((item) =>
     selectedKeys.includes(item.cartKey),
   );
+  
   const totalAmount = selectedItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
   );
 
-  const inc = (cartKey) => {
-    setCart(
-      cart.map((i) =>
-        i.cartKey === cartKey ? { ...i, quantity: i.quantity + 1 } : i,
-      ),
-    );
-  };
-
-  const dec = (cartKey) => {
-    setCart(
-      cart.map((i) =>
-        i.cartKey === cartKey
-          ? { ...i, quantity: Math.max(1, i.quantity - 1) }
-          : i,
-      ),
-    );
+  // Optimistic UI updates
+  const updateQuantity = (cartKey, delta) => {
+    setCart(prev => prev.map(item => {
+      if (item.cartKey === cartKey) {
+        const newQty = Math.max(1, item.quantity + delta);
+        return { ...item, quantity: newQty };
+      }
+      return item;
+    }));
   };
 
   const remove = (cartKey) => {
-    if (window.confirm("Xóa sản phẩm này khỏi giỏ hàng?")) {
-      setCart(cart.filter((i) => i.cartKey !== cartKey));
-      setSelectedKeys(selectedKeys.filter((k) => k !== cartKey));
-    }
+    setCart(prev => prev.filter(item => item.cartKey !== cartKey));
+    setSelectedKeys(prev => prev.filter(k => k !== cartKey));
   };
 
   const handleCheckout = () => {
@@ -61,115 +54,152 @@ function Cart({ cart, setCart }) {
 
   if (cart.length === 0)
     return (
-      <div className="cart-empty-page">
-        <div className="empty-content">
-          <div className="empty-icon">🛒</div>
-          <h2>Giỏ hàng đang trống</h2>
-          <p>Hãy chọn cho mình những siêu phẩm Tiger Shop nhé!</p>
-          <button onClick={() => navigate("/shop")} className="btn-go-shop">
-            QUAY LẠI CỬA HÀNG
-          </button>
-        </div>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-6 bg-white rounded-[2rem] shadow-sm border border-gray-100">
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center text-5xl mb-6"
+        >
+          🛒
+        </motion.div>
+        <h2 className="text-2xl font-bold mb-2">Giỏ hàng đang trống</h2>
+        <p className="text-gray-400 mb-8 max-w-xs">Hãy khám phá bộ sưu tập mới nhất của Tiger Shop và chọn cho mình những siêu phẩm nhé!</p>
+        <button onClick={() => navigate("/shop")} className="tiger-btn px-8 py-4">
+          QUAY LẠI CỬA HÀNG <ArrowRight size={20} />
+        </button>
       </div>
     );
 
   return (
-    <div className="cart-premium-page">
-      {/* Nền động đồng bộ */}
-      <div className="dynamic-blobs">
-        <div className="blob cb1"></div>
-        <div className="blob cb2"></div>
-      </div>
+    <div className="flex flex-col gap-8">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <ShoppingBag className="text-[#FF8C00]" size={32} />
+            GIỎ HÀNG
+          </h1>
+          <p className="text-gray-400 font-medium">Bạn có {cart.length} sản phẩm trong giỏ</p>
+        </div>
+        <button 
+          onClick={toggleSelectAll}
+          className="text-sm font-bold text-[#FF8C00] hover:underline flex items-center gap-2"
+        >
+          {selectedKeys.length === cart.length ? "Bỏ chọn tất cả" : "Chọn tất cả sản phẩm"}
+        </button>
+      </header>
 
-      <div className="cart-wrapper">
-        <header className="cart-header-top">
-          <h2 className="premium-title">
-            GIỎ HÀNG <span>({cart.length})</span>
-          </h2>
-          <div className="select-all-wrapper" onClick={toggleSelectAll}>
-            <div
-              className={`custom-checkbox ${selectedKeys.length === cart.length ? "checked" : ""}`}
-            >
-              {selectedKeys.length === cart.length && "✓"}
-            </div>
-            <span>Chọn tất cả sản phẩm</span>
-          </div>
-        </header>
-
-        <div className="cart-main-grid">
-          <div className="cart-items-list">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* ITEMS LIST */}
+        <div className="lg:col-span-2 flex flex-col gap-4">
+          <AnimatePresence mode="popLayout">
             {cart.map((item) => (
-              <div
+              <motion.div
+                layout
                 key={item.cartKey}
-                className={`cart-premium-card ${selectedKeys.includes(item.cartKey) ? "selected" : ""}`}
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: 20, opacity: 0 }}
+                className={`tiger-card p-4 flex gap-4 items-center group transition-all ${selectedKeys.includes(item.cartKey) ? "border-[#FF8C00] bg-orange-50/30" : ""}`}
               >
-                <div
-                  className="card-selector"
+                {/* SELECTOR */}
+                <div 
                   onClick={() => toggleSelect(item.cartKey)}
+                  className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center cursor-pointer transition-all ${selectedKeys.includes(item.cartKey) ? "bg-[#FF8C00] border-transparent" : "border-gray-200 group-hover:border-[#FF8C00]"}`}
                 >
-                  <div
-                    className={`custom-checkbox ${selectedKeys.includes(item.cartKey) ? "checked" : ""}`}
-                  >
-                    {selectedKeys.includes(item.cartKey) && "✓"}
-                  </div>
+                  {selectedKeys.includes(item.cartKey) && <div className="w-2 h-2 bg-white rounded-full" />}
                 </div>
 
-                <div className="item-media">
+                {/* IMAGE */}
+                <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0">
                   <img
                     src={item.image?.startsWith('http') ? item.image : `http://localhost:5000/${item.image}`}
                     alt={item.name}
+                    className="w-full h-full object-cover"
                   />
                 </div>
 
-                <div className="item-details">
-                  <h4>{item.name}</h4>
-                  {item.variant_name && (
-                    <span className="item-variant">{item.variant_name}</span>
-                  )}
-                  <p className="item-price">{item.price.toLocaleString()} đ</p>
-                </div>
-
-                <div className="item-controls">
-                  <div className="premium-stepper">
-                    <button onClick={() => dec(item.cartKey)}>−</button>
-                    <span className="qty-val">{item.quantity}</span>
-                    <button onClick={() => inc(item.cartKey)}>+</button>
+                {/* DETAILS */}
+                <div className="flex-1 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex flex-col gap-1">
+                    <h4 className="font-bold text-[#333] line-clamp-1">{item.name}</h4>
+                    {item.variant_name && <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{item.variant_name}</span>}
+                    <p className="text-[#FF8C00] font-black">{item.price.toLocaleString()}đ</p>
                   </div>
-                  <button
-                    className="remove-text-btn"
-                    onClick={() => remove(item.cartKey)}
+
+                  <div className="flex items-center justify-between lg:justify-end gap-6">
+                    <div className="flex items-center bg-gray-100 rounded-xl p-1">
+                      <button 
+                        onClick={() => updateQuantity(item.cartKey, -1)}
+                        className="p-2 hover:bg-white rounded-lg transition-colors text-gray-500"
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <motion.span 
+                        key={item.quantity}
+                        initial={{ scale: 1.2 }}
+                        animate={{ scale: 1 }}
+                        className="w-8 text-center text-sm font-black"
+                      >
+                        {item.quantity}
+                      </motion.span>
+                      <button 
+                        onClick={() => updateQuantity(item.cartKey, 1)}
+                        className="p-2 hover:bg-white rounded-lg transition-colors text-gray-500"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                    <button 
+                      onClick={() => remove(item.cartKey)}
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all rounded-lg"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        {/* SUMMARY */}
+        <aside className="lg:sticky lg:top-24 h-fit">
+          <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col gap-6">
+            <h3 className="text-xl font-bold border-b pb-4">TỔNG ĐƠN HÀNG</h3>
+            <div className="flex flex-col gap-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500 font-medium">Tạm tính ({selectedItems.length} SP)</span>
+                <span className="font-bold">{totalAmount.toLocaleString()}đ</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500 font-medium">Phí vận chuyển</span>
+                <span className="text-green-500 font-bold">Miễn phí</span>
+              </div>
+              <div className="h-px bg-gray-100 my-2" />
+              <div className="flex justify-between items-end">
+                <span className="text-gray-800 font-bold">Tổng cộng</span>
+                <div className="text-right">
+                  <motion.p 
+                    key={totalAmount}
+                    initial={{ y: 10, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="text-3xl font-black text-[#FF8C00]"
                   >
-                    Xóa
-                  </button>
+                    {totalAmount.toLocaleString()}đ
+                  </motion.p>
+                  <p className="text-[10px] text-gray-400 font-medium">Đã bao gồm VAT nếu có</p>
                 </div>
               </div>
-            ))}
-          </div>
-
-          <aside className="cart-summary-sidebar">
-            <div className="glass-summary-card">
-              <h3>TỔNG ĐƠN HÀNG</h3>
-              <div className="summary-row">
-                <span>Số lượng:</span>
-                <span>{selectedKeys.length} sản phẩm</span>
-              </div>
-              <div className="summary-row">
-                <span>Tạm tính:</span>
-                <span>{totalAmount.toLocaleString()} đ</span>
-              </div>
-              <div className="divider-dash"></div>
-              <div className="summary-row total">
-                <span>Tổng cộng:</span>
-                <span className="total-price-final">
-                  {totalAmount.toLocaleString()} đ
-                </span>
-              </div>
-              <button className="btn-checkout-premium" onClick={handleCheckout}>
-                THANH TOÁN NGAY
-              </button>
             </div>
-          </aside>
-        </div>
+            <button 
+              className="tiger-btn w-full py-4 text-lg shadow-tiger"
+              onClick={handleCheckout}
+              disabled={selectedItems.length === 0}
+            >
+              THANH TOÁN NGAY <ArrowRight size={20} />
+            </button>
+          </div>
+        </aside>
       </div>
     </div>
   );

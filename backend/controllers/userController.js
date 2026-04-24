@@ -41,7 +41,7 @@ const checkStaffActive = (userId, callback) => {
 // ✅ LẤY TẤT CẢ NHÂN VIÊN VÀ QUẢN LÝ (Cho Manager/Admin xem)
 exports.getMe = (req, res) => {
   db.query(
-    "SELECT id, name, email, phone FROM users WHERE id = ?",
+    "SELECT id, name, email, phone, avatar FROM users WHERE id = ?",
     [req.user.id],
     (err, rows) => {
       if (err) return res.status(500).json({ message: "Lỗi server" });
@@ -59,6 +59,22 @@ exports.updateMe = (req, res) => {
     (err) => {
       if (err) return res.status(500).json({ message: "Lỗi cập nhật" });
       res.json({ success: true });
+    },
+  );
+};
+
+// UPLOAD AVATAR
+exports.uploadAvatar = (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: "Vui lòng chọn ảnh" });
+  }
+  const avatarPath = `uploads/${req.file.filename}`;
+  db.query(
+    "UPDATE users SET avatar = ? WHERE id = ?",
+    [avatarPath, req.user.id],
+    (err) => {
+      if (err) return res.status(500).json({ message: "Không thể cập nhật avatar" });
+      return res.json({ success: true, avatar: avatarPath });
     },
   );
 };
@@ -385,13 +401,14 @@ exports.getStaffPayroll = (req, res) => {
         u.probation_hourly_rate,
         u.official_hourly_rate,
         ROUND(IFNULL(SUM(a.worked_seconds), 0) / 3600, 2) AS total_hours,
-        ROUND(
-          IFNULL(
-            SUM((a.worked_seconds / 3600) * a.wage_rate),
-            0
-          ),
-          0
-        ) AS salary_amount
+        ROUND(IFNULL(SUM((a.worked_seconds / 3600) * a.wage_rate), 0), 0) AS base_salary,
+        (
+          SELECT ROUND(IFNULL(SUM(total), 0) * 0.01, 0)
+          FROM orders
+          WHERE processed_by = u.id
+            AND status IN ('confirmed', 'shipping', 'completed')
+            AND DATE_FORMAT(created_at, '%Y-%m') = ?
+        ) AS commission_amount
       FROM users u
       LEFT JOIN attendance_sessions a
         ON a.staff_id = u.id
@@ -412,7 +429,7 @@ exports.getStaffPayroll = (req, res) => {
       ORDER BY u.id DESC
     `;
 
-    db.query(sql, [month], (err, rows) => {
+    db.query(sql, [month, month], (err, rows) => {
       if (err) return res.status(500).json({ message: "Không thể tính lương nhân viên" });
       
       // Calculate current stats for AI Tiger
@@ -454,7 +471,14 @@ exports.getMyPayroll = (req, res) => {
         u.probation_hourly_rate,
         u.official_hourly_rate,
         ROUND(IFNULL(SUM(a.worked_seconds), 0) / 3600, 2) AS total_hours,
-        ROUND(IFNULL(SUM((a.worked_seconds / 3600) * a.wage_rate), 0), 0) AS salary_amount
+        ROUND(IFNULL(SUM((a.worked_seconds / 3600) * a.wage_rate), 0), 0) AS base_salary,
+        (
+          SELECT ROUND(IFNULL(SUM(total), 0) * 0.01, 0)
+          FROM orders
+          WHERE processed_by = u.id
+            AND status IN ('confirmed', 'shipping', 'completed')
+            AND DATE_FORMAT(created_at, '%Y-%m') = ?
+        ) AS commission_amount
       FROM users u
       LEFT JOIN attendance_sessions a
         ON a.staff_id = u.id
@@ -471,7 +495,7 @@ exports.getMyPayroll = (req, res) => {
       WHERE u.id = ?
       GROUP BY u.id, u.name, u.email, u.employment_status, u.probation_hourly_rate, u.official_hourly_rate
     `;
-    db.query(sql, [month, req.user.id], (err, rows) => {
+    db.query(sql, [month, month, req.user.id], (err, rows) => {
       if (err) return res.status(500).json({ message: "Không thể lấy lương cá nhân" });
       return res.json(rows[0] || null);
     });
@@ -881,6 +905,11 @@ exports.getActiveStaff = (req, res) => {
 // ✅ SOFT DELETE USER
 exports.deleteUser = (req, res) => {
   const { userId } = req.params;
+  
+  if (Number(userId) === 1) {
+    return res.status(403).json({ message: "Không thể khóa hoặc xóa tài khoản Admin gốc (ID #1)!" });
+  }
+
   db.query("UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?", [userId], (err) => {
     if (err) return res.status(500).json({ message: "Lỗi xóa người dùng" });
     res.json({ message: "Đã chuyển người dùng vào thùng rác" });
@@ -903,9 +932,24 @@ exports.changeRole = (req, res) => {
   
   if (!role_id) return res.status(400).json({ message: "Thiếu role_id" });
 
-  db.query("UPDATE users SET role_id = ? WHERE id = ?", [role_id, userId], (err) => {
-    if (err) return res.status(500).json({ message: "Lỗi phân quyền" });
-    res.json({ message: "Cập nhật quyền thành công" });
+  // 1. Lấy role cũ để ghi log
+  db.query("SELECT role_id FROM users WHERE id = ?", [userId], (errRows, rows) => {
+    if (errRows || !rows.length) return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    const oldRoleId = rows[0].role_id;
+
+    // 2. Cập nhật
+    db.query("UPDATE users SET role_id = ? WHERE id = ?", [role_id, userId], (err) => {
+      if (err) return res.status(500).json({ message: "Lỗi phân quyền" });
+      
+      // Ghi log chi tiết
+      const logAction = `Đã đổi chức vụ người dùng #${userId} từ Role ID: ${oldRoleId} sang Role ID: ${role_id}`;
+      db.query(
+        "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
+        [req.user.id, logAction, userId]
+      );
+
+      res.json({ message: "Cập nhật quyền thành công" });
+    });
   });
 };
 
@@ -937,9 +981,49 @@ exports.toggleStatus = (req, res) => {
 
   if (is_active === undefined) return res.status(400).json({ message: "Thiếu trạng thái is_active" });
 
-  db.query("UPDATE users SET is_active = ? WHERE id = ?", [is_active ? 1 : 0, userId], (err) => {
-    if (err) return res.status(500).json({ message: "Lỗi khóa tài khoản" });
-    res.json({ message: is_active ? "Đã mở khóa tài khoản" : "Tài khoản đã bị khóa" });
+  if (Number(userId) === 1) {
+    return res.status(403).json({ message: "Không thể khóa hoặc xóa tài khoản Admin gốc (ID #1)!" });
+  }
+
+  // 1. Lấy trạng thái cũ
+  db.query("SELECT is_active FROM users WHERE id = ?", [userId], (errRows, rows) => {
+    if (errRows || !rows.length) return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    const oldStatus = rows[0].is_active ? "ĐANG HOẠT ĐỘNG" : "BỊ KHÓA";
+
+    // 2. Cập nhật
+    db.query("UPDATE users SET is_active = ? WHERE id = ?", [is_active ? 1 : 0, userId], (err) => {
+      if (err) return res.status(500).json({ message: "Lỗi khóa tài khoản" });
+      
+      // Ghi log chi tiết
+      const newStatusStr = is_active ? "ĐANG HOẠT ĐỘNG" : "BỊ KHÓA";
+      const logAction = `Đã đổi trạng thái người dùng #${userId} từ ${oldStatus} sang ${newStatusStr}`;
+      db.query(
+        "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
+        [req.user.id, logAction, userId]
+      );
+
+      res.json({ message: is_active ? "Đã mở khóa tài khoản" : "Tài khoản đã bị khóa" });
+    });
+  });
+};
+
+// ✅ RESET PASSWORD TO DEFAULT (tiger@123)
+exports.resetUserPassword = (req, res) => {
+  const { userId } = req.params;
+
+  const defaultPassword = "tiger@123";
+  const hashedPassword = bcrypt.hashSync(defaultPassword, 10);
+
+  db.query("UPDATE users SET password = ? WHERE id = ?", [hashedPassword, userId], (err) => {
+    if (err) return res.status(500).json({ message: "Lỗi reset mật khẩu" });
+    
+    // Log activity
+    db.query(
+      "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, 'Reset mật khẩu nhân viên', ?)",
+      [req.user.id, userId]
+    );
+
+    res.json({ message: `Đã reset mật khẩu về mặc định: ${defaultPassword}` });
   });
 };
 
@@ -1067,5 +1151,69 @@ exports.getStaffPayrollDetail = (req, res) => {
         });
       }
     );
+  });
+};
+
+// ĐỔI MẬT KHẨU
+exports.changePassword = (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: "Vui lòng nhập đầy đủ mật khẩu cũ và mới" });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: "Mật khẩu mới phải có ít nhất 6 ký tự" });
+  }
+
+  db.query("SELECT id, password FROM users WHERE id = ?", [req.user.id], (err, rows) => {
+    if (err) return res.status(500).json({ message: "Lỗi server" });
+    if (!rows.length) return res.status(404).json({ message: "Người dùng không tồn tại" });
+
+    const user = rows[0];
+    let isMatch = false;
+    try {
+      isMatch = bcrypt.compareSync(currentPassword, user.password);
+    } catch {
+      isMatch = currentPassword === user.password;
+    }
+
+    if (!isMatch) {
+      return res.status(401).json({ message: "Mật khẩu hiện tại không đúng" });
+    }
+
+    const hashedNewPassword = bcrypt.hashSync(newPassword, 10);
+    db.query("UPDATE users SET password = ? WHERE id = ?", [hashedNewPassword, req.user.id], (updateErr) => {
+      if (updateErr) return res.status(500).json({ message: "Không thể đổi mật khẩu" });
+      return res.json({ message: "Đổi mật khẩu thành công!" });
+    });
+  });
+};
+
+// ✅ LẤY NHẬT KÝ HỆ THỐNG (ADMIN ONLY)
+exports.getSystemLogs = (req, res) => {
+  const sql = `
+    SELECT 
+      l.id, 
+      l.user_id, 
+      l.action, 
+      l.target_id, 
+      l.created_at,
+      u.name AS actor_name,
+      u.email AS actor_email,
+      r.name AS role_name
+    FROM user_activity_logs l
+    LEFT JOIN users u ON l.user_id = u.id
+    LEFT JOIN roles r ON u.role_id = r.id
+    ORDER BY l.created_at DESC
+    LIMIT 500
+  `;
+
+  db.query(sql, (err, rows) => {
+    if (err) {
+      console.error("Lỗi lấy nhật ký:", err.message);
+      return res.status(500).json({ message: "Không thể lấy nhật ký hệ thống" });
+    }
+    res.json(rows);
   });
 };

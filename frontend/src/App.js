@@ -44,9 +44,35 @@ import ChatWidget from "./components/chat/ChatWidget";
 function App() {
   const [cart, setCart] = useState([]);
   const [search, setSearch] = useState("");
-
-  // ✅ LOGIC YÊU THÍCH SẢN PHẨM
   const [wishlist, setWishlist] = useState([]);
+
+  const addToCart = (product, selectedVariant = null, quantity = 1) => {
+    const cartKey = selectedVariant ? `variant-${selectedVariant.id}` : product.id;
+    const exist = cart.find((i) => i.cartKey === cartKey);
+
+    if (exist) {
+      setCart(
+        cart.map((i) =>
+          i.cartKey === cartKey ? { ...i, quantity: i.quantity + quantity } : i,
+        ),
+      );
+    } else {
+      setCart([
+        ...cart,
+        {
+          cartKey,
+          product_id: product.id,
+          variant_id: selectedVariant?.id || null,
+          name: product.name,
+          variant_name: selectedVariant?.variant_name || null,
+          price: selectedVariant?.price || product.price,
+          image: product.image,
+          stock: selectedVariant?.stock || product.stock,
+          quantity: quantity,
+        },
+      ]);
+    }
+  };
 
   const toggleWishlist = (product) => {
     const isExist = wishlist.find((item) => item.id === product.id);
@@ -60,7 +86,6 @@ function App() {
   const location = useLocation();
   const path = location.pathname;
 
-  // ❌ Ẩn chat với admin, manager, staff & auth
   const hideChat =
     path.startsWith("/admin") ||
     path.startsWith("/manager") ||
@@ -71,21 +96,16 @@ function App() {
   return (
     <>
       <Routes>
-        {/* ================= REDIRECT ================= */}
         <Route path="/" element={<Navigate to="/login" replace />} />
-
-        {/* ================= AUTH ================= */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* ================= CUSTOMER ================= */}
         <Route
           path="/home"
           element={
             <Layout cart={cart} onSearch={setSearch}>
               <Home
-                cart={cart}
-                setCart={setCart}
+                addToCart={addToCart}
                 wishlist={wishlist}
                 toggleWishlist={toggleWishlist}
               />
@@ -98,8 +118,7 @@ function App() {
           element={
             <Layout cart={cart} onSearch={setSearch}>
               <Shop
-                cart={cart}
-                setCart={setCart}
+                addToCart={addToCart}
                 keyword={search}
                 wishlist={wishlist}
                 toggleWishlist={toggleWishlist}
@@ -115,6 +134,7 @@ function App() {
               <ProductDetail
                 cart={cart}
                 setCart={setCart}
+                addToCart={addToCart}
                 wishlist={wishlist}
                 toggleWishlist={toggleWishlist}
               />
@@ -231,6 +251,7 @@ function App() {
           }
         />
 
+        <Route path="/manager" element={<Navigate to="/manager/workspace" replace />} />
         <Route
           path="/manager/staff"
           element={
@@ -344,6 +365,7 @@ function App() {
           }
         />
 
+        <Route path="/staff" element={<Navigate to="/staff/workspace" replace />} />
         <Route
           path="/staff/workspace"
           element={
@@ -369,7 +391,7 @@ function App() {
           element={
             <StaffRoute>
               <StaffLayout>
-                <StaffWorkspace section="chat" />
+                <StaffWorkspace section="support" />
               </StaffLayout>
             </StaffRoute>
           }
@@ -400,16 +422,6 @@ function App() {
             <StaffRoute>
               <StaffLayout>
                 <StaffWorkspace section="shifts" />
-              </StaffLayout>
-            </StaffRoute>
-          }
-        />
-        <Route
-          path="/staff/shifts"
-          element={
-            <StaffRoute>
-              <StaffLayout>
-                <StaffShifts />
               </StaffLayout>
             </StaffRoute>
           }

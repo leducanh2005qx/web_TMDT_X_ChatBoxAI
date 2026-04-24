@@ -12,6 +12,7 @@ const User = {
         u.role_id,
         u.status,
         u.is_active,
+        u.avatar,
         r.name AS role_name
       FROM users u
       JOIN roles r ON u.role_id = r.id
@@ -50,6 +51,7 @@ const User = {
         u.role_id,
         u.status,
         u.is_active,
+        u.avatar,
         r.name AS role_name
       FROM users u
       JOIN roles r ON u.role_id = r.id

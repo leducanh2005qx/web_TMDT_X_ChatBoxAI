@@ -40,8 +40,7 @@ import {
   getStaffPayrollDetail,
   getAllUsersAdmin,
   changeJobInfoAdmin,
-  toggleUserStatusAdmin,
-  approveOfficialStaff
+  toggleUserStatusAdmin
 } from "../../services/api";
 import PayslipModal from "../../components/payroll/PayslipModal";
 import "./ManagerWorkspace.css";
@@ -71,17 +70,6 @@ function ManagerWorkspace() {
   const [orderStatusFilter] = useState("all");
   const [orderKeyword] = useState("");
   const [productKeyword] = useState("");
-  const handleApproveOfficial = async (id) => {
-    if (!window.confirm("Duyệt nhân viên này lên CHÍNH THỨC (Tăng lương 20k -> 25k)?")) return;
-    try {
-      await approveOfficialStaff(id);
-      setSuccess("Đã duyệt nhân viên lên chính thức thành công!");
-      loadData();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
   const [lowStockOnly] = useState(false);
   const [payrollRows, setPayrollRows] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -471,25 +459,17 @@ function ManagerWorkspace() {
 
   const renderOrders = () => {
     const pendingOrdersCount = orders.filter(o => o.status === 'pending').length;
-    const refundRequestsCount = pendingRequests.filter(r => r.request_type === 'refund' && r.status === 'pending').length;
-    
     return (
       <div className="card border-0 shadow-sm p-4">
         <div className="ai-tiger-alert alert d-flex align-items-center mb-4">
           <div className="ai-tiger-avatar me-3">🐯</div>
           <div>
             <h6 className="mb-1 fw-bold">AI Tiger Nhắc Nhở</h6>
-            <div className="mb-0 small">
+            <p className="mb-0 small">
               {pendingOrdersCount > 0 
-                ? <p className="mb-1">Sếp ơi, còn <b>{pendingOrdersCount}</b> đơn hàng đang 'treo' chờ sếp phê duyệt đó. Nhanh tay nào sếp!</p>
-                : <p className="mb-1">Tuyệt vời sếp ơi, không còn đơn hàng nào tồn đọng cả. Sếp quá đỉnh!</p>}
-              
-              {refundRequestsCount > 0 && (
-                <p className="mb-0 text-danger fw-bold">
-                  ⚠️ Có {refundRequestsCount} yêu cầu hoàn trả mới từ nhân viên! Sếp hãy vào mục "Phê duyệt" để xem xét nhé.
-                </p>
-              )}
-            </div>
+                ? `Sếp ơi, còn ${pendingOrdersCount} đơn hàng đang 'treo' chờ sếp phê duyệt đó. Nhanh tay nào sếp!`
+                : "Tuyệt vời sếp ơi, không còn đơn hàng nào tồn đọng cả. Sếp quá đỉnh!"}
+            </p>
           </div>
         </div>
         <div className="table-responsive">
@@ -706,15 +686,6 @@ function ManagerWorkspace() {
                 >
                   {s.status === 'locked' || s.is_active === 0 ? "Mở Khóa" : "Khóa"}
                 </button>
-                {s.employment_status === 'probation' && (
-                  <button 
-                    className="btn btn-sm btn-success"
-                    onClick={() => handleApproveOfficial(s.id)}
-                    title="Duyệt lên chính thức"
-                  >
-                    ⭐ Duyệt Lên Chính Thức
-                  </button>
-                )}
               </div>
             </div>
           </div>
@@ -785,9 +756,9 @@ function ManagerWorkspace() {
             <tr>
               <th>Nhân viên</th>
               <th>Trạng thái</th>
-              <th>Tổng giờ</th>
-              <th>Lương cứng</th>
-              <th>Hoa hồng (1%)</th>
+              <th>Số ngày công</th>
+              <th>Tổng giờ làm</th>
+              <th>Lương tháng</th>
               <th className="text-end">Thao tác</th>
             </tr>
           </thead>
@@ -807,9 +778,8 @@ function ManagerWorkspace() {
                     </span>
                   </td>
                   <td>{p.total_days ?? '—'} ngày</td>
-                  <td className="fw-bold">{p.total_hours}h</td>
-                  <td className="fw-bold">{Number(p.base_salary || 0).toLocaleString()}đ</td>
-                  <td className="text-success fw-bold">+{Number(p.commission_amount || 0).toLocaleString()}đ</td>
+                  <td className="text-primary fw-bold">{p.total_hours}h</td>
+                  <td className="price-accent fw-bold">{Number(p.salary_amount || 0).toLocaleString()} đ</td>
                   <td className="text-end">
                     <button
                       className="btn btn-sm btn-outline-primary"

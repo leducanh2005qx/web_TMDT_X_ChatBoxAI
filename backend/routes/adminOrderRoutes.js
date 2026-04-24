@@ -25,6 +25,9 @@ router.get("/stats", roleMiddleware(["ADMIN", "MANAGER"]), orderController.getSt
 // 🔥 Sản phẩm bán chạy
 router.get("/best-products", roleMiddleware(["ADMIN", "MANAGER"]), orderController.getBestSellingProducts);
 
+// 💰 Top 5 lợi nhuận
+router.get("/top-profit-products", roleMiddleware(["ADMIN", "MANAGER"]), orderController.getTopProfitProducts);
+
 // ⏳ Đơn hàng chưa hoàn thành (pending + confirmed)
 router.get("/uncompleted", roleMiddleware(["ADMIN", "MANAGER"]), orderController.getUncompletedOrders);
 

@@ -50,6 +50,21 @@ Chat.getOrCreateThreadByUserId = (userId, cb) => {
   });
 };
 
+Chat.updateThreadStatus = (threadId, status, cb) => {
+  db.query("UPDATE threads SET status = ? WHERE id = ?", [status, threadId], cb);
+};
+
+Chat.updateThreadAiMute = (threadId, isMuted, cb) => {
+  db.query("UPDATE threads SET is_ai_muted = ? WHERE id = ?", [isMuted ? 1 : 0, threadId], cb);
+};
+
+Chat.getThreadById = (threadId, cb) => {
+  db.query("SELECT * FROM threads WHERE id = ?", [threadId], (err, rows) => {
+    if (err) return cb(err);
+    cb(null, rows[0]);
+  });
+};
+
 /* =====================================================
    MESSAGES
 ===================================================== */

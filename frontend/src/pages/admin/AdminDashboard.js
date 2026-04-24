@@ -1,59 +1,72 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Search, Filter, Plus } from "lucide-react";
+import { Search, Filter, Plus, TrendingUp, Package, DollarSign } from "lucide-react";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis } from "recharts";
 import "./AdminDashboard.css";
-import { getInventoryAlert } from "../../services/api";
+import { getInventoryAlert, getOrderStatsAdmin, getCategoryRevenueAdmin, getMonthlyRevenueAdmin, getTopProfitProductsAdmin } from "../../services/api";
+
+const COLORS = ["#ee4d2d", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
 
 function AdminDashboard() {
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
   const [alertData, setAlertData] = useState({ alerts: [], trashCount: 0 });
   const [showTrash, setShowTrash] = useState(false);
   const [trashProducts, setTrashProducts] = useState([]);
   const [loadingTrash, setLoadingTrash] = useState(false);
+  const [voucherStats, setVoucherStats] = useState({ welcomeCount: 0, birthdayCount: 0, manualCount: 0 });
   
-  // Toolbar states
-  const [searchTerm, setSearchTerm] = useState("");
+  // Dashboard states
+  const [statsGlobal, setStatsGlobal] = useState({ totalOrders: 0, totalRevenue: 0, totalCustomers: 0 });
+  const [categoryRevenueData, setCategoryRevenueData] = useState([]);
+  const [monthlyRevenueData, setMonthlyRevenueData] = useState([]);
+  const [topProfitProducts, setTopProfitProducts] = useState([]);
+  
+  const [categories, setCategories] = useState([]);
   const [filterCategory, setFilterCategory] = useState("");
 
   const token = localStorage.getItem("token");
-
-  const loadProducts = useCallback(() => {
-    fetch("http://localhost:5000/api/products", {
-      headers: { Authorization: "Bearer " + token },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Lỗi hệ thống server");
-        return res.json();
-      })
-      .then((data) => setProducts(Array.isArray(data) ? data : []))
-      .catch((err) => {
-        console.error("Lỗi:", err);
-        setProducts([]);
-      });
-  }, [token]);
 
   const loadCategories = useCallback(() => {
     fetch("http://localhost:5000/api/categories")
       .then((res) => res.json())
       .then((data) => setCategories(Array.isArray(data) ? data : []))
-      .catch((err) => console.error("Lỗi:", err));
+      .catch(console.error);
   }, []);
 
+  const loadDashboardData = useCallback(async () => {
+    try {
+      const catId = filterCategory || "";
+      const [statsRes, catRevRes, monthlyRevRes, topProfitRes, alertRes, vStatsRes] = await Promise.all([
+        getOrderStatsAdmin(catId).catch(() => ({ totalOrders: 0, totalRevenue: 0, totalCustomers: 0 })),
+        getCategoryRevenueAdmin(catId).catch(() => []),
+        getMonthlyRevenueAdmin(catId).catch(() => []),
+        getTopProfitProductsAdmin(catId).catch(() => []),
+        getInventoryAlert().catch(() => ({ alerts: [], trashCount: 0 })),
+        fetch('http://localhost:5000/api/voucher-stats').then(r => r.json()).catch(() => ({ welcomeCount: 0, birthdayCount: 0, manualCount: 0 }))
+      ]);
+
+      setStatsGlobal(statsRes);
+      setCategoryRevenueData(Array.isArray(catRevRes) ? catRevRes : []);
+      setMonthlyRevenueData(Array.isArray(monthlyRevRes) ? monthlyRevRes : []);
+      setTopProfitProducts(Array.isArray(topProfitRes) ? topProfitRes : []);
+      
+      if (alertRes && alertRes.alerts) {
+        setAlertData(alertRes);
+      } else if (Array.isArray(alertRes)) {
+        setAlertData({ alerts: alertRes, trashCount: 0 });
+      }
+      if (vStatsRes) setVoucherStats(vStatsRes);
+    } catch (err) {
+      console.error("Lỗi:", err);
+    }
+  }, [filterCategory]);
+
   useEffect(() => {
-    loadProducts();
     loadCategories();
-    
-    getInventoryAlert()
-      .then(data => {
-        if (data && data.alerts) {
-          setAlertData(data);
-        } else if (Array.isArray(data)) {
-          setAlertData({ alerts: data, trashCount: 0 });
-        }
-      })
-      .catch(console.error);
-  }, [loadProducts, loadCategories]);
+  }, [loadCategories]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   const deleteProduct = (id) => {
     if (!window.confirm("Xoá sản phẩm này sẽ chuyển vào thùng rác. Bạn chắc chắn?")) return;
@@ -64,10 +77,9 @@ function AdminDashboard() {
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Lỗi xóa");
-        loadProducts();
         alert("Đã xóa xong!");
         if (showTrash) loadTrash();
-        getInventoryAlert().then(setAlertData).catch(console.error);
+        loadDashboardData();
       })
       .catch((err) => alert(err.message));
   };
@@ -91,27 +103,14 @@ function AdminDashboard() {
       .then((res) => {
         if (!res.ok) throw new Error("Khôi phục thất bại");
         alert("Đã khôi phục sản phẩm!");
-        loadProducts();
         if (showTrash) loadTrash();
-        getInventoryAlert().then(setAlertData).catch(console.error);
+        loadDashboardData();
       })
       .catch((err) => alert(err.message));
   };
-
-  // Lọc sản phẩm
-  const filteredProducts = products.filter(p => {
-    const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchCat = filterCategory ? String(p.category_id) === String(filterCategory) : true;
-    return matchSearch && matchCat;
-  });
-
-  const getBadgeColor = (categoryName) => {
-    const name = categoryName?.toLowerCase() || '';
-    if (name.includes('thời trang')) return 'bg-pink-100 text-pink-700 border-pink-200';
-    if (name.includes('điện tử')) return 'bg-blue-100 text-blue-700 border-blue-200';
-    if (name.includes('thực phẩm')) return 'bg-green-100 text-green-700 border-green-200';
-    return 'bg-gray-100 text-gray-700 border-gray-200';
-  };
+  const totalRevenue = statsGlobal.totalRevenue || 0;
+  const totalCOGS = totalRevenue * 0.65; // Estimated Vốn nhập hàng 65%
+  const totalProfit = totalRevenue - totalCOGS; // Lợi nhuận ròng 35%
 
   return (
     <div className="admin-dashboard-container">
@@ -120,8 +119,8 @@ function AdminDashboard() {
           <h1 className="main-title">📦 Quản trị kho TIGER SHOP</h1>
         </div>
         <div className="stat-card-mini">
-          <span className="stat-label">Tổng sản phẩm</span>
-          <span className="stat-value">{products.length}</span>
+          <span className="stat-label">Tổng đơn hàng</span>
+          <span className="stat-value">{statsGlobal.totalOrders || 0}</span>
         </div>
       </div>
       
@@ -140,6 +139,13 @@ function AdminDashboard() {
                   <> {alertData.alerts.length > 0 ? "Ngoài ra còn" : "có"} <b>{alertData.trashCount}</b> sản phẩm đang nằm trong thùng rác, sếp có muốn dọn dẹp hay khôi phục không?</>
                 )}
               </p>
+              {(voucherStats.welcomeCount > 0 || voucherStats.birthdayCount > 0 || voucherStats.manualCount > 0) && (
+                <p style={{ margin: '8px 0 0', color: '#333', fontSize: '1rem', borderTop: '1px dashed #e5e7eb', paddingTop: 8 }}>
+                  🎁 <b>Voucher:</b> Hệ thống đã tự tặng <b style={{ color: '#059669' }}>{voucherStats.welcomeCount}</b> mã Welcome cho khách mới
+                  {voucherStats.birthdayCount > 0 && <> và <b style={{ color: '#7c3aed' }}>{voucherStats.birthdayCount}</b> mã Sinh nhật</>}.
+                  {voucherStats.manualCount > 0 && <> Manager đã tạo <b style={{ color: '#ea580c' }}>{voucherStats.manualCount}</b> mã thủ công. 🐯</>}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -186,117 +192,152 @@ function AdminDashboard() {
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-4 flex items-center justify-between gap-4">
-        <div className="flex flex-1 gap-4 items-center">
-          <div className="relative w-1/3 min-w-[250px]">
-            <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
-            <input 
-              type="text" 
-              className="w-full pl-10 border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:border-[#ee4d2d]" 
-              placeholder="Tìm tên sản phẩm..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          
-          <div className="relative w-1/4 min-w-[200px]">
-            <Filter className="absolute left-3 top-2.5 text-gray-400" size={20} />
-            <select 
-              className="w-full pl-10 border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:border-[#ee4d2d] bg-white"
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-            >
-              <option value="">Tất cả danh mục</option>
-              {categories.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
+      {/* Category Filter */}
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6 flex items-center gap-4">
+        <label className="font-semibold text-gray-700 whitespace-nowrap">Lọc theo Danh mục:</label>
+        <div className="relative w-1/4 min-w-[200px]">
+          <Filter className="absolute left-3 top-2.5 text-gray-400" size={20} />
+          <select 
+            className="w-full pl-10 border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:border-[#ee4d2d] bg-white text-gray-700 font-medium"
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+          >
+            <option value="">Tất cả danh mục (Tổng hợp)</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
         </div>
-        
-        <Link to="/admin/add-product" className="flex items-center gap-2 bg-[#ee4d2d] hover:bg-[#d73f22] text-white px-5 py-2.5 rounded-md font-medium transition-colors shadow-sm">
-          <Plus size={20} /> Thêm sản phẩm mới
-        </Link>
+        <div className="text-sm text-gray-500 italic">Khi chọn danh mục, toàn bộ dữ liệu báo cáo bên dưới sẽ tự động cập nhật tương ứng.</div>
       </div>
 
-      <div className="w-full">
-        <div className="card table-card overflow-x-auto">
-          <h2 className="card-title mb-4">📦 Danh sách hàng tồn</h2>
-          <table className="modern-table min-w-full">
-            <thead>
-              <tr className="border-b-2 border-gray-100">
-                <th className="pb-3 text-gray-500 font-semibold uppercase text-xs">Ảnh</th>
-                <th className="pb-3 text-gray-500 font-semibold uppercase text-xs w-[35%]">Thông tin</th>
-                <th className="pb-3 text-gray-500 font-semibold uppercase text-xs">Loại hàng</th>
-                <th className="pb-3 text-gray-500 font-semibold uppercase text-xs">Size & Kho</th>
-                <th className="pb-3 text-right text-gray-500 font-semibold uppercase text-xs">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredProducts.map((p) => (
-                <tr key={p.id} className="table-row border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                  <td className="py-4 px-2">
+      {/* 3 Widgets Thống kê lớn */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-[#3b82f6] flex items-center justify-between">
+          <div>
+            <p className="text-gray-500 font-semibold mb-1">Tổng doanh thu</p>
+            <h3 className="text-2xl font-bold text-gray-800">{totalRevenue.toLocaleString()} ₫</h3>
+          </div>
+          <div className="bg-blue-50 p-4 rounded-full">
+            <DollarSign size={28} className="text-blue-500" />
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-[#f59e0b] flex items-center justify-between">
+          <div>
+            <p className="text-gray-500 font-semibold mb-1">Tổng vốn nhập hàng</p>
+            <h3 className="text-2xl font-bold text-gray-800">{totalCOGS.toLocaleString()} ₫</h3>
+          </div>
+          <div className="bg-amber-50 p-4 rounded-full">
+            <Package size={28} className="text-amber-500" />
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-[#10b981] flex items-center justify-between">
+          <div>
+            <p className="text-gray-500 font-semibold mb-1">Lợi nhuận ròng</p>
+            <h3 className="text-2xl font-bold text-gray-800">{totalProfit.toLocaleString()} ₫</h3>
+          </div>
+          <div className="bg-green-50 p-4 rounded-full">
+            <TrendingUp size={28} className="text-green-500" />
+          </div>
+        </div>
+      </div>
+
+      {/* Biểu đồ & Bảng Xếp Hạng */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        
+        {/* Biểu đồ Doanh Thu Theo Tháng */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col">
+          <h2 className="text-xl font-bold mb-6 text-gray-800">
+            Biểu đồ Doanh thu (Theo Tháng)
+          </h2>
+          {monthlyRevenueData.length === 0 ? (
+            <div className="text-center text-gray-500 py-10 my-auto">Chưa có dữ liệu doanh thu</div>
+          ) : (
+            <div style={{ width: "100%", height: "350px" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyRevenueData} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6b7280" }} axisLine={false} tickLine={false} />
+                  <YAxis 
+                    tickFormatter={(v) => `${(v/1000000).toFixed(0)}M`} 
+                    tick={{ fontSize: 12, fill: "#6b7280" }} 
+                    axisLine={false} 
+                    tickLine={false} 
+                  />
+                  <Tooltip formatter={(v) => `${Number(v).toLocaleString()} đ`} cursor={{ fill: '#f3f4f6' }} />
+                  <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Doanh thu" barSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-6">
+          {/* Top Sản phẩm mang lại Lợi Nhuận */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex-1">
+            <h2 className="text-xl font-bold mb-4 text-gray-800">🏆 Top 5 Sản phẩm Sinh lời Cao nhất</h2>
+            {topProfitProducts.length === 0 ? (
+              <div className="text-center text-gray-500 py-10">Chưa có dữ liệu</div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {topProfitProducts.map((p, idx) => (
+                  <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100">
+                    <div className="font-bold text-gray-400 w-6 text-center">#{idx + 1}</div>
                     <img
                       src={p.image?.startsWith('http') ? p.image : `http://localhost:5000/${p.image}`}
-                      className="w-20 h-20 object-cover rounded-md border border-gray-200 shadow-sm"
                       alt={p.name}
+                      className="w-12 h-12 object-cover rounded-md border border-gray-200"
                     />
-                  </td>
-                  <td className="py-4 pr-4">
-                    <span className="block font-bold text-lg text-gray-800 mb-1">{p.name}</span>
-                    <span className="block font-bold text-[#ee4d2d] text-[15px]">
-                      {Number(p.price).toLocaleString()} ₫
-                    </span>
-                  </td>
-                  <td className="py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getBadgeColor(p.category_name)}`}>
-                      {p.category_name || 'Khác'}
-                    </span>
-                  </td>
-                  <td className="py-4">
-                    <div className="variant-badges-container flex flex-wrap gap-2">
-                      {p.variants?.length > 0 ? (
-                        p.variants.map((v, i) => (
-                          <div
-                            key={i}
-                            className={`px-3 py-1.5 rounded-md border text-sm shadow-sm bg-white ${v.stock === 0 ? "border-red-300 text-red-600 bg-red-50" : "border-gray-200 text-gray-700"}`}
-                          >
-                            <span className="mr-2 opacity-80">{v.variant_name}</span>
-                            <strong className="font-bold">{v.stock}</strong>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="px-3 py-1.5 rounded-md border border-blue-200 text-blue-700 bg-blue-50 text-sm shadow-sm">
-                          <span className="mr-2 opacity-80">Tổng kho:</span>
-                          <strong className="font-bold">{p.stock}</strong>
-                        </div>
-                      )}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-gray-800 text-sm truncate">{p.name}</div>
+                      <div className="text-xs text-gray-500">Doanh thu: {Number(p.totalSold).toLocaleString()} đ</div>
                     </div>
-                  </td>
-                  <td className="py-4 text-right">
-                    <Link to={`/admin/products/edit/${p.id}`} className="inline-block px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold rounded-md mr-2 transition-colors">
-                      Sửa
-                    </Link>
-                    <button
-                      className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 font-semibold rounded-md transition-colors"
-                      onClick={() => deleteProduct(p.id)}
-                    >
-                      Xóa
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              
-              {filteredProducts.length === 0 && (
-                <tr>
-                  <td colSpan="5" className="text-center py-10 text-gray-500">
-                    Không tìm thấy sản phẩm nào phù hợp
-                  </td>
-                </tr>
+                    <div className="text-right">
+                      <div className="font-bold text-[#10b981] text-sm">+{Number(p.totalProfit).toLocaleString()} đ</div>
+                      <div className="text-xs text-gray-400">Lợi nhuận</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Biểu đồ Tròn Tổng Quan Danh Mục (chỉ hiển thị nếu không bị lọc bởi list) */}
+          {!filterCategory && (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h2 className="text-xl font-bold mb-4 text-gray-800">Tỷ trọng Cơ cấu Doanh thu</h2>
+              {categoryRevenueData.length === 0 ? (
+                <div className="text-center text-gray-500 py-5">Chưa có dữ liệu</div>
+              ) : (
+                <div style={{ width: "100%", height: "240px", display: "flex", justifyContent: "center", alignItems: "center" }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryRevenueData}
+                        dataKey="total_revenue"
+                        nameKey="category_name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={90}
+                        paddingAngle={5}
+                        labelLine={false}
+                        label={({percent}) => `${(percent*100).toFixed(0)}%`}
+                      >
+                        {categoryRevenueData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v) => `${Number(v).toLocaleString()} đ`} />
+                      <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               )}
-            </tbody>
-          </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

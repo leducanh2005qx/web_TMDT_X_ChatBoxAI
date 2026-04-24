@@ -2,12 +2,13 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const db = require("../config/db");
+const { giftWelcomeVoucher } = require("../services/voucherService");
 
 // =======================
 // REGISTER (CHỈ CUSTOMER)
 // =======================
 exports.register = async (req, res) => {
-  const { name, email, password, phone } = req.body;
+  const { name, email, password, phone, birthday } = req.body;
 
   if (!name || !email || !password || !phone) {
     return res.status(400).json({ message: "Thiếu thông tin đăng ký" });
@@ -18,18 +19,33 @@ exports.register = async (req, res) => {
   const newUser = {
     name,
     email,
-    phone, // ✅ THÊM
+    phone,
     password: hashedPassword,
     role_id: 5, // CUSTOMER
     status: "active",
   };
 
-  User.create(newUser, (err) => {
+  User.create(newUser, (err, result) => {
     if (err) {
       return res.status(500).json({ message: "Email đã tồn tại" });
     }
 
-    res.json({ message: "Register successful" });
+    // Lấy ID user vừa tạo
+    db.query("SELECT id FROM users WHERE email = ?", [email], (errFind, rows) => {
+      const newUserId = rows?.[0]?.id;
+
+      // Lưu birthday nếu có
+      if (birthday && newUserId) {
+        db.query("UPDATE users SET birthday = ? WHERE id = ?", [birthday, newUserId]);
+      }
+
+      // 🎁 Tặng Welcome Voucher 10%
+      if (newUserId) {
+        giftWelcomeVoucher(newUserId);
+      }
+
+      res.json({ message: "Register successful", welcomeVoucher: true });
+    });
   });
 };
 
@@ -97,6 +113,7 @@ exports.login = (req, res) => {
           name: user.name,
           email: user.email,
           phone: user.phone,
+          avatar: user.avatar || null,
         },
       });
     };

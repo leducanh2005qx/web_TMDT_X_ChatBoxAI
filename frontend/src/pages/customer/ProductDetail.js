@@ -1,17 +1,19 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  ChevronLeft, ShoppingCart, Star, ShieldCheck, 
+  Truck, ArrowRight, Share2, Heart, Plus, Minus
+} from "lucide-react";
 import {
   getProductById,
   getProductReviews,
   submitProductReview,
 } from "../../services/api";
-import "./ProductDetail.css";
 
-function ProductDetail({ cart, setCart }) {
+function ProductDetail({ cart, setCart, wishlist = [], toggleWishlist }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const imgRef = useRef(null);
-
   const [product, setProduct] = useState(null);
   const [variants, setVariants] = useState([]);
   const [selectedVariant, setSelectedVariant] = useState(null);
@@ -20,13 +22,14 @@ function ProductDetail({ cart, setCart }) {
   const [myRating, setMyRating] = useState(5);
   const [myComment, setMyComment] = useState("");
   const [myReviewImage, setMyReviewImage] = useState(null);
+  const [qty, setQty] = useState(1);
+  const [isFlying, setIsFlying] = useState(false);
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         const data = await getProductById(id);
         setProduct(data);
-        setSelectedVariant(null);
       } catch (err) {
         console.error(err);
       } finally {
@@ -57,54 +60,14 @@ function ProductDetail({ cart, setCart }) {
       return;
     }
 
-    // --- HIỆU ỨNG BAY VÀO GIỎ (Đồng bộ Premium) ---
-    const cartIcon = document.querySelector(".cart-icon-nav");
-    if (imgRef.current && cartIcon) {
-      const imgClone = imgRef.current.cloneNode();
-      const imgRect = imgRef.current.getBoundingClientRect();
-      const cartRect = cartIcon.getBoundingClientRect();
+    setIsFlying(true);
+    setTimeout(() => setIsFlying(false), 800);
 
-      Object.assign(imgClone.style, {
-        position: "fixed",
-        zIndex: "9999",
-        borderRadius: "15px",
-        width: imgRect.width + "px",
-        height: imgRect.height + "px",
-        top: imgRect.top + "px",
-        left: imgRect.left + "px",
-        transition: "all 0.9s cubic-bezier(0.19, 1, 0.22, 1)",
-        boxShadow: "0 10px 30px rgba(59, 130, 246, 0.5)",
-        pointerEvents: "none",
-      });
-
-      document.body.appendChild(imgClone);
-
-      setTimeout(() => {
-        Object.assign(imgClone.style, {
-          width: "30px",
-          height: "30px",
-          top: cartRect.top + "px",
-          left: cartRect.left + "px",
-          opacity: "0.2",
-          transform: "rotate(360deg) scale(0)",
-        });
-      }, 50);
-
-      setTimeout(() => imgClone.remove(), 1000);
-    }
-
-    // --- LOGIC GIỎ HÀNG ---
-    const cartKey = selectedVariant
-      ? `variant-${selectedVariant.id}`
-      : product.id;
+    const cartKey = selectedVariant ? `variant-${selectedVariant.id}` : product.id;
     const exist = cart.find((i) => i.cartKey === cartKey);
 
     if (exist) {
-      setCart(
-        cart.map((i) =>
-          i.cartKey === cartKey ? { ...i, quantity: i.quantity + 1 } : i,
-        ),
-      );
+      setCart(cart.map((i) => i.cartKey === cartKey ? { ...i, quantity: i.quantity + qty } : i));
     } else {
       setCart([
         ...cart,
@@ -117,189 +80,200 @@ function ProductDetail({ cart, setCart }) {
           price: selectedVariant?.price || product.price,
           image: product.image,
           stock: selectedVariant?.stock || product.stock,
-          quantity: 1,
+          quantity: qty,
         },
       ]);
     }
   };
 
-  const handleSubmitReview = async () => {
-    try {
-      const formData = new FormData();
-      formData.append("rating", String(myRating));
-      formData.append("comment", myComment || "");
-      if (myReviewImage) formData.append("image", myReviewImage);
-      await submitProductReview(id, formData);
-      setMyComment("");
-      setMyReviewImage(null);
-      const data = await getProductReviews(id);
-      setReviews(Array.isArray(data) ? data : []);
-      alert("Đã gửi đánh giá sản phẩm");
-    } catch (err) {
-      alert(err.message || "Không thể gửi đánh giá");
-    }
-  };
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="text-4xl">🐯</motion.div>
+    </div>
+  );
+  if (!product) return <div className="text-center p-20 font-bold">Không tìm thấy sản phẩm</div>;
 
-  if (loading)
-    return (
-      <div className="premium-loader">
-        <span>✨ TIGER LOADING...</span>
-      </div>
-    );
-  if (!product) return <div className="error-msg">Không tìm thấy sản phẩm</div>;
-
-  const isOutOfStock =
-    variants.length > 0
-      ? selectedVariant && selectedVariant.stock <= 0
-      : product.stock <= 0;
+  const isOutOfStock = variants.length > 0 ? selectedVariant && selectedVariant.stock <= 0 : product.stock <= 0;
+  const isFavorite = wishlist.some(fav => fav.id === product.id);
 
   return (
-    <div className="detail-page-wrapper">
-      {/* Nền động giống trang Shop */}
-      <div className="dynamic-blobs">
-        <div className="blob b1"></div>
-        <div className="blob b2"></div>
+    <div className="flex flex-col gap-8 pb-24 lg:pb-0">
+      {/* MOBILE HEADER BAR */}
+      <div className="lg:hidden flex items-center justify-between">
+        <button onClick={() => navigate(-1)} className="p-2 bg-white rounded-full shadow-sm"><ChevronLeft /></button>
+        <div className="flex gap-2">
+          <button className="p-2 bg-white rounded-full shadow-sm"><Share2 size={20}/></button>
+          <button onClick={() => toggleWishlist(product)} className="p-2 bg-white rounded-full shadow-sm">
+            <Heart size={20} fill={isFavorite ? "#FF8C00" : "none"} color={isFavorite ? "#FF8C00" : "currentColor"}/>
+          </button>
+        </div>
       </div>
 
-      <div className="detail-container">
-        <div className="glass-card-detail">
-          {/* Cột trái: Hình ảnh */}
-          <div className="image-display-section">
-            <button className="back-btn" onClick={() => navigate(-1)}>
-              ✕
-            </button>
-            <div className="main-img-container">
-              <img
-                ref={imgRef}
-                src={product.image?.startsWith('http') ? product.image : `http://localhost:5000/${product.image}`}
-                alt={product.name}
-                className="main-product-img"
-                onError={(e) => (e.target.src = "/no-image.png")}
-              />
-            </div>
-          </div>
-
-          {/* Cột phải: Thông tin */}
-          <div className="product-info-panel">
-            <header>
-              <div className="cat-tag">TIGER PREMIUM</div>
-              <h1 className="detail-title">{product.name}</h1>
-              <div className="detail-price">
-                {(selectedVariant?.price ?? product.price).toLocaleString()}{" "}
-                <span>đ</span>
-              </div>
-            </header>
-
-            {variants.length > 0 && (
-              <div className="variant-box">
-                <label>Phân loại hàng</label>
-                <div className="chips-container">
-                  {variants.map((v) => (
-                    <button
-                      key={v.id}
-                      disabled={v.stock <= 0}
-                      className={`chip ${selectedVariant?.id === v.id ? "active" : ""} ${v.stock <= 0 ? "out" : ""}`}
-                      onClick={() => setSelectedVariant(v)}
-                    >
-                      {v.variant_name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="description-area">
-              <label>Giới thiệu</label>
-              <p>
-                {product.description ||
-                  "Một siêu phẩm từ Tiger Shop đang chờ bạn khám phá."}
-              </p>
-            </div>
-
-            <div className="footer-actions">
-              <div className="stock-info">
-                {variants.length > 0 ? (
-                  selectedVariant ? (
-                    <p className={selectedVariant.stock > 0 ? "text-in" : "text-out"}>
-                      {selectedVariant.stock > 0 ? `Sẵn sàng: ${selectedVariant.stock} món` : "Cháy hàng"}
-                    </p>
-                  ) : (
-                    <p className="text-hint">Vui lòng chọn Phân loại</p>
-                  )
-                ) : (
-                  <p className={product.stock > 0 ? "text-in" : "text-out"}>
-                    {product.stock > 0 ? `Sẵn sàng: ${product.stock} món` : "Cháy hàng"}
-                  </p>
-                )}
-              </div>
-
-              <button
-                className={`main-add-btn ${isOutOfStock ? "disabled" : ""}`}
-                disabled={isOutOfStock}
-                onClick={handleAddToCart}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        {/* IMAGE GALLERY */}
+        <div className="relative group">
+          <motion.div 
+            layoutId={`product-image-${product.id}`}
+            className="aspect-square rounded-[2rem] overflow-hidden bg-white shadow-sm border border-gray-100"
+          >
+            <img 
+              src={product.image?.startsWith('http') ? product.image : `http://localhost:5000/${product.image}`}
+              alt={product.name}
+              className="w-full h-full object-cover"
+            />
+          </motion.div>
+          
+          <AnimatePresence>
+            {isFlying && (
+              <motion.div
+                initial={{ scale: 1, x: 0, y: 0, opacity: 1 }}
+                animate={{ 
+                  scale: 0.2, 
+                  x: window.innerWidth > 1024 ? 400 : 0,
+                  y: window.innerWidth > 1024 ? -600 : 600,
+                  opacity: 0 
+                }}
+                transition={{ duration: 0.8 }}
+                className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none"
               >
-                {isOutOfStock ? "TẠM HẾT HÀNG" : "MUA NGAY"}
-              </button>
+                <img 
+                  src={product.image?.startsWith('http') ? product.image : `http://localhost:5000/${product.image}`}
+                  className="w-40 h-40 rounded-full border-4 border-[#FF8C00] object-cover"
+                  alt="flying"
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* INFO PANEL */}
+        <div className="flex flex-col gap-6">
+          <header className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className="bg-orange-100 text-[#FF8C00] text-[10px] font-black px-2 py-1 rounded">PREMIUM</span>
+              <div className="flex items-center gap-1 text-yellow-500">
+                <Star size={14} fill="currentColor" />
+                <span className="text-sm font-bold text-gray-800">4.9</span>
+                <span className="text-xs text-gray-400 font-medium">(250 đánh giá)</span>
+              </div>
+            </div>
+            <h1 className="text-3xl lg:text-4xl font-bold text-[#333] tracking-tight">{product.name}</h1>
+            <p className="text-3xl font-black text-[#FF8C00]">{(selectedVariant?.price ?? product.price).toLocaleString()}đ</p>
+          </header>
+
+          {/* VARIANTS */}
+          {variants.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <h4 className="text-xs font-black uppercase tracking-widest text-gray-400">Phân loại hàng</h4>
+              <div className="flex flex-wrap gap-2">
+                {variants.map((v) => (
+                  <button
+                    key={v.id}
+                    disabled={v.stock <= 0}
+                    onClick={() => setSelectedVariant(v)}
+                    className={`px-4 py-2 text-sm font-bold rounded-xl border transition-all ${selectedVariant?.id === v.id ? "bg-[#FF8C00] text-white border-transparent" : "bg-white border-gray-200 hover:border-[#FF8C00]"} ${v.stock <= 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    {v.variant_name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* QUANTITY */}
+          <div className="flex flex-col gap-3">
+             <h4 className="text-xs font-black uppercase tracking-widest text-gray-400">Số lượng</h4>
+             <div className="flex items-center gap-4">
+                <div className="flex items-center bg-gray-100 rounded-xl p-1">
+                  <button onClick={() => setQty(Math.max(1, qty - 1))} className="p-2 hover:bg-white rounded-lg transition-all"><Minus size={16}/></button>
+                  <span className="w-10 text-center font-black">{qty}</span>
+                  <button onClick={() => setQty(qty + 1)} className="p-2 hover:bg-white rounded-lg transition-all"><Plus size={16}/></button>
+                </div>
+                <span className="text-xs font-medium text-gray-400">
+                  {isOutOfStock ? "Hết hàng" : `Còn lại: ${selectedVariant?.stock ?? product.stock} món`}
+                </span>
+             </div>
+          </div>
+
+          <div className="h-px bg-gray-100 my-2" />
+
+          {/* BENEFITS */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center gap-2 text-sm font-bold text-gray-600">
+               <Truck className="text-green-500" size={18} /> Giao hàng siêu tốc
+            </div>
+            <div className="flex items-center gap-2 text-sm font-bold text-gray-600">
+               <ShieldCheck className="text-blue-500" size={18} /> Chính hãng 100%
             </div>
           </div>
-        </div>
-        <div className="review-panel mt-3 p-3">
-          <h5 className="review-title">Danh gia san pham</h5>
-          <p className="review-note mb-2">
-            Ban chi co the danh gia sau khi da mua san pham nay.
-          </p>
-          <div className="d-flex align-items-center gap-2 mb-2 review-form-row">
-            <select
-              className="form-select"
-              style={{ maxWidth: 120 }}
-              value={myRating}
-              onChange={(e) => setMyRating(Number(e.target.value))}
+
+          {/* DESKTOP ACTIONS */}
+          <div className="hidden lg:flex gap-4 mt-4">
+            <button 
+              onClick={handleAddToCart}
+              disabled={isOutOfStock}
+              className="flex-1 tiger-btn py-4 text-lg shadow-tiger"
             >
-              {[5, 4, 3, 2, 1].map((n) => (
-                <option key={n} value={n}>
-                  {n} sao
-                </option>
-              ))}
-            </select>
-            <input
-              className="form-control"
-              placeholder="Cam nhan cua ban..."
-              value={myComment}
-              onChange={(e) => setMyComment(e.target.value)}
-            />
-            <input
-              type="file"
-              accept="image/*"
-              className="form-control"
-              style={{ maxWidth: 220 }}
-              onChange={(e) => setMyReviewImage(e.target.files?.[0] || null)}
-            />
-            <button className="btn btn-primary" onClick={handleSubmitReview}>
-              Gui
+              <ShoppingCart size={20} /> MUA NGAY
+            </button>
+            <button 
+              onClick={() => toggleWishlist(product)}
+              className={`p-4 rounded-xl border-2 transition-all ${isFavorite ? "border-[#FF8C00] text-[#FF8C00] bg-orange-50" : "border-gray-100 text-gray-400 hover:border-gray-200"}`}
+            >
+              <Heart fill={isFavorite ? "currentColor" : "none"} />
             </button>
           </div>
-          <div className="review-list">
-            {reviews.length === 0 ? (
-              <div className="review-empty">Chua co danh gia nao.</div>
-            ) : (
-              reviews.slice(0, 10).map((r) => (
-                <div key={r.id} className="review-item">
-                  <strong>{r.user_name}</strong> - {"⭐".repeat(Number(r.rating || 0))}
-                  <div className="review-comment">
-                    {r.comment || "(Khong co binh luan)"}
-                  </div>
-                  {r.image_url && (
-                    <img
-                      src={r.image_url?.startsWith('http') ? r.image_url : `http://localhost:5000/${r.image_url}`}
-                      alt="review"
-                      className="review-image"
-                    />
-                  )}
-                </div>
-              ))
-            )}
-          </div>
         </div>
+      </div>
+
+      {/* DESCRIPTION */}
+      <section className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100">
+        <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+          <div className="w-1 h-6 bg-[#FF8C00] rounded-full" /> CHI TIẾT SẢN PHẨM
+        </h3>
+        <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
+          {product.description || "Chào mừng bạn đến với Tiger Shop. Đây là một trong những sản phẩm được yêu thích nhất của chúng tôi với chất lượng vượt trội và thiết kế hiện đại."}
+        </p>
+      </section>
+
+      {/* REVIEWS */}
+      <section className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100">
+        <h3 className="text-xl font-bold mb-8 flex items-center gap-2">
+          <div className="w-1 h-6 bg-[#FF8C00] rounded-full" /> ĐÁNH GIÁ TỪ KHÁCH HÀNG
+        </h3>
+        
+        <div className="flex flex-col gap-6">
+           {reviews.length === 0 ? (
+             <div className="text-center py-10 text-gray-400 italic">Chưa có đánh giá nào cho sản phẩm này.</div>
+           ) : (
+             reviews.map(r => (
+               <div key={r.id} className="border-b border-gray-50 pb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                       <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center font-bold text-[#FF8C00]">{r.user_name?.[0]}</div>
+                       <div>
+                         <p className="text-sm font-bold">{r.user_name}</p>
+                         <div className="flex text-yellow-500">{"⭐".repeat(r.rating)}</div>
+                       </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-gray-300 uppercase">10/10/2026</span>
+                  </div>
+                  <p className="text-sm text-gray-600 pl-13">{r.comment}</p>
+               </div>
+             ))
+           )}
+        </div>
+      </section>
+
+      {/* MOBILE STICKY ACTIONS */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-lg border-t border-gray-100 flex gap-4 z-50 pb-20">
+        <button 
+           onClick={handleAddToCart}
+           disabled={isOutOfStock}
+           className="flex-1 tiger-btn py-4 text-sm"
+        >
+          {isOutOfStock ? "HẾT HÀNG" : "MUA NGAY"}
+        </button>
       </div>
     </div>
   );
