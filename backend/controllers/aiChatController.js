@@ -23,8 +23,8 @@ exports.getChatSuggestions = async (req, res) => {
         : "Khách hàng vừa tham gia chat.";
       
       const genAI = new GoogleGenerativeAI(apiKey);
-      // Dùng gemini-pro để đảm bảo độ tương thích cao nhất
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      // Dùng gemini-1.5-flash theo API chuẩn mới nhất
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
       const prompt = `Bạn là cố vấn cho nhân viên chăm sóc khách hàng của Tiger Shop.
 Dựa trên hội thoại dưới đây, hãy gợi ý 3 câu trả lời ngắn gọn (dưới 15 từ mỗi câu) để nhân viên có thể gửi nhanh cho khách.

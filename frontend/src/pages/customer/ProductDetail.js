@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ChevronLeft, ShoppingCart, Star, ShieldCheck, 
-  Truck, ArrowRight, Share2, Heart, Plus, Minus
+  Truck, ArrowRight, Share2, Plus, Minus
 } from "lucide-react";
 import {
   getProductById,
@@ -11,7 +11,7 @@ import {
   submitProductReview,
 } from "../../services/api";
 
-function ProductDetail({ cart, setCart, wishlist = [], toggleWishlist }) {
+function ProductDetail({ cart, setCart }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
@@ -60,8 +60,41 @@ function ProductDetail({ cart, setCart, wishlist = [], toggleWishlist }) {
       return;
     }
 
-    setIsFlying(true);
-    setTimeout(() => setIsFlying(false), 800);
+    const imgEl = document.querySelector(`.aspect-square img`);
+    const cartEl = document.querySelector(".cart-icon-nav");
+
+    if (imgEl && cartEl) {
+      const imgRect = imgEl.getBoundingClientRect();
+      const cartRect = cartEl.getBoundingClientRect();
+
+      const clone = imgEl.cloneNode(true);
+      clone.style.position = "fixed";
+      clone.style.top = `${imgRect.top}px`;
+      clone.style.left = `${imgRect.left}px`;
+      clone.style.width = `${imgRect.width}px`;
+      clone.style.height = `${imgRect.height}px`;
+      clone.style.borderRadius = "50%";
+      clone.style.border = "4px solid #FF8C00";
+      clone.style.zIndex = "9999";
+      clone.style.transition = "all 0.8s cubic-bezier(0.25, 1, 0.5, 1)";
+      clone.style.pointerEvents = "none";
+      
+      document.body.appendChild(clone);
+
+      clone.getBoundingClientRect(); // reflow
+
+      clone.style.top = `${cartRect.top + cartRect.height / 2}px`;
+      clone.style.left = `${cartRect.left + cartRect.width / 2}px`;
+      clone.style.width = "20px";
+      clone.style.height = "20px";
+      clone.style.opacity = "0.2";
+
+      setTimeout(() => {
+        if (document.body.contains(clone)) {
+          document.body.removeChild(clone);
+        }
+      }, 800);
+    }
 
     const cartKey = selectedVariant ? `variant-${selectedVariant.id}` : product.id;
     const exist = cart.find((i) => i.cartKey === cartKey);
@@ -94,7 +127,6 @@ function ProductDetail({ cart, setCart, wishlist = [], toggleWishlist }) {
   if (!product) return <div className="text-center p-20 font-bold">Không tìm thấy sản phẩm</div>;
 
   const isOutOfStock = variants.length > 0 ? selectedVariant && selectedVariant.stock <= 0 : product.stock <= 0;
-  const isFavorite = wishlist.some(fav => fav.id === product.id);
 
   return (
     <div className="flex flex-col gap-8 pb-24 lg:pb-0">
@@ -103,9 +135,6 @@ function ProductDetail({ cart, setCart, wishlist = [], toggleWishlist }) {
         <button onClick={() => navigate(-1)} className="p-2 bg-white rounded-full shadow-sm"><ChevronLeft /></button>
         <div className="flex gap-2">
           <button className="p-2 bg-white rounded-full shadow-sm"><Share2 size={20}/></button>
-          <button onClick={() => toggleWishlist(product)} className="p-2 bg-white rounded-full shadow-sm">
-            <Heart size={20} fill={isFavorite ? "#FF8C00" : "none"} color={isFavorite ? "#FF8C00" : "currentColor"}/>
-          </button>
         </div>
       </div>
 
@@ -122,28 +151,6 @@ function ProductDetail({ cart, setCart, wishlist = [], toggleWishlist }) {
               className="w-full h-full object-cover"
             />
           </motion.div>
-          
-          <AnimatePresence>
-            {isFlying && (
-              <motion.div
-                initial={{ scale: 1, x: 0, y: 0, opacity: 1 }}
-                animate={{ 
-                  scale: 0.2, 
-                  x: window.innerWidth > 1024 ? 400 : 0,
-                  y: window.innerWidth > 1024 ? -600 : 600,
-                  opacity: 0 
-                }}
-                transition={{ duration: 0.8 }}
-                className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none"
-              >
-                <img 
-                  src={product.image?.startsWith('http') ? product.image : `http://localhost:5000/${product.image}`}
-                  className="w-40 h-40 rounded-full border-4 border-[#FF8C00] object-cover"
-                  alt="flying"
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
         {/* INFO PANEL */}
@@ -216,12 +223,7 @@ function ProductDetail({ cart, setCart, wishlist = [], toggleWishlist }) {
             >
               <ShoppingCart size={20} /> MUA NGAY
             </button>
-            <button 
-              onClick={() => toggleWishlist(product)}
-              className={`p-4 rounded-xl border-2 transition-all ${isFavorite ? "border-[#FF8C00] text-[#FF8C00] bg-orange-50" : "border-gray-100 text-gray-400 hover:border-gray-200"}`}
-            >
-              <Heart fill={isFavorite ? "currentColor" : "none"} />
-            </button>
+
           </div>
         </div>
       </div>

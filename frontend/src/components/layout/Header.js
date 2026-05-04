@@ -2,7 +2,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import "./Header.css";
 
-function Header({ cart = [], cartCount = 0, wishlist = [], onSearch }) {
+function Header({ cart = [], cartCount = 0, onSearch }) {
   const [keyword, setKeyword] = useState("");
   const [isLogin, setIsLogin] = useState(false);
   const [userName, setUserName] = useState("");
@@ -95,13 +95,7 @@ function Header({ cart = [], cartCount = 0, wishlist = [], onSearch }) {
 
       {/* ===== RIGHT ===== */}
       <div className="header-right">
-        {/* ❤️ WISHLIST ITEM */}
-        <Link to="/wishlist" className="wishlist-btn">
-          ❤️
-          {wishlist.length > 0 && (
-            <span className="wishlist-badge">{wishlist.length}</span>
-          )}
-        </Link>
+
 
         {/* 🛒 CART ITEM - Thêm class cart-icon-nav để làm hiệu ứng bay */}
         <Link to="/cart" className="cart-btn cart-icon-nav">

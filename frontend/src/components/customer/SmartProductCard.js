@@ -14,7 +14,7 @@ function SmartProductCard({ product, onAddToCart }) {
     name = "Sản phẩm Tiger Shop",
     price = 0,
     original_price,
-    image_url,
+    image,
     sold = 0,
     display_type = "general",
     rating = 4.8
@@ -30,9 +30,45 @@ function SmartProductCard({ product, onAddToCart }) {
   const handleQuickAdd = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsFlying(true);
     if (onAddToCart) onAddToCart(product);
-    setTimeout(() => setIsFlying(false), 800);
+
+    // Get the image element and cart icon element
+    const imgEl = e.currentTarget.closest(".relative.group").querySelector("img");
+    const cartEl = document.querySelector(".cart-icon-nav");
+
+    if (imgEl && cartEl) {
+      const imgRect = imgEl.getBoundingClientRect();
+      const cartRect = cartEl.getBoundingClientRect();
+
+      const clone = imgEl.cloneNode(true);
+      clone.style.position = "fixed";
+      clone.style.top = `${imgRect.top}px`;
+      clone.style.left = `${imgRect.left}px`;
+      clone.style.width = `${imgRect.width}px`;
+      clone.style.height = `${imgRect.height}px`;
+      clone.style.borderRadius = "50%";
+      clone.style.border = "4px solid #FF8C00";
+      clone.style.zIndex = "9999";
+      clone.style.transition = "all 0.8s cubic-bezier(0.25, 1, 0.5, 1)";
+      clone.style.pointerEvents = "none";
+      
+      document.body.appendChild(clone);
+
+      // Trigger reflow
+      clone.getBoundingClientRect();
+
+      clone.style.top = `${cartRect.top + cartRect.height / 2}px`;
+      clone.style.left = `${cartRect.left + cartRect.width / 2}px`;
+      clone.style.width = "20px";
+      clone.style.height = "20px";
+      clone.style.opacity = "0.2";
+
+      setTimeout(() => {
+        if (document.body.contains(clone)) {
+          document.body.removeChild(clone);
+        }
+      }, 800);
+    }
   };
 
   return (
@@ -48,11 +84,11 @@ function SmartProductCard({ product, onAddToCart }) {
       <Link to={`/product/${id}`} className="flex flex-col h-full">
         {/* IMAGE CONTAINER */}
         <div className="relative aspect-square overflow-hidden bg-gray-50">
-          {image_url ? (
+          {image ? (
             <motion.img
               animate={{ scale: isHovered ? 1.1 : 1 }}
               transition={{ duration: 0.4 }}
-              src={image_url}
+              src={image.startsWith('http') ? image : `http://localhost:5000/${image}`}
               alt={name}
               className="w-full h-full object-cover"
             />
@@ -94,24 +130,7 @@ function SmartProductCard({ product, onAddToCart }) {
             )}
           </AnimatePresence>
           
-          {/* FLYING EFFECT CLONE */}
-          <AnimatePresence>
-            {isFlying && (
-              <motion.div
-                initial={{ scale: 1, x: 0, y: 0, opacity: 1 }}
-                animate={{ 
-                  scale: 0.2, 
-                  x: window.innerWidth > 1024 ? 400 : 0, // Fly towards desktop cart or mobile bottom cart
-                  y: window.innerWidth > 1024 ? -600 : 600,
-                  opacity: 0 
-                }}
-                transition={{ duration: 0.8, ease: "easeInOut" }}
-                className="absolute inset-0 z-50 pointer-events-none"
-              >
-                <img src={image_url} alt="flying" className="w-full h-full object-cover rounded-full border-4 border-[#FF8C00]" />
-              </motion.div>
-            )}
-          </AnimatePresence>
+
         </div>
 
         {/* CONTENT */}

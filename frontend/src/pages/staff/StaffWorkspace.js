@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   getAllOrdersAdmin,
   updateOrderStatus,
@@ -31,6 +32,7 @@ import StaffShifts from "./StaffShifts"; // ✅ NEW
 import "./StaffWorkspace.css";
 
 function StaffWorkspace({ section = "dashboard" }) {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [attendance, setAttendance] = useState(null);
   const [activeSection, setActiveSection] = useState(section); // orders, support, attendance, payroll
@@ -227,6 +229,9 @@ function StaffWorkspace({ section = "dashboard" }) {
                       <td>{renderStatusTag(order.status)}</td>
                       <td className="text-end">
                         <div className="action-btns">
+                          <button className="btn-action btn-view" onClick={() => navigate(`/orders/${order.id}`)}>
+                            <Search size={16} /> Xem
+                          </button>
                           {order.status === 'pending' && (
                             <button className="btn-action btn-soan" onClick={() => handleUpdateStatus(order.id, 'confirmed', 'Soạn hàng')}>
                               <Package size={16} /> Soạn
@@ -262,6 +267,9 @@ function StaffWorkspace({ section = "dashboard" }) {
                     </div>
                   </div>
                   <div className="card-footer">
+                    <button className="mobile-btn mobile-btn-info" onClick={() => navigate(`/orders/${order.id}`)}>
+                      <Search size={18} /> Xem
+                    </button>
                     {order.status === 'pending' && (
                       <button className="mobile-btn mobile-btn-primary" onClick={() => handleUpdateStatus(order.id, 'confirmed', 'Soạn')}>
                         <Package size={18} /> Soạn

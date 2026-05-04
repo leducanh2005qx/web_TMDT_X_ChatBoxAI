@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
   Search, ShoppingCart, User, MessageCircle, X, Mail, Share2,
-  Home, LayoutGrid, Heart
+  Home, LayoutGrid
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 

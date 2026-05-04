@@ -4,11 +4,9 @@ const Chat = require("../models/Chat");
 /* =====================================================
     USER – CREATE ORDER (HỖ TRỢ VOUCHER + PAYMENT METHOD)
 ===================================================== */
-exports.createOrder = (req, res) => {
+exports.createOrder = async (req, res) => {
   const userId = req.user?.id;
-  // Nhận payment_method từ Frontend
-  const { items, total, shipping_address, voucher_ids, payment_method } =
-    req.body;
+  const { items, total, shipping_address, voucher_ids, payment_method } = req.body;
 
   if (!userId) return res.status(401).json({ message: "Unauthorized" });
   if (!Array.isArray(items) || items.length === 0)
@@ -21,367 +19,337 @@ exports.createOrder = (req, res) => {
   if (!shipping_address || !String(shipping_address).trim())
     return res.status(400).json({ message: "Thiếu địa chỉ nhận hàng" });
 
-  // ✅ Dự kiến nhận: +3 ngày
   const expectedDate = new Date();
   expectedDate.setDate(expectedDate.getDate() + 3);
   const expected_delivery = expectedDate.toISOString().slice(0, 10);
 
-  db.beginTransaction((err) => {
-    if (err) return res.status(500).json({ message: "Lỗi transaction" });
+  let connection;
+  try {
+    connection = await db.promise().getConnection();
+    await connection.beginTransaction();
 
-    // ✅ LẤY TÊN + SĐT từ USERS
-    db.query(
-      "SELECT name, phone FROM users WHERE id = ?",
-      [userId],
-      (err, urows) => {
-        if (err || !urows || urows.length === 0) {
-          return db.rollback(() =>
-            res
-              .status(500)
-              .json({ message: "Không lấy được thông tin người dùng" }),
-          );
-        }
+    // 1. Get user info
+    const [urows] = await connection.query("SELECT name, phone FROM users WHERE id = ?", [userId]);
+    if (!urows || urows.length === 0) {
+      throw new Error("Không lấy được thông tin người dùng");
+    }
+    const receiver_name = urows[0].name || "";
+    const receiver_phone = urows[0].phone || "";
 
-        const receiver_name = urows[0].name || "";
-        const receiver_phone = urows[0].phone || "";
-
-        // ✅ INSERT ORDERS (Đã thêm payment_method)
-        db.query(
-          `INSERT INTO orders 
-            (user_id, total, status, receiver_name, receiver_phone, shipping_address, expected_delivery, payment_method) 
-           VALUES (?, ?, 'pending', ?, ?, ?, ?, ?)`,
-          [
-            userId,
-            totalNumber,
-            receiver_name,
-            receiver_phone,
-            shipping_address,
-            expected_delivery,
-            payment_method || "cod", // Mặc định là cod nếu frontend không gửi
-          ],
-          (err, result) => {
-            if (err) {
-              return db.rollback(() =>
-                res
-                  .status(500)
-                  .json({ message: "Lỗi tạo đơn hàng: " + err.message }),
-              );
-            }
-
-            const orderId = result.insertId;
-
-            // ✅ INSERT ORDER_ITEMS
-            const values = items.map((i) => [
-              orderId,
-              i.variant_id,
-              i.quantity,
-              i.price,
-            ]);
-
-            db.query(
-              "INSERT INTO order_items (order_id, variant_id, quantity, price) VALUES ?",
-              [values],
-              (err) => {
-                if (err) {
-                  return db.rollback(() =>
-                    res.status(500).json({ message: "Lỗi chi tiết đơn hàng" }),
-                  );
-                }
-
-                // ✅ TRỪ KHO VARIANT
-                const stockUpdates = items.map(
-                  (i) =>
-                    new Promise((resolve, reject) => {
-                      db.query(
-                        "UPDATE product_variants SET stock = stock - ? WHERE id = ? AND stock >= ?",
-                        [i.quantity, i.variant_id, i.quantity],
-                        (err, resultStock) => {
-                          if (err) return reject(err);
-                          if (resultStock.affectedRows === 0)
-                            return reject(
-                              new Error("Hết hàng hoặc ID variant sai"),
-                            );
-                          resolve();
-                        },
-                      );
-                    }),
-                );
-
-                Promise.all(stockUpdates)
-                  .then(() => {
-                    // ✅ VOUCHER LOGIC (HỖ TRỢ NHIỀU MÃ)
-                    const handleVoucher = (cb) => {
-                      if (
-                        !voucher_ids ||
-                        !Array.isArray(voucher_ids) ||
-                        voucher_ids.length === 0
-                      ) {
-                        return cb();
-                      }
-
-                      const sql = `
-                        UPDATE user_vouchers uv
-                        JOIN vouchers v ON uv.voucher_id = v.voucher_id
-                        SET 
-                          uv.used = 1,
-                          v.used = v.used + 1,
-                          v.status = CASE WHEN (v.used + 1) >= v.quantity THEN 'inactive' ELSE v.status END
-                        WHERE uv.user_id = ?
-                          AND uv.voucher_id IN (?)
-                          AND uv.used = 0
-                          AND v.status = 'active'
-                          AND v.quantity > v.used
-                      `;
-
-                      db.query(sql, [userId, voucher_ids], (err, resultV) => {
-                        if (err || resultV.affectedRows < voucher_ids.length) {
-                          return db.rollback(() =>
-                            res
-                              .status(400)
-                              .json({ message: "Voucher không khả dụng" }),
-                          );
-                        }
-                        cb();
-                      });
-                    };
-
-                    handleVoucher(() => {
-                      db.commit((commitErr) => {
-                        if (commitErr) {
-                          return db.rollback(() =>
-                            res.status(500).json({ message: "Lỗi commit" }),
-                          );
-                        }
-
-                        // ✅ LOGIC AUTO CHAT REAL-TIME (Thông báo đơn hàng)
-                        Chat.getOrCreateThreadByUserId(
-                          userId,
-                          (errT, thread) => {
-                            if (!errT && thread) {
-                              const systemMessage = `🎉 Đơn hàng #${orderId} thành công!\n💰 Tổng: ${totalNumber.toLocaleString()} đ\n💳 PTTT: ${payment_method === "qr" ? "Chuyển khoản QR" : "Tiền mặt"}\n🚚 Tiger Shop đang chuẩn bị hàng cho bạn!`;
-
-                              Chat.createMessage(
-                                {
-                                  threadId: thread.id,
-                                  senderRole: "SYSTEM",
-                                  senderId: 0,
-                                  receiverId: userId,
-                                  message: systemMessage,
-                                  orderId: orderId,
-                                  type: "system",
-                                },
-                                (errM, newMessage) => {
-                                  if (!errM && global.io) {
-                                    global.io
-                                      .to(String(thread.id))
-                                      .emit("new_message", {
-                                        id: newMessage.insertId || Date.now(),
-                                        threadId: thread.id,
-                                        sender_role: "SYSTEM",
-                                        message: systemMessage,
-                                        created_at: new Date(),
-                                      });
-                                  }
-                                },
-                              );
-                            }
-                          },
-                        );
-
-                        return res.json({
-                          success: true,
-                          orderId,
-                          expected_delivery,
-                        });
-                      });
-                    });
-                  })
-                  .catch((err) => {
-                    db.rollback(() =>
-                      res.status(400).json({ message: err.message }),
-                    );
-                  });
-              },
-            );
-          },
-        );
-      },
+    // 2. Insert order
+    const [result] = await connection.query(
+      `INSERT INTO orders 
+        (user_id, total, status, receiver_name, receiver_phone, shipping_address, expected_delivery, payment_method) 
+       VALUES (?, ?, 'pending', ?, ?, ?, ?, ?)`,
+      [
+        userId,
+        totalNumber,
+        receiver_name,
+        receiver_phone,
+        shipping_address,
+        expected_delivery,
+        payment_method || "cod",
+      ]
     );
-  });
+    const orderId = result.insertId;
+
+    // 3. Insert order items
+    const values = items.map((i) => [
+      orderId,
+      i.product_id,
+      i.variant_id || null,
+      i.quantity,
+      i.price,
+      i.name || "Sản phẩm",
+      i.image || null
+    ]);
+
+    await connection.query(
+      "INSERT INTO order_items (order_id, product_id, variant_id, quantity, price, product_name, product_image) VALUES ?",
+      [values]
+    );
+
+    // 4. Update stock
+    for (const i of items) {
+      if (i.variant_id) {
+        const [resultStock] = await connection.query(
+          "UPDATE product_variants SET stock = stock - ? WHERE id = ? AND stock >= ?",
+          [i.quantity, i.variant_id, i.quantity]
+        );
+        if (resultStock.affectedRows === 0) {
+          throw new Error("Hết hàng hoặc ID variant sai. Variant ID: " + i.variant_id);
+        }
+      } else {
+        const [resultStock] = await connection.query(
+          "UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?",
+          [i.quantity, i.product_id, i.quantity]
+        );
+        if (resultStock.affectedRows === 0) {
+          throw new Error("Hết hàng (sản phẩm chính). Product ID: " + i.product_id);
+        }
+      }
+    }
+
+    // 5. Handle Voucher
+    if (voucher_ids && Array.isArray(voucher_ids) && voucher_ids.length > 0) {
+      const sql = `
+        UPDATE user_vouchers uv
+        JOIN vouchers v ON uv.voucher_id = v.voucher_id
+        SET 
+          uv.used = 1,
+          v.used = v.used + 1,
+          v.status = CASE WHEN (v.used + 1) >= v.quantity THEN 'inactive' ELSE v.status END
+        WHERE uv.user_id = ?
+          AND uv.voucher_id IN (?)
+          AND uv.used = 0
+          AND v.status = 'active'
+          AND v.quantity > v.used
+      `;
+      const [resultV] = await connection.query(sql, [userId, voucher_ids]);
+      if (resultV.affectedRows < voucher_ids.length) {
+        throw new Error("Voucher không khả dụng");
+      }
+    }
+
+    await connection.commit();
+
+    // ✅ LOGIC AUTO CHAT REAL-TIME (Thông báo đơn hàng)
+    Chat.getOrCreateThreadByUserId(userId, (errT, thread) => {
+      if (!errT && thread) {
+        const systemMessage = `🎉 Đơn hàng #${orderId} thành công!\n💰 Tổng: ${totalNumber.toLocaleString()} đ\n💳 PTTT: ${payment_method === "qr" ? "Chuyển khoản QR" : "Tiền mặt"}\n🚚 Tiger Shop đang chuẩn bị hàng cho bạn!`;
+
+        Chat.createMessage(
+          {
+            threadId: thread.id,
+            senderRole: "SYSTEM",
+            senderId: 0,
+            receiverId: userId,
+            message: systemMessage,
+            orderId: orderId,
+            type: "system",
+          },
+          (errM, newMessage) => {
+            if (!errM && global.io) {
+              global.io
+                .to(String(thread.id))
+                .emit("new_message", {
+                  id: newMessage.insertId || Date.now(),
+                  threadId: thread.id,
+                  sender_role: "SYSTEM",
+                  message: systemMessage,
+                  created_at: new Date(),
+                });
+            }
+          }
+        );
+      }
+    });
+
+    res.json({
+      success: true,
+      orderId,
+      expected_delivery,
+    });
+
+  } catch (err) {
+    if (connection) await connection.rollback();
+    res.status(500).json({ message: "Lỗi tạo đơn hàng: " + err.message, error: err.message });
+  } finally {
+    if (connection) connection.release();
+  }
 };
 
 /* =====================================================
     USER – GET ORDERS & DETAIL (CẬP NHẬT TRƯỜNG THANH TOÁN)
 ===================================================== */
-exports.getOrdersByUser = (req, res) => {
-  const sql = `
-    SELECT id AS orderId, total, status, created_at, receiver_name, receiver_phone, 
-           shipping_address, expected_delivery, payment_method
-    FROM orders WHERE user_id = ? ORDER BY created_at DESC
-  `;
-  db.query(sql, [req.user.id], (err, rows) => {
-    if (err) {
-      console.error("Lỗi getOrdersByUser:", err.message);
-      return res.status(500).json({ message: "Lỗi lấy đơn hàng" });
-    }
-    res.json(rows.map(r => ({ ...r, totalSold: r.totalSold?Number(r.totalSold):undefined, total_revenue: r.total_revenue?Number(r.total_revenue):undefined, revenue: r.revenue?Number(r.revenue):undefined, count: r.count?Number(r.count):undefined })));
-  });
+exports.getOrdersByUser = async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(
+      `SELECT id AS orderId, total, status, created_at, receiver_name, receiver_phone, 
+              shipping_address, expected_delivery, payment_method
+       FROM orders WHERE user_id = ? ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi lấy đơn hàng" });
+  }
 };
 
-exports.getOrderDetail = (req, res) => {
-  const sql = `
-    SELECT o.id AS orderId, o.total, o.status, o.created_at, o.receiver_name, o.receiver_phone, 
-           o.shipping_address, o.expected_delivery, o.payment_method,
-           p.id AS product_id, p.name, p.image, pv.variant_name, oi.quantity, oi.price
-    FROM orders o 
-    JOIN order_items oi ON o.id = oi.order_id 
-    JOIN product_variants pv ON oi.variant_id = pv.id
-    JOIN products p ON pv.product_id = p.id 
-    WHERE o.id = ? AND o.user_id = ?
-  `;
-  db.query(sql, [req.params.id, req.user.id], (err, rows) => {
-    if (err || !rows?.length)
+exports.getOrderDetail = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const userId = req.user.id;
+
+    const [orders] = await db.promise().query(
+      `SELECT id AS orderId, total, status, created_at, receiver_name, receiver_phone, 
+              shipping_address, expected_delivery, payment_method 
+       FROM orders WHERE id = ? AND user_id = ?`,
+      [orderId, userId]
+    );
+
+    if (!orders || orders.length === 0) {
       return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+    }
+
+    const orderInfo = orders[0];
+
+    const [items] = await db.promise().query(
+      `SELECT oi.quantity, oi.price,
+              oi.product_id, 
+              IFNULL(oi.product_name, p.name) AS name, 
+              IFNULL(oi.product_image, p.image) AS image,
+              pv.variant_name
+       FROM order_items oi
+       LEFT JOIN products p ON oi.product_id = p.id
+       LEFT JOIN product_variants pv ON oi.variant_id = pv.id
+       WHERE oi.order_id = ?`,
+      [orderId]
+    );
 
     res.json({
-      orderId: rows[0].orderId,
-      total: rows[0].total,
-      status: rows[0].status,
-      created_at: rows[0].created_at,
-      receiver_name: rows[0].receiver_name,
-      receiver_phone: rows[0].receiver_phone,
-      shipping_address: rows[0].shipping_address,
-      expected_delivery: rows[0].expected_delivery,
-      payment_method: rows[0].payment_method,
-      items: rows.map((r) => ({
+      ...orderInfo,
+      items: items.map(r => ({
         product_id: r.product_id,
-        name: r.name,
-        variant_name: r.variant_name,
-        image: r.image,
+        name: r.name || "Sản phẩm Tiger Shop",
+        variant_name: r.variant_name || null,
+        image: r.image || null,
         quantity: r.quantity,
-        price: r.price,
-      })),
+        price: r.price
+      }))
     });
-  });
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi lấy chi tiết đơn hàng", error: error.message });
+  }
 };
 
 /* =====================================================
     ADMIN – MANAGEMENT (CẬP NHẬT TRƯỜNG THANH TOÁN)
 ===================================================== */
-exports.getAllOrdersAdmin = (req, res) => {
-  const sql = `
-    SELECT o.id AS orderId, o.total, o.status, o.created_at, o.receiver_name, o.receiver_phone, 
-           o.shipping_address, o.expected_delivery, o.payment_method, u.email 
-    FROM orders o 
-    LEFT JOIN users u ON o.user_id = u.id 
-    ORDER BY o.created_at DESC
-  `;
-  db.query(sql, (err, rows) => {
-    if (err) {
-      console.error("Lỗi getAllOrdersAdmin:", err.message);
-      return res.status(500).json({ message: "Lỗi admin orders" });
-    }
-    res.json(rows.map(r => ({ ...r, totalSold: r.totalSold?Number(r.totalSold):undefined, total_revenue: r.total_revenue?Number(r.total_revenue):undefined, revenue: r.revenue?Number(r.revenue):undefined, count: r.count?Number(r.count):undefined })));
-  });
+exports.getAllOrdersAdmin = async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(`
+      SELECT o.id AS orderId, o.total, o.status, o.created_at, o.receiver_name, o.receiver_phone, 
+             o.shipping_address, o.expected_delivery, o.payment_method, u.email 
+      FROM orders o 
+      LEFT JOIN users u ON o.user_id = u.id 
+      ORDER BY o.created_at DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error("Lỗi getAllOrdersAdmin:", err.message);
+    res.status(500).json({ message: "Lỗi admin orders" });
+  }
 };
 
-exports.getOrderDetailAdmin = (req, res) => {
-  const sql = `
-    SELECT o.id AS orderId, o.total, o.status, o.created_at, o.receiver_name, o.receiver_phone, 
-           o.shipping_address, o.expected_delivery, o.payment_method, u.email, 
-           p.name, p.image, pv.variant_name, oi.quantity, oi.price
-    FROM orders o 
-    LEFT JOIN users u ON o.user_id = u.id 
-    JOIN order_items oi ON o.id = oi.order_id 
-    JOIN product_variants pv ON oi.variant_id = pv.id 
-    JOIN products p ON pv.product_id = p.id
-    WHERE o.id = ?
-  `;
-  db.query(sql, [req.params.id], (err, rows) => {
-    if (err || !rows?.length)
+exports.getOrderDetailAdmin = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+
+    const [orders] = await db.promise().query(
+      `SELECT o.id AS orderId, o.total, o.status, o.created_at, o.receiver_name, o.receiver_phone, 
+              o.shipping_address, o.expected_delivery, o.payment_method, u.email,
+              v.code AS voucher_code, staff.name AS staff_name
+       FROM orders o
+       LEFT JOIN users u ON o.user_id = u.id
+       LEFT JOIN vouchers v ON o.voucher_id = v.id
+       LEFT JOIN users staff ON o.processed_by = staff.id
+       WHERE o.id = ?`,
+      [orderId]
+    );
+
+    // Removed debug log
+
+    if (!orders || orders.length === 0) {
       return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+    }
+
+    const orderInfo = orders[0];
+
+    const [items] = await db.promise().query(
+      `SELECT oi.quantity, oi.price,
+              oi.product_id, 
+              IFNULL(oi.product_name, p.name) AS name, 
+              IFNULL(oi.product_image, p.image) AS image,
+              pv.variant_name
+       FROM order_items oi
+       LEFT JOIN products p ON oi.product_id = p.id
+       LEFT JOIN product_variants pv ON oi.variant_id = pv.id
+       WHERE oi.order_id = ?`,
+      [orderId]
+    );
 
     res.json({
-      orderId: rows[0].orderId,
-      email: rows[0].email,
-      total: rows[0].total,
-      status: rows[0].status,
-      created_at: rows[0].created_at,
-      receiver_name: rows[0].receiver_name,
-      receiver_phone: rows[0].receiver_phone,
-      shipping_address: rows[0].shipping_address,
-      expected_delivery: rows[0].expected_delivery,
-      payment_method: rows[0].payment_method,
-      items: rows.map((r) => ({
-        name: r.name,
-        variant_name: r.variant_name,
-        image: r.image,
+      ...orderInfo,
+      items: items.map(r => ({
+        product_id: r.product_id,
+        name: r.name || "Sản phẩm Tiger Shop",
+        variant_name: r.variant_name || null,
+        image: r.image || null,
         quantity: r.quantity,
-        price: r.price,
-      })),
+        price: r.price
+      }))
     });
-  });
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi lấy chi tiết đơn hàng (Admin)", error: error.message });
+  }
 };
 
-exports.updateOrderStatus = (req, res) => {
+exports.updateOrderStatus = async (req, res) => {
   const { status } = req.body;
   const orderId = req.params.id;
   const actorId = req.user.id;
 
-  // 1. Lấy trạng thái cũ
-  db.query("SELECT status FROM orders WHERE id = ?", [orderId], (errRows, rows) => {
-    if (errRows || !rows.length) return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+  try {
+    const [rows] = await db.promise().query("SELECT status FROM orders WHERE id = ?", [orderId]);
+    if (!rows.length) return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
     const oldStatus = rows[0].status;
 
-    // 2. Cập nhật (Thêm processed_by để tính hoa hồng cho nhân viên)
-    const sql = "UPDATE orders SET status = ?, processed_by = ? WHERE id = ?";
-    db.query(
-      sql,
-      [status, actorId, orderId],
-      (err) => {
-        if (err) {
-          console.error("Lỗi updateOrderStatus:", err.message);
-          return res.status(500).json({ message: "Lỗi cập nhật" });
-        }
-
-        // Ghi log chi tiết
-        const logAction = `Đã đổi trạng thái đơn hàng #${orderId} từ ${oldStatus.toUpperCase()} sang ${status.toUpperCase()}`;
-        db.query(
-          "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
-          [actorId, logAction, orderId]
-        );
-
-        res.json({ success: true });
-      },
+    await db.promise().query(
+      "UPDATE orders SET status = ?, processed_by = ? WHERE id = ?",
+      [status, actorId, orderId]
     );
-  });
+
+    const logAction = `Đã đổi trạng thái đơn hàng #${orderId} từ ${oldStatus.toUpperCase()} sang ${status.toUpperCase()}`;
+    await db.promise().query(
+      "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
+      [actorId, logAction, orderId]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Lỗi updateOrderStatus:", err.message);
+    res.status(500).json({ message: "Lỗi cập nhật trạng thái đơn hàng" });
+  }
 };
 
 /* =====================================================
    CANCEL ORDER – Staff & Customer (stock restore)
 ===================================================== */
-exports.cancelOrder = (req, res) => {
+exports.cancelOrder = async (req, res) => {
   const orderId = req.params.id;
   const userId  = req.user.id;
   const userRole = String(req.user.role || "").toUpperCase();
   const { reason } = req.body;
 
-  // Staff PHẢI có lý do hủy
   if (userRole === "STAFF" && !reason?.trim()) {
     return res.status(400).json({ message: "Staff phải nhập lý do hủy đơn" });
   }
 
-  // 1. Lấy đơn hàng để kiểm tra quyền và trạng thái
-  const getOrderSql = `
-    SELECT o.id, o.status, o.user_id,
-           oi.variant_id, oi.quantity
-    FROM orders o
-    JOIN order_items oi ON oi.order_id = o.id
-    WHERE o.id = ?
-  `;
+  let connection;
+  try {
+    connection = await db.promise().getConnection();
 
-  db.query(getOrderSql, [orderId], (err, rows) => {
-    if (err) return res.status(500).json({ message: "Lỗi truy vấn đơn hàng" });
+    const getOrderSql = `
+      SELECT o.id, o.status, o.user_id,
+             oi.variant_id, oi.product_id, oi.quantity
+      FROM orders o
+      JOIN order_items oi ON oi.order_id = o.id
+      WHERE o.id = ?
+    `;
+
+    const [rows] = await connection.query(getOrderSql, [orderId]);
+    
     if (!rows.length) return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
 
     const order = rows[0];
@@ -401,63 +369,45 @@ exports.cancelOrder = (req, res) => {
       return res.status(400).json({ message: `Không thể hủy đơn hàng đã ${order.status}` });
     }
 
-    db.beginTransaction((txErr) => {
-      if (txErr) return res.status(500).json({ message: "Lỗi transaction" });
+    await connection.beginTransaction();
 
-      // 2. Cập nhật trạng thái đơn
-      const cancelNote = reason ? `Lý do: ${reason}` : null;
-      db.query(
-        "UPDATE orders SET status = 'cancelled', cancel_reason = ? WHERE id = ?",
-        [cancelNote, orderId],
-        (updateErr) => {
-          if (updateErr) {
-            return db.rollback(() =>
-              res.status(500).json({ message: "Lỗi hủy đơn hàng" })
-            );
-          }
+    const cancelNote = reason ? `Lý do: ${reason}` : null;
+    await connection.query(
+      "UPDATE orders SET status = 'cancelled', cancel_reason = ? WHERE id = ?",
+      [cancelNote, orderId]
+    );
 
-          // 3. HOÀN TRẢ KHO – Cộng lại stock cho từng variant
-          const restorePromises = rows.map(item => {
-            return new Promise((resolve, reject) => {
-              db.query(
-                "UPDATE product_variants SET stock = stock + ? WHERE id = ?",
-                [item.quantity, item.variant_id],
-                (stockErr) => {
-                  if (stockErr) reject(stockErr);
-                  else resolve();
-                }
-              );
-            });
-          });
+    // Hoàn trả kho
+    for (const item of rows) {
+      if (item.variant_id) {
+        await connection.query(
+          "UPDATE product_variants SET stock = stock + ? WHERE id = ?",
+          [item.quantity, item.variant_id]
+        );
+      } else if (item.product_id) {
+        await connection.query(
+          "UPDATE products SET stock = stock + ? WHERE id = ?",
+          [item.quantity, item.product_id]
+        );
+      }
+    }
 
-          Promise.all(restorePromises)
-            .then(() => {
-              db.commit((commitErr) => {
-                if (commitErr) {
-                  return db.rollback(() =>
-                    res.status(500).json({ message: "Lỗi commit transaction" })
-                  );
-                }
+    const logAction = `Đã hủy đơn hàng #${orderId}. ${reason ? `Lý do: ${reason}` : ""}`;
+    await connection.query(
+      "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
+      [userId, logAction, orderId]
+    );
 
-                // Ghi log hủy đơn
-                const logAction = `Đã hủy đơn hàng #${orderId}. ${reason ? `Lý do: ${reason}` : ""}`;
-                db.query(
-                  "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
-                  [req.user.id, logAction, orderId]
-                );
+    await connection.commit();
 
-                res.json({ success: true, message: "Đã hủy đơn hàng và hoàn trả kho thành công" });
-              });
-            })
-            .catch((stockErr) => {
-              db.rollback(() =>
-                res.status(500).json({ message: "Lỗi hoàn trả kho: " + stockErr.message })
-              );
-            });
-        }
-      );
-    });
-  });
+    res.json({ success: true, message: "Đã hủy đơn hàng và hoàn trả kho thành công" });
+
+  } catch (err) {
+    if (connection) await connection.rollback();
+    res.status(500).json({ message: "Lỗi hủy đơn hàng: " + err.message });
+  } finally {
+    if (connection) connection.release();
+  }
 };
 
 
