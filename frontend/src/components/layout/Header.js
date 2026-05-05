@@ -1,11 +1,15 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
+import UserMenu from "../common/UserMenu";
 import "./Header.css";
 
+import { io } from "socket.io-client";
+import { getUnreadNotificationCount } from "../../services/api";
+
 function Header({ cart = [], cartCount = 0, onSearch }) {
+  const [unreadCount, setUnreadCount] = useState(0);
   const [keyword, setKeyword] = useState("");
   const [isLogin, setIsLogin] = useState(false);
-  const [userName, setUserName] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
 
   const navigate = useNavigate();
@@ -20,26 +24,48 @@ function Header({ cart = [], cartCount = 0, onSearch }) {
     const role = (localStorage.getItem("role") || "").toLowerCase();
     setIsAdmin(role === "admin");
 
-    if (token) {
-      try {
-        const user = JSON.parse(localStorage.getItem("user"));
-        setUserName(user?.name || "");
-      } catch {
-        setUserName("");
-      }
-    } else {
-      setUserName("");
-    }
+    // Logic cũ đã được di chuyển một phần sang UserMenu,
+    // ở đây ta chỉ cần role để hiển thị Menu phù hợp.
   }, [location.pathname]);
 
-  // ===== LOGOUT =====
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("user");
-    navigate("/login");
-    window.location.reload();
-  };
+  // ===== SOCKET & NOTIFICATION =====
+  useEffect(() => {
+    if (!isLogin) {
+      setUnreadCount(0);
+      return;
+    }
+
+    // Lấy số đếm ban đầu
+    getUnreadNotificationCount()
+      .then((res) => setUnreadCount(res.count || 0))
+      .catch((err) => console.error("Lỗi lấy thông báo:", err));
+
+    // Lắng nghe socket
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const socket = io("http://localhost:5000", { transports: ["websocket"] });
+    
+    // Yêu cầu join room nếu backend cần
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    if (user.id) {
+      socket.emit("joinUserRoom", user.id); // Tùy thuộc logic backend
+    }
+
+    socket.on("new_notification_count", (count) => {
+      setUnreadCount(count);
+    });
+
+    const handleRead = () => setUnreadCount(0);
+    window.addEventListener("notifications_read", handleRead);
+
+    return () => {
+      socket.disconnect();
+      window.removeEventListener("notifications_read", handleRead);
+    };
+  }, [isLogin]);
+
+
 
   // ===== SEARCH =====
   const handleSearch = (e) => {
@@ -95,8 +121,6 @@ function Header({ cart = [], cartCount = 0, onSearch }) {
 
       {/* ===== RIGHT ===== */}
       <div className="header-right">
-
-
         {/* 🛒 CART ITEM - Thêm class cart-icon-nav để làm hiệu ứng bay */}
         <Link to="/cart" className="cart-btn cart-icon-nav">
           🛒
@@ -106,19 +130,7 @@ function Header({ cart = [], cartCount = 0, onSearch }) {
         </Link>
 
         {isLogin ? (
-          <div className="user-box">
-            <span
-              className="user-name"
-              onClick={() => navigate("/profile")}
-              style={{ cursor: "pointer" }}
-            >
-              👤 {userName}
-            </span>
-
-            <button className="logout-btn" onClick={handleLogout}>
-              Logout
-            </button>
-          </div>
+          <UserMenu textColor="text-white" unreadCount={unreadCount} />
         ) : (
           <Link to="/login" className="login-link">
             Login

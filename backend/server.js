@@ -24,6 +24,7 @@ const variantRoutes = require("./routes/variantRoutes");
 const voucherRoutes = require("./routes/voucherRoutes");
 const userVoucherRoutes = require("./routes/userVoucherRoutes");
 const shiftRoutes = require("./routes/shiftRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 /* ================= SOCKET ================= */
 const { initSocket } = require("./socket");
@@ -50,6 +51,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/chat/admin", adminChatRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/shifts", shiftRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 /* ================= SOCKET INIT ================= */
 // Chỉnh sửa tại đây: Lưu io vào global

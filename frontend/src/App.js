@@ -21,6 +21,7 @@ import ProductDetail from "./pages/customer/ProductDetail";
 import Cart from "./components/customer/Cart";
 import Profile from "./pages/customer/Profile";
 import Vouchers from "./pages/customer/Vouchers";
+import Notifications from "./pages/customer/Notifications";
 
 /* ================= ADMIN ================= */
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -39,6 +40,7 @@ import ManagerVoucher from "./components/manager/ManagerVoucher";
 
 /* ================= CHAT ================= */
 import ChatWidget from "./components/chat/ChatWidget";
+import AiChatWidget from "./components/chat/AiChatWidget";
 
 function App() {
   const [cart, setCart] = useState([]);
@@ -169,6 +171,15 @@ function App() {
           element={
             <Layout cart={cart}>
               <Vouchers />
+            </Layout>
+          }
+        />
+
+        <Route
+          path="/notifications"
+          element={
+            <Layout cart={cart}>
+              <Notifications />
             </Layout>
           }
         />
@@ -406,7 +417,12 @@ function App() {
       </Routes>
 
       {/* ================= CUSTOMER CHAT ================= */}
-      {!hideChat && <ChatWidget />}
+      {!hideChat && (
+        <>
+          <AiChatWidget />
+          <ChatWidget />
+        </>
+      )}
     </>
   );
 }

@@ -38,54 +38,83 @@ export default function ChatWidget() {
     })();
   }, [open, token, role]);
 
-  // ✅ Fix lắng nghe Socket: Đảm bảo tên Event khớp với Backend (send_message / newMessage)
+  // ✅ Fix lắng nghe Socket: Đảm bảo tên Event khớp với Backend
   useEffect(() => {
     if (!socket || !threadId || !token) return;
 
-    socket.emit("joinThread", { threadId }); // Khớp với Backend joinThread
+    socket.emit("join_thread", { threadId }); // ✅ Khớp với Backend join_thread
 
     const onNew = (msg) => {
       if (String(msg.threadId) === String(threadId)) {
         setMessages((prev) => {
-          // Chống trùng lặp tin nhắn
+          // Chống trùng lặp tin nhắn bằng ID thật
           if (prev.find((m) => m.id === msg.id)) return prev;
+          // Nếu đây là tin nhắn do chính mình gửi (server echo), thay thế tin tạm
+          const tempIndex = prev.findIndex(
+            (m) => m.isTemp && m.message === msg.message && 
+            (m.senderRole === msg.senderRole || m.sender_role === msg.sender_role)
+          );
+          if (tempIndex !== -1) {
+            const updated = [...prev];
+            updated[tempIndex] = { ...msg, isTemp: false, isError: false };
+            return updated;
+          }
           return [...prev, msg];
         });
       }
     };
 
+    socket.on("receive_message", onNew);
     socket.on("newMessage", onNew);
-    return () => socket.off("newMessage", onNew);
+    return () => {
+      socket.off("receive_message", onNew);
+      socket.off("newMessage", onNew);
+    };
   }, [socket, threadId, token]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
 
-  // ✅ Fix hàm gửi tin nhắn: Gửi qua Socket để kích hoạt AI trả lời tự động ngay lập tức
+  // ✅ Tối ưu hoá UI: Hiển thị ngay lập tức (Optimistic UI)
   const onSend = () => {
     const m = text.trim();
     if (!m || !threadId || !currentUser.id) return;
 
+    const tempId = "temp-" + Date.now();
     const payload = {
+      id: tempId,
       threadId: threadId,
       senderRole: "CUSTOMER",
-      senderId: currentUser.id, // ID người dùng thực tế
+      sender_role: "CUSTOMER",
+      senderId: currentUser.id,
       message: m,
       orderId: orderId ? Number(orderId) : null,
+      isTemp: true,
     };
 
-    // Gửi qua socket thay vì gọi API POST để AI ở Backend nhận diện được ngay
-    socket.emit("send_message", payload);
+    // 1. Cập nhật UI ngay lập tức
+    setMessages(prev => [...prev, payload]);
+
+    // 2. Gửi qua socket với callback xác nhận
+    socket.emit("send_message", payload, (response) => {
+      if (response && response.success) {
+        setMessages(prev => prev.map(msg => msg.id === tempId ? { ...msg, isTemp: false } : msg));
+      } else {
+        setMessages(prev => prev.map(msg => msg.id === tempId ? { ...msg, isError: true } : msg));
+      }
+    });
+
+    // Timeout nếu server sập không phản hồi
+    setTimeout(() => {
+      setMessages(prev => prev.map(msg => (msg.id === tempId && msg.isTemp) ? { ...msg, isError: true } : msg));
+    }, 10000);
 
     setText("");
     setOrderId("");
   };
 
-  const onRequestStaff = () => {
-    if (!threadId || !socket) return;
-    socket.emit("request_staff", { threadId });
-  };
+
 
   if (!token || role !== "CUSTOMER") return null;
 
@@ -101,7 +130,7 @@ export default function ChatWidget() {
       {open && (
         <div className="chat-panel">
           <div className="chat-header">
-            <div className="chat-title">🐯 Trợ lý Tiger Shop</div>
+            <div className="chat-title">👨‍💼 Hỗ trợ viên Tiger</div>
             <button className="close-btn" onClick={() => setOpen(false)}>
               ×
             </button>
@@ -145,6 +174,7 @@ export default function ChatWidget() {
                       <div className="system-tag">🤖 TRỢ LÝ TIGER</div>
                     )}
                     {m.message}
+                    {m.isError && <span title="Chưa gửi được do lỗi mạng hoặc server" style={{marginLeft: 8, fontSize: 14}}>⚠️</span>}
                   </div>
                 </div>
               );
@@ -152,11 +182,7 @@ export default function ChatWidget() {
             <div ref={bottomRef} />
           </div>
 
-          <div className="chat-actions-bar">
-            <button className="btn-request-staff" onClick={onRequestStaff}>
-              🙋‍♂️ Chat với nhân viên
-            </button>
-          </div>
+
 
           <div className="chat-input-area">
             <input

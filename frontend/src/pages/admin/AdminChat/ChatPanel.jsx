@@ -3,7 +3,8 @@ import { io } from "socket.io-client";
 import { getAiSuggestion } from "../../../services/chatApi";
 import "./ChatPanel.css";
 
-const socket = io("http://localhost:5000");
+const BACKEND_URL = "http://localhost:5000";
+const socket = io(BACKEND_URL, { transports: ["websocket"] });
 
 function ChatPanel({ user }) {
   const [messages, setMessages] = useState([]);
@@ -20,14 +21,20 @@ function ChatPanel({ user }) {
     const handleNewMessage = (msg) => {
       // Ép kiểu String để so sánh chính xác threadId
       if (String(msg.threadId) === String(user.threadId)) {
-        setMessages((prev) => [...prev, msg]);
+        setMessages((prev) => {
+          // Chống trùng lặp tin nhắn
+          if (prev.find((m) => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
       }
     };
 
-    socket.on("new_message", handleNewMessage);
+    socket.on("receive_message", handleNewMessage);
+    socket.on("newMessage", handleNewMessage);
 
     return () => {
-      socket.off("new_message", handleNewMessage);
+      socket.off("receive_message", handleNewMessage);
+      socket.off("newMessage", handleNewMessage);
     };
   }, [user]);
 
@@ -35,7 +42,7 @@ function ChatPanel({ user }) {
   useEffect(() => {
     if (!user?.threadId) return;
 
-    fetch(`http://localhost:5000/api/chat/admin/messages/${user.threadId}`, {
+    fetch(`${BACKEND_URL}/api/chat/admin/messages/${user.threadId}`, {
       headers: {
         Authorization: "Bearer " + localStorage.getItem("token"),
       },
@@ -58,25 +65,14 @@ function ChatPanel({ user }) {
     const currentText = text;
     setText(""); // Clear ngay lập tức để UX mượt hơn
 
-    fetch(`http://localhost:5000/api/chat/admin/messages/${user.threadId}`, {
+    fetch(`${BACKEND_URL}/api/chat/admin/messages/${user.threadId}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: "Bearer " + localStorage.getItem("token"),
       },
       body: JSON.stringify({ content: currentText }),
-    }).then(() => {
-      // Local append để Admin thấy tin nhắn của mình ngay
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          sender_role: "ADMIN",
-          message: currentText,
-          threadId: user.threadId,
-        },
-      ]);
-    });
+    }).catch((err) => console.error("Send message error:", err));
   };
 
   const handleAiSuggest = async () => {

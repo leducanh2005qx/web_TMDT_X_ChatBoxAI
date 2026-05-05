@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
+import UserMenu from "../common/UserMenu";
 import "./AdminHeader.css";
 
 function ManagerHeader() {
@@ -43,9 +44,7 @@ function ManagerHeader() {
           <span className="admin-role">MANAGER</span>
         </div>
 
-        <button className="admin-logout" onClick={logout}>
-          Đăng xuất
-        </button>
+        <UserMenu />
       </div>
     </header>
   );

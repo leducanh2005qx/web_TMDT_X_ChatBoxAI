@@ -190,6 +190,11 @@ export const getOrderById = (orderId) =>
     handleResponse,
   );
 
+export const getOrderDetailAdmin = (orderId) =>
+  fetch(`${API_URL}/orders/admin/${orderId}`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
 export const getAllOrdersAdmin = () =>
   fetch(`${API_URL}/orders/admin`, { headers: getAuthHeader() }).then(
     handleResponse,
@@ -660,3 +665,22 @@ export const updateOrderStatus = (id, status) =>
     headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify({ status }),
   }).then(handleResponse);
+
+/* ================= NOTIFICATIONS ================= */
+
+export const getUnreadNotificationCount = () =>
+  fetch(`${API_URL}/notifications/unread`, { headers: getAuthHeader() }).then(
+    handleResponse
+  );
+
+export const getNotifications = () =>
+  fetch(`${API_URL}/notifications`, { headers: getAuthHeader() }).then(
+    handleResponse
+  );
+
+export const markNotificationsAsRead = () =>
+  fetch(`${API_URL}/notifications/mark-read`, {
+    method: "PUT",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+

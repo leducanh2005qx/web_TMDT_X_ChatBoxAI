@@ -1,4 +1,5 @@
 const Chat = require("../models/Chat");
+const db = require("../config/db");
 
 /* ================= ADMIN ================= */
 
@@ -47,14 +48,27 @@ exports.sendMessageAdmin = (req, res) => {
         return res.status(500).json({ message: "Lỗi gửi tin" });
       }
 
-      // ✅ PHÁT TÍN HIỆU REAL-TIME ĐẾN KHÁCH HÀNG
+      const msgPayload = {
+        id: result.insertId || Date.now(),
+        threadId: threadId,
+        sender_role: "ADMIN",
+        senderRole: "ADMIN",
+        senderId: req.user.id,
+        message: content,
+        created_at: new Date(),
+        createdAt: new Date(),
+      };
+
+      // ✅ PHÁT TÍN HIỆU REAL-TIME ĐẾN KHÁCH HÀNG (emit cả 3 event để đồng bộ)
       if (global.io) {
-        global.io.to(threadId).emit("new_message", {
-          id: result.insertId || Date.now(),
-          threadId: threadId,
-          sender_role: "ADMIN",
-          message: content,
-          created_at: new Date(),
+        global.io.to(String(threadId)).emit("receive_message", msgPayload);
+        global.io.to(String(threadId)).emit("newMessage", msgPayload);
+
+        // 🔔 Badge: Gửi notification count đến user room của khách hàng
+        db.query("SELECT user_id FROM threads WHERE id = ?", [threadId], (e, rows) => {
+          if (!e && rows.length > 0 && rows[0].user_id) {
+            global.io.to(String(rows[0].user_id)).emit("new_notification_count", 1);
+          }
         });
       }
 
@@ -103,15 +117,21 @@ exports.sendMessageUser = (req, res) => {
     (err, result) => {
       if (err) return res.status(500).json({ message: "Lỗi gửi tin" });
 
-      // ✅ PHÁT TÍN HIỆU REAL-TIME ĐẾN ADMIN
+      const msgPayload = {
+        id: result.insertId || Date.now(),
+        threadId: threadId,
+        sender_role: "USER",
+        senderRole: "USER",
+        senderId: req.user.id,
+        message: content,
+        created_at: new Date(),
+        createdAt: new Date(),
+      };
+
+      // ✅ PHÁT TÍN HIỆU REAL-TIME ĐẾN ADMIN (emit cả 3 event để đồng bộ)
       if (global.io) {
-        global.io.to(threadId).emit("new_message", {
-          id: result.insertId || Date.now(),
-          threadId: threadId,
-          sender_role: "USER",
-          message: content,
-          created_at: new Date(),
-        });
+        global.io.to(String(threadId)).emit("receive_message", msgPayload);
+        global.io.to(String(threadId)).emit("newMessage", msgPayload);
       }
 
       res.json({ success: true });

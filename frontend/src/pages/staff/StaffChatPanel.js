@@ -45,6 +45,7 @@ export default function StaffChatPanel({ thread, onBack }) {
       }
     };
 
+    socket.on("receive_message", onNew);
     socket.on("newMessage", onNew);
     socket.on("thread_status_updated", (data) => {
       if (String(data.threadId) === String(thread.threadId) && typeof data.isAiMuted !== 'undefined') {
@@ -56,10 +57,11 @@ export default function StaffChatPanel({ thread, onBack }) {
     fetchSuggestions();
 
     return () => {
+      socket.off("receive_message", onNew);
       socket.off("newMessage", onNew);
-      socket.disconnect();
+      socket.off("thread_status_updated");
     };
-  }, [thread.threadId]);
+  }, [thread.threadId, socket]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

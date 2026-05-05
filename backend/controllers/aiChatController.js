@@ -1,62 +1,144 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const db = require("../config/db");
 const Chat = require("../models/Chat");
 
 /**
- * Lấy gợi ý phản hồi nhanh cho nhân viên dựa trên ngữ cảnh chat
+ * Lấy gợi ý phản hồi nhanh cho nhân viên
+ * 🔇 AI TẠM THỜI VÔ HIỆU HÓA - Trả về gợi ý tĩnh để tránh lỗi 404
+ * Khi cần bật lại AI, uncomment code GoogleGenerativeAI bên dưới
  */
 exports.getChatSuggestions = async (req, res) => {
   const { threadId } = req.params;
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    return res.json(["Chào bạn, Tiger Shop có thể giúp gì?", "Bạn cần tư vấn sản phẩm nào?", "Đơn hàng của bạn đang được xử lý."]);
-  }
 
   try {
-    // 1. Lấy 5 tin nhắn gần nhất
-    Chat.getMessages(threadId, 5, async (err, messages) => {
+    // Lấy tin nhắn cuối cùng của khách để tạo gợi ý thông minh hơn
+    Chat.getMessages(threadId, 3, (err, messages) => {
       if (err) return res.status(500).json({ message: "Lỗi lấy tin nhắn" });
 
-      // Nếu không có tin nhắn, dùng prompt mặc định
-      const context = messages && messages.length > 0 
-        ? messages.map(m => `${m.sender_role}: ${m.message}`).join("\n")
-        : "Khách hàng vừa tham gia chat.";
-      
-      const genAI = new GoogleGenerativeAI(apiKey);
-      // Dùng gemini-1.5-flash theo API chuẩn mới nhất
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const lastCustomerMsg = messages && messages.length > 0
+        ? messages.filter(m => m.sender_role === "CUSTOMER" || m.sender_role === "USER").pop()
+        : null;
 
-      const prompt = `Bạn là cố vấn cho nhân viên chăm sóc khách hàng của Tiger Shop.
-Dựa trên hội thoại dưới đây, hãy gợi ý 3 câu trả lời ngắn gọn (dưới 15 từ mỗi câu) để nhân viên có thể gửi nhanh cho khách.
-Trả về định dạng:
-1. Câu 1
-2. Câu 2
-3. Câu 3
+      // Gợi ý tĩnh thông minh dựa trên nội dung tin nhắn khách
+      let suggestions = [
+        "Dạ chào sếp, Tiger Shop xin phục vụ ạ! 🐯",
+        "Sếp cần em hỗ trợ thêm thông tin gì không ạ?",
+        "Dạ Tiger đang kiểm tra ngay cho sếp nhé! 🐯"
+      ];
 
-HỘI THOẠI:
-${context}`;
-
-      try {
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-        
-        // Trích xuất các câu trả lời (giả định định dạng 1. ..., 2. ...)
-        const lines = text.split("\n").filter(l => l.match(/^\d\./));
-        const suggestions = lines.map(l => l.replace(/^\d\.\s*/, "").trim());
-
-        if (suggestions.length > 0) {
-          res.json(suggestions);
-        } else {
-          throw new Error("No suggestions found");
+      if (lastCustomerMsg) {
+        const msg = lastCustomerMsg.message.toLowerCase();
+        if (msg.includes("đơn") || msg.includes("giao") || msg.includes("ship")) {
+          suggestions = [
+            "Dạ để em kiểm tra trạng thái đơn hàng cho sếp ngay ạ! 🐯",
+            "Đơn hàng của sếp đang được xử lý, sếp yên tâm nhé!",
+            "Sếp cho em xin mã đơn hàng để kiểm tra nhanh hơn ạ!"
+          ];
+        } else if (msg.includes("giá") || msg.includes("mua") || msg.includes("sản phẩm")) {
+          suggestions = [
+            "Dạ sản phẩm này đang có giá ưu đãi lắm sếp ơi! 🐯",
+            "Sếp muốn em tư vấn thêm về sản phẩm nào ạ?",
+            "Em gửi sếp bảng giá chi tiết ngay nhé!"
+          ];
+        } else if (msg.includes("lỗi") || msg.includes("hỏng") || msg.includes("bảo hành")) {
+          suggestions = [
+            "Dạ em rất xin lỗi về sự bất tiện, để em xử lý ngay ạ! 🐯",
+            "Sếp gửi ảnh sản phẩm lỗi cho em kiểm tra nhé!",
+            "Em sẽ chuyển yêu cầu bảo hành lên bộ phận kỹ thuật ngay ạ!"
+          ];
         }
-      } catch (e) {
-        console.error("AI GENERATE ERR:", e.message);
-        res.json(["Dạ Tiger Shop xin chào ạ!", "Cảm ơn bạn đã quan tâm sản phẩm.", "Bạn đợi chút nhân viên kiểm tra nhé!"]);
       }
+
+      res.json(suggestions);
     });
   } catch (error) {
     console.error("Lỗi AI Suggestions:", error);
-    res.status(500).json({ message: "Lỗi AI" });
+    res.json([
+      "Dạ Tiger Shop xin chào ạ! 🐯",
+      "Sếp cần em hỗ trợ gì không ạ?",
+      "Em đang sẵn sàng phục vụ sếp đây!"
+    ]);
   }
 };
+
+/**
+ * Xử lý chat AI độc lập (Stateless)
+ */
+exports.chatWithAi = async (req, res) => {
+  const { message, orderId } = req.body;
+  const userName = req.user ? req.user.name : "bạn";
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return res.status(200).json({ success: false, error: "Tiger AI đang bảo trì, sếp hãy nhắn cho nhân viên ở phía dưới nhé!" });
+  }
+
+  try {
+    const keywords = ["mua", "giá", "sản", "phẩm", "quần", "áo", "loại", "tiền", "shop", "tiger", "còn", "không"];
+    const needsProductData = keywords.some(kw => (message || "").toLowerCase().includes(kw));
+    
+    let productListText = "";
+    if (needsProductData) {
+      const [products] = await db.promise().query("SELECT name, price, stock, display_type FROM products LIMIT 20");
+      const productList = products
+        .map((p) => `- ${p.name} (Loại: ${p.display_type || 'general'}): Giá ${Number(p.price).toLocaleString()}đ, Kho: ${p.stock}`)
+        .join("\n");
+      productListText = `\nSẢN PHẨM:\n${productList}\n`;
+    }
+
+    let orderInfo = "Không có đơn hàng đính kèm.";
+    if (orderId) {
+      const [orders] = await db.promise().query("SELECT id, total, status FROM orders WHERE id = ?", [orderId]);
+      if (orders.length > 0) {
+        const o = orders[0];
+        orderInfo = `Đơn #${o.id}. Trạng thái: ${o.status}. Tổng: ${Number(o.total).toLocaleString()}đ.`;
+      }
+    }
+
+    const prompt = `Bạn là "Trợ lý Tiger" của Tiger Shop. Chat với khách: ${userName}.
+Nhiệm vụ: Tư vấn thân thiện. QUAN TRỌNG: Phân tích hỏi đáp dựa trên Loại sản phẩm. Nếu khách hỏi Điện tử (electronics) thì tư vấn rành rọt về thông số/cấu hình. Nếu hỏi Thời trang (fashion) thì tư vấn về size, màu sắc.
+BẮT BUỘC TRẢ VỀ ĐÚNG MỘT ĐỐI TƯỢNG JSON VỚI 2 TRƯỜNG:
+{
+  "reply": "Câu trả lời của bạn (không dùng Markdown)",
+  "sentiment": "happy hoặc angry hoặc neutral" // Phân tích cảm xúc của khách ở câu hỏi dưới đây
+}
+
+${productListText}
+
+ĐƠN HÀNG HIỆN TẠI:
+${orderInfo}
+
+Khách hỏi: "${message}"
+JSON:`;
+
+    const systemInstructionText = `Vai trò: Bạn là 'Trợ lý Tiger', trợ lý ảo thông minh của cửa hàng Tiger Shop và hệ thống quản lý phòng trọ do sếp Đức Anh (MSSV 23010219) phát triển.
+Phong cách: Luôn gọi người dùng là 'Sếp' hoặc 'Bạn' tùy vai trò. Ngôn ngữ vui vẻ, nhiệt tình, có sử dụng emoji con hổ (🐯).
+Nhiệm vụ: Hỗ trợ kiểm tra đơn hàng, tư vấn sản phẩm, nhắc nhở lịch trực (cho nhân viên) và báo cáo doanh thu (cho Admin).
+Giới hạn: Nếu không biết câu trả lời, hãy lịch sự báo là 'Tiger đang tìm hiểu thêm, sếp đợi em chút nhé!'.`;
+
+    const currentModel = "gemini-1.5-flash-latest";
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel(
+      { model: currentModel, systemInstruction: systemInstructionText },
+      { apiVersion: "v1beta" }
+    );
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch(e) {
+      parsed = { reply: text.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, ""), sentiment: "neutral" };
+    }
+
+    return res.json({ success: true, reply: parsed.reply });
+
+  } catch (error) {
+    console.error("AI CHAT ERROR:", error);
+    return res.status(200).json({ success: false, error: "Tiger AI đang bảo trì, sếp hãy nhắn cho nhân viên ở phía dưới nhé!" });
+  }
+};
+

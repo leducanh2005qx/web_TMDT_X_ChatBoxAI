@@ -28,80 +28,6 @@ const initSocket = (server) => {
     } catch (err) { return false; }
   };
 
-  // --- LOGIC PHẢN HỒI THÔNG MINH ---
-  const getSmartAiResponse = async (userMessage, orderId, userName) => {
-    try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) return { reply: `Dạ chào ${userName}. Hiện tại Trợ lý Tiger đang tạm nghỉ. 🐯`, sentiment: "neutral" };
-
-      const genAI = new GoogleGenerativeAI(apiKey);
-
-      // Lấy danh sách sản phẩm có kèm display_type
-      const [products] = await db.promise().query("SELECT name, price, stock, display_type FROM products LIMIT 20");
-      const productList = products
-        .map((p) => `- ${p.name} (Loại: ${p.display_type || 'general'}): Giá ${Number(p.price).toLocaleString()}đ, Kho: ${p.stock}`)
-        .join("\n");
-
-      let orderInfo = "Không có đơn hàng đính kèm.";
-      if (orderId) {
-        const [orders] = await db.promise().query("SELECT id, total, status FROM orders WHERE id = ?", [orderId]);
-        if (orders.length > 0) {
-          const o = orders[0];
-          orderInfo = `Đơn #${o.id}. Trạng thái: ${o.status}. Tổng: ${Number(o.total).toLocaleString()}đ.`;
-        }
-      }
-
-      const prompt = `Bạn là "Trợ lý Tiger" của Tiger Shop. Chat với khách: ${userName}.
-Nhiệm vụ: Tư vấn thân thiện. QUAN TRỌNG: Phân tích hỏi đáp dựa trên Loại sản phẩm. Nếu khách hỏi Điện tử (electronics) thì tư vấn rành rọt về thông số/cấu hình. Nếu hỏi Thời trang (fashion) thì tư vấn về size, màu sắc.
-BẮT BUỘC TRẢ VỀ ĐÚNG MỘT ĐỐI TƯỢNG JSON VỚI 2 TRƯỜNG:
-{
-  "reply": "Câu trả lời của bạn (không dùng Markdown)",
-  "sentiment": "happy hoặc angry hoặc neutral" // Phân tích cảm xúc của khách ở câu hỏi dưới đây
-}
-
-SẢN PHẨM:
-${productList}
-
-ĐƠN HÀNG HIỆN TẠI:
-${orderInfo}
-
-Khách hỏi: "${userMessage}"
-JSON:`;
-
-      const currentModel = "gemini-1.5-flash";
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          const model = genAI.getGenerativeModel({ 
-            model: currentModel,
-            generationConfig: { responseMimeType: "application/json" }
-          });
-          const result = await model.generateContent(prompt);
-          const response = await result.response;
-          const text = response.text();
-          
-          let parsed;
-          try {
-            parsed = JSON.parse(text);
-          } catch(e) {
-            parsed = { reply: text.replace(/```json/g, "").replace(/```/g, ""), sentiment: "neutral" };
-          }
-          console.log(`✅ AI phản hồi thành công ở lần thử ${attempt}`);
-          return parsed;
-        } catch (e) {
-          const code = e?.status || 0;
-          if (code === 429 && attempt < 3) {
-            console.warn(`⚠️ Model ${currentModel} lỗi 429 (Giới hạn requests), đang thử lại sau 2s...`);
-            await new Promise((r) => setTimeout(r, 2000));
-          } else if (attempt === 3) {
-            throw e;
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Lỗi gọi Gemini AI:", error.message);
-      return { reply: `Dạ ${userName}, Tiger đang bận một chút, nhân viên sẽ hỗ trợ bạn ngay! 🐯`, sentiment: "neutral" };
-    }
-  };
 
   io.on("connection", (socket) => {
     socket.on("join_thread", (data) => {
@@ -109,6 +35,13 @@ JSON:`;
       if (threadId) {
         socket.join(String(threadId));
         console.log(`📡 Socket ${socket.id} joined thread ${threadId}`);
+      }
+    });
+
+    socket.on("joinUserRoom", (userId) => {
+      if (userId) {
+        socket.join(String(userId));
+        console.log(`📡 Socket ${socket.id} joined user room ${userId} for notifications`);
       }
     });
 
@@ -177,7 +110,7 @@ JSON:`;
       });
     });
 
-    socket.on("send_message", async (data) => {
+    socket.on("send_message", async (data, callback) => {
       const ip = socket.handshake.address;
       const now = Date.now();
 
@@ -203,49 +136,76 @@ JSON:`;
 
       const sqlSave = `INSERT INTO chat_messages (thread_id, sender_role, sender_id, message, order_id, receiver_id, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())`;
 
-      db.query(sqlSave, [threadId, senderRole, senderId, message, orderId || null, receiverId || null], async (err, result) => {
-        if (err) return;
+      console.log("Saving message:", { threadId, senderRole, senderId, message });
 
-        const msgPayload = { id: result.insertId, ...data, createdAt: new Date() };
+      db.query(sqlSave, [threadId, senderRole, senderId, message, orderId || null, receiverId || null], async (err, result) => {
+        if (err) {
+          console.error("Lỗi khi lưu tin nhắn:", err);
+          if (typeof callback === "function") callback({ success: false });
+          return;
+        }
+        
+        console.log("Đã lưu tin nhắn, emit receive_message tới thread", String(threadId));
+        if (typeof callback === "function") callback({ success: true });
+
+        const msgPayload = { id: result.insertId, ...data, createdAt: new Date(), created_at: new Date() };
+        io.to(String(threadId)).emit("receive_message", msgPayload);
         io.to(String(threadId)).emit("newMessage", msgPayload);
 
-        // AI PHẢN HỒI TỰ ĐỘNG (CHỈ KHI CHƯA BỊ MUTE)
-        if (senderRole === "CUSTOMER" || senderRole === "USER") {
-          const [threadRows] = await db.promise().query("SELECT is_ai_muted FROM threads WHERE id = ?", [threadId]);
-          if (threadRows.length > 0 && threadRows[0].is_ai_muted === 1) {
-            console.log(`🤖 AI is muted for thread ${threadId}. Skipping...`);
-            return;
-          }
-
-          const activeSender = await isUserActive(senderId);
-          if (!activeSender) return;
-
-          const currentUserName = await getUserName(senderId);
-          const aiData = await getSmartAiResponse(message, orderId, currentUserName);
-          
-          const aiReply = aiData?.reply || "Dạ Tiger nghe đây ạ!";
-          const customerSentiment = aiData?.sentiment || "neutral";
-
-          // Cập nhật sentiment cho khách hàng vào tin nhắn vừa được lưu
-          db.query("UPDATE chat_messages SET sentiment = ? WHERE id = ?", [customerSentiment, result.insertId]);
-
-          // Tạo hiệu ứng trễ để trông thật hơn
-          setTimeout(() => {
-            db.query(sqlSave, [threadId, "SYSTEM", 0, aiReply, orderId || null, senderId], (errAi, resAi) => {
-              if (errAi) return;
-              const aiMsgPayload = {
-                id: resAi.insertId,
-                threadId,
-                senderRole: "SYSTEM",
-                senderId: 0,
-                message: aiReply,
-                orderId: orderId || null,
-                createdAt: new Date(),
-              };
-              io.to(String(threadId)).emit("newMessage", aiMsgPayload);
-            });
-          }, 1500);
+        // 🔔 Badge: Gửi notification count đến user room của người nhận
+        if (receiverId) {
+          io.to(String(receiverId)).emit("new_notification_count", 1);
         }
+
+        // ============================================================
+        // 🔇 AI TẠM THỜI VÔ HIỆU HÓA HOÀN TOÀN
+        // Toàn bộ logic gọi Gemini AI đã được comment để tránh
+        // lỗi 404/429 làm gián đoạn luồng Socket thời gian thực.
+        // Khi cần bật lại, uncomment khối code bên dưới.
+        // ============================================================
+
+        /*
+        if (senderRole === "CUSTOMER" || senderRole === "USER") {
+          (async () => {
+            try {
+              const [threadRows] = await db.promise().query("SELECT is_ai_muted, is_human_needed FROM threads WHERE id = ?", [threadId]);
+              if (threadRows.length > 0) {
+                if (threadRows[0].is_ai_muted === 1) return;
+                if (threadRows[0].is_human_needed === 1) return;
+              }
+              const activeSender = await isUserActive(senderId);
+              if (!activeSender) return;
+              const currentUserName = await getUserName(senderId);
+              let aiReply = "";
+              let customerSentiment = "neutral";
+              try {
+                const aiData = await getSmartAiResponse(message, orderId, currentUserName);
+                aiReply = aiData?.reply || "Dạ Tiger nghe đây ạ!";
+                customerSentiment = aiData?.sentiment || "neutral";
+              } catch (error) {
+                if (error.status === 429) {
+                  aiReply = "Trợ lý Tiger đang bận một chút, sếp đợi em 30 giây nhé!";
+                } else {
+                  aiReply = `Dạ ${currentUserName}, Tiger đang bận một chút, nhân viên sẽ hỗ trợ bạn ngay! 🐯`;
+                }
+              }
+              db.query("UPDATE chat_messages SET sentiment = ? WHERE id = ?", [customerSentiment, result.insertId]);
+              db.query(sqlSave, [threadId, "SYSTEM", 0, aiReply, orderId || null, senderId], (errAi, resAi) => {
+                if (errAi) return;
+                const aiMsgPayload = {
+                  id: resAi.insertId, threadId, senderRole: "SYSTEM", sender_role: "SYSTEM",
+                  senderId: 0, message: aiReply, orderId: orderId || null,
+                  createdAt: new Date(), created_at: new Date(),
+                };
+                io.to(String(threadId)).emit("receive_message", aiMsgPayload);
+                io.to(String(threadId)).emit("newMessage", aiMsgPayload);
+              });
+            } catch (errAsync) {
+              console.error("Lỗi AI ngầm:", errAsync);
+            }
+          })();
+        }
+        */
       });
     });
   });

@@ -5,11 +5,14 @@ import {
   Home, LayoutGrid
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import UserMenu from "../common/UserMenu";
+import { io } from "socket.io-client";
+import { getUnreadNotificationCount } from "../../services/api";
 
 function Layout({ children, cart = [], onSearch }) {
   const [keyword, setKeyword] = useState("");
   const [isLogin, setIsLogin] = useState(false);
-  const [userName, setUserName] = useState("");
+  const [unreadCount, setUnreadCount] = useState(0);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([
     { role: "ai", content: "Xin chào! Mình là Tiger AI, bạn cần hỗ trợ gì ạ?" }
@@ -31,17 +34,35 @@ function Layout({ children, cart = [], onSearch }) {
   useEffect(() => {
     const token = localStorage.getItem("token");
     setIsLogin(!!token);
-    if (token) {
-      try {
-        const user = JSON.parse(localStorage.getItem("user"));
-        setUserName(user?.name || "");
-      } catch {
-        setUserName("");
-      }
-    } else {
-      setUserName("");
-    }
   }, [location.pathname]);
+
+  // ===== SOCKET & NOTIFICATION =====
+  useEffect(() => {
+    if (!isLogin) {
+      setUnreadCount(0);
+      return;
+    }
+    getUnreadNotificationCount()
+      .then((res) => setUnreadCount(res.count || 0))
+      .catch(() => {});
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const socket = io("http://localhost:5000", { transports: ["websocket"] });
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    if (user.id) socket.emit("joinUserRoom", user.id);
+
+    socket.on("new_notification_count", (count) => setUnreadCount(count));
+
+    const handleRead = () => setUnreadCount(0);
+    window.addEventListener("notifications_read", handleRead);
+
+    return () => {
+      socket.disconnect();
+      window.removeEventListener("notifications_read", handleRead);
+    };
+  }, [isLogin]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -51,11 +72,7 @@ function Layout({ children, cart = [], onSearch }) {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate("/login");
-    window.location.reload();
-  };
+  // handleLogout đã được chuyển hoàn toàn vào UserMenu
 
   const handleChatSubmit = (e) => {
     e.preventDefault();
@@ -119,23 +136,14 @@ function Layout({ children, cart = [], onSearch }) {
               )}
             </Link>
 
-            <div className="flex items-center gap-2 group relative">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${isScrolled ? "bg-[#FF8C00] text-white border-transparent" : "bg-white text-[#FF8C00] border-white"}`}>
-                <User size={18} />
-              </div>
-              <div className="flex flex-col text-xs">
-                {isLogin ? (
-                  <>
-                    <span className={`font-bold cursor-pointer ${isScrolled ? "text-gray-800" : "text-white"}`} onClick={() => navigate("/profile")}>
-                      {userName || "Thành viên"}
-                    </span>
-                    <span onClick={handleLogout} className="cursor-pointer opacity-70 hover:opacity-100">Đăng xuất</span>
-                  </>
-                ) : (
-                  <Link to="/login" className={`font-bold ${isScrolled ? "text-gray-800" : "text-white"}`}>Đăng nhập</Link>
-                )}
-              </div>
-            </div>
+            {isLogin ? (
+              <UserMenu
+                textColor={isScrolled ? "text-gray-800" : "text-white"}
+                unreadCount={unreadCount}
+              />
+            ) : (
+              <Link to="/login" className={`font-bold text-sm ${isScrolled ? "text-gray-800" : "text-white"}`}>Đăng nhập</Link>
+            )}
           </div>
         </div>
       </header>

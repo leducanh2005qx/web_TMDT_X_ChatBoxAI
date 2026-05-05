@@ -7,7 +7,8 @@ module.exports = (roleOrRoles) => {
     const allowedRoles = (Array.isArray(roleOrRoles) ? roleOrRoles : [roleOrRoles])
       .map(r => String(r || "").trim().toUpperCase());
 
-    console.log(`[DEBUG] Check roleMiddleware - Required: ${allowedRoles}, Actual: ${userRoleStr}`);
+    // Tắt log để tránh làm rác màn hình
+    // console.log(`[DEBUG] Check roleMiddleware - Required: ${allowedRoles}, Actual: ${userRoleStr}`);
 
     if (!allowedRoles.includes(userRoleStr)) {
       return res.status(403).json({ 

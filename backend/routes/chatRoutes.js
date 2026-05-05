@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { GoogleGenAI } = require("@google/genai");
+// const { GoogleGenerativeAI } = require("@google/generative-ai"); // 🔇 TẠM TẮT AI
 
 const authMiddleware = require("../middlewares/authMiddleware");
 const roleMiddleware = require("../middlewares/roleMiddleware");
@@ -42,21 +42,20 @@ router.post("/messages", authMiddleware, (req, res) => {
     (err, result) => {
       if (err) return res.status(500).json({ message: "Lỗi gửi tin" });
 
+      const msgPayload = {
+        id: result.insertId || Date.now(),
+        threadId: tId,
+        sender_role: "USER",
+        senderRole: "USER",
+        senderId: req.user.id,
+        message: content,
+        created_at: new Date(),
+        createdAt: new Date(),
+      };
+
       if (global.io) {
-        global.io.to(String(tId)).emit("new_message", {
-          id: result.insertId || Date.now(),
-          threadId: tId,
-          sender_role: "USER",
-          message: content,
-          created_at: new Date(),
-        });
-        global.io.to(String(tId)).emit("newMessage", {
-          id: result.insertId || Date.now(),
-          threadId: tId,
-          sender_role: "USER",
-          message: content,
-          created_at: new Date(),
-        });
+        global.io.to(String(tId)).emit("receive_message", msgPayload);
+        global.io.to(String(tId)).emit("newMessage", msgPayload);
       }
       res.json({ success: true });
     },
@@ -79,36 +78,34 @@ router.get("/messages/:threadId", authMiddleware, (req, res) => {
 
 /* =====================================================
    AI ASSISTANT – SUGGEST RESPONSE
+   🔇 TẠM TẮT AI - Trả về gợi ý tĩnh để tránh lỗi 404
 ===================================================== */
 router.post("/ai/suggest/:threadId", authMiddleware, canSupportChat, async (req, res) => {
-  const { threadId } = req.params;
-  try {
-    // 1. Get recent messages
-    Chat.getMessages(threadId, 10, async (err, rows) => {
-      if (err) return res.status(500).json({ message: "Lỗi lấy tin nhắn cho AI" });
-      
-      const historyText = rows.map(m => `${m.sender_role === "USER" ? "Khách hàng" : "Nhân viên"}: ${m.message}`).join("\n");
-      
-      // 2. Call Google Gemini
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        return res.status(400).json({ message: "Chưa cấu hình GEMINI_API_KEY ở server" });
-      }
-
-      const ai = new GoogleGenAI({ apiKey });
-      const prompt = `Bạn là một nhân viên chăm sóc khách hàng xuất sắc của Tiger Shop. Hãy đọc lịch sử trò chuyện sau và đề xuất MỘT câu trả lời TRỰC TIẾP, ngắn gọn, lịch sự, nhiệt tình để phản hồi cho khách hàng. Không cần giải thích thêm.\n\nLịch sử chat:\n${historyText}\n\nĐề xuất câu trả lời:`;
-      
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt
-      });
-
-      res.json({ suggestion: response.text });
-    });
-  } catch (error) {
-    console.error("AI SUGGEST ERR:", error);
-    res.status(500).json({ message: "Lỗi tạo gợi ý AI" });
-  }
+  res.json({ suggestion: "Dạ cảm ơn sếp đã liên hệ Tiger Shop. Em sẽ hỗ trợ sếp ngay ạ! 🐯" });
 });
+
+/* =====================================================
+   SWITCH TO HUMAN
+===================================================== */
+router.post("/switch-to-human", authMiddleware, (req, res) => {
+  const { threadId } = req.body;
+  if (!threadId) return res.status(400).json({ message: "Thiếu threadId" });
+
+  Chat.updateThreadStatus(threadId, "staff_needed", (err) => {
+    if (err) return res.status(500).json({ message: "Lỗi cập nhật trạng thái" });
+    
+    // Thêm cờ is_human_needed
+    const db = require("../config/db");
+    db.query("UPDATE threads SET is_human_needed = 1 WHERE id = ?", [threadId], (err2) => {
+      if (err2) return res.status(500).json({ message: "Lỗi cập nhật is_human_needed" });
+      res.json({ success: true, message: "Đã chuyển sang nhân viên hỗ trợ." });
+    });
+  });
+});
+
+/* =====================================================
+   AI STATELESS CHAT
+===================================================== */
+router.post("/ai/talk", authMiddleware, aiChatController.chatWithAi);
 
 module.exports = router;

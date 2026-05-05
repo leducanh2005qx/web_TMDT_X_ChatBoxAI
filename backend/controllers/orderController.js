@@ -301,9 +301,10 @@ exports.updateOrderStatus = async (req, res) => {
   const actorId = req.user.id;
 
   try {
-    const [rows] = await db.promise().query("SELECT status FROM orders WHERE id = ?", [orderId]);
+    const [rows] = await db.promise().query("SELECT status, user_id FROM orders WHERE id = ?", [orderId]);
     if (!rows.length) return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
     const oldStatus = rows[0].status;
+    const customerId = rows[0].user_id;
 
     await db.promise().query(
       "UPDATE orders SET status = ?, processed_by = ? WHERE id = ?",
@@ -315,6 +316,35 @@ exports.updateOrderStatus = async (req, res) => {
       "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
       [actorId, logAction, orderId]
     );
+
+    // ✅ GỬI THÔNG BÁO REALTIME CHO KHÁCH HÀNG
+    if (customerId) {
+      const { createNotification } = require("./notificationController");
+
+      const notifMap = {
+        confirmed: {
+          title: `Đơn hàng #${orderId} đã được soạn xong`,
+          message: `Đơn hàng #${orderId} của bạn đã được soạn xong và đang chuẩn bị giao cho đơn vị vận chuyển! 🐯`,
+        },
+        shipping: {
+          title: `Đơn hàng #${orderId} đang được giao`,
+          message: `Đơn hàng #${orderId} đã được bàn giao cho shipper. Bạn sẽ nhận hàng trong 1-3 ngày! 🚚`,
+        },
+        completed: {
+          title: `Đơn hàng #${orderId} đã hoàn tất`,
+          message: `Đơn hàng #${orderId} đã giao thành công. Cảm ơn bạn đã mua sắm tại Tiger Shop! 🎉`,
+        },
+        cancelled: {
+          title: `Đơn hàng #${orderId} đã bị hủy`,
+          message: `Đơn hàng #${orderId} đã bị hủy. Nếu có thắc mắc, vui lòng liên hệ Tiger Shop qua chat.`,
+        },
+      };
+
+      const notif = notifMap[status];
+      if (notif) {
+        createNotification(customerId, notif.title, notif.message, "order");
+      }
+    }
 
     res.json({ success: true });
   } catch (err) {
