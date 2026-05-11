@@ -147,15 +147,20 @@ function SmartProductCard({ product, onAddToCart }) {
           <div className="mt-auto flex items-end justify-between">
             <div className="flex flex-col">
               {original_price > price && (
-                <span className="text-[10px] text-gray-400 line-through">
-                  {formatNumber(original_price)}đ
-                </span>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-[11px] text-gray-400 line-through decoration-red-400/50">
+                    {formatNumber(original_price)}đ
+                  </span>
+                  <span className="bg-red-50 text-red-600 text-[9px] font-black px-1.5 py-0.5 rounded border border-red-100">
+                    -{discountPercent}%
+                  </span>
+                </div>
               )}
-              <span className="text-[#FF8C00] font-black text-lg leading-none">
+              <span className="text-[#f87d09] font-black text-xl leading-none flex items-baseline">
                 {formatNumber(price)}<span className="text-xs ml-0.5">đ</span>
               </span>
             </div>
-            <span className="text-[10px] font-medium text-gray-400">
+            <span className="text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-full">
               Đã bán {sold > 1000 ? `${(sold / 1000).toFixed(1)}k` : sold}
             </span>
           </div>

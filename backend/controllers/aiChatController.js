@@ -61,6 +61,8 @@ exports.getChatSuggestions = async (req, res) => {
   }
 };
 
+const { findTopProducts } = require("../services/aiService");
+
 /**
  * Xử lý chat AI độc lập (Stateless)
  */
@@ -73,17 +75,21 @@ exports.chatWithAi = async (req, res) => {
     return res.status(200).json({ success: false, error: "Tiger AI đang bảo trì, sếp hãy nhắn cho nhân viên ở phía dưới nhé!" });
   }
 
+  const genAI = new GoogleGenerativeAI(apiKey);
+
   try {
-    const keywords = ["mua", "giá", "sản", "phẩm", "quần", "áo", "loại", "tiền", "shop", "tiger", "còn", "không"];
-    const needsProductData = keywords.some(kw => (message || "").toLowerCase().includes(kw));
+    // GIAI ĐOẠN 2: Tìm kiếm ngữ nghĩa (RAG)
+    console.log(`🔍 Tiger đang tìm kiếm sản phẩm phù hợp cho: "${message}"`);
+    const topProducts = await findTopProducts(message, 5);
     
     let productListText = "";
-    if (needsProductData) {
-      const [products] = await db.promise().query("SELECT name, price, stock, display_type FROM products LIMIT 20");
-      const productList = products
-        .map((p) => `- ${p.name} (Loại: ${p.display_type || 'general'}): Giá ${Number(p.price).toLocaleString()}đ, Kho: ${p.stock}`)
+    if (topProducts && topProducts.length > 0) {
+      const productList = topProducts
+        .map((p) => `- ${p.name}: Giá ${Number(p.price).toLocaleString()}đ. Mô tả: ${p.description || "Không có mô tả"}`)
         .join("\n");
-      productListText = `\nSẢN PHẨM:\n${productList}\n`;
+      productListText = `\nSẢN PHẨM PHÙ HỢP NHẤT TRONG KHO (RAG):\n${productList}\n`;
+    } else {
+      productListText = "\n(Không tìm thấy sản phẩm nào khớp chính xác trong kho, hãy tư vấn chung chung hoặc hỏi thêm nhu cầu nhé)\n";
     }
 
     let orderInfo = "Không có đơn hàng đính kèm.";
@@ -95,12 +101,19 @@ exports.chatWithAi = async (req, res) => {
       }
     }
 
-    const prompt = `Bạn là "Trợ lý Tiger" của Tiger Shop. Chat với khách: ${userName}.
-Nhiệm vụ: Tư vấn thân thiện. QUAN TRỌNG: Phân tích hỏi đáp dựa trên Loại sản phẩm. Nếu khách hỏi Điện tử (electronics) thì tư vấn rành rọt về thông số/cấu hình. Nếu hỏi Thời trang (fashion) thì tư vấn về size, màu sắc.
+    const systemInstructionText = `Vai trò: Bạn là 'Trợ lý Tiger', trợ lý ảo thông minh của cửa hàng Tiger Shop và hệ thống quản lý phòng trọ do sếp Đức Anh (MSSV 23010219) phát triển.
+Phong cách: Luôn gọi người dùng là 'Sếp' hoặc 'Bạn' tùy vai trò. Ngôn ngữ vui vẻ, nhiệt tình, có sử dụng emoji con hổ (🐯).
+Nhiệm vụ: Hỗ trợ kiểm tra đơn hàng, tư vấn sản phẩm, nhắc nhở lịch trực (cho nhân viên) và báo cáo doanh thu (cho Admin).
+Giới hạn: Nếu không biết câu trả lời, hãy lịch sự báo là 'Tiger đang tìm hiểu thêm, sếp đợi em chút nhé!'.`;
+
+    const fullPrompt = `${systemInstructionText}
+
+Bạn là "Trợ lý Tiger" của Tiger Shop. Chat với khách: ${userName}.
+Nhiệm vụ: Tư vấn thân thiện. QUAN TRỌNG: Phân tích hỏi đáp dựa trên Loại sản phẩm và Dữ liệu sản phẩm thực tế được cung cấp bên dưới.
 BẮT BUỘC TRẢ VỀ ĐÚNG MỘT ĐỐI TƯỢNG JSON VỚI 2 TRƯỜNG:
 {
   "reply": "Câu trả lời của bạn (không dùng Markdown)",
-  "sentiment": "happy hoặc angry hoặc neutral" // Phân tích cảm xúc của khách ở câu hỏi dưới đây
+  "sentiment": "happy hoặc angry hoặc neutral"
 }
 
 ${productListText}
@@ -111,19 +124,10 @@ ${orderInfo}
 Khách hỏi: "${message}"
 JSON:`;
 
-    const systemInstructionText = `Vai trò: Bạn là 'Trợ lý Tiger', trợ lý ảo thông minh của cửa hàng Tiger Shop và hệ thống quản lý phòng trọ do sếp Đức Anh (MSSV 23010219) phát triển.
-Phong cách: Luôn gọi người dùng là 'Sếp' hoặc 'Bạn' tùy vai trò. Ngôn ngữ vui vẻ, nhiệt tình, có sử dụng emoji con hổ (🐯).
-Nhiệm vụ: Hỗ trợ kiểm tra đơn hàng, tư vấn sản phẩm, nhắc nhở lịch trực (cho nhân viên) và báo cáo doanh thu (cho Admin).
-Giới hạn: Nếu không biết câu trả lời, hãy lịch sự báo là 'Tiger đang tìm hiểu thêm, sếp đợi em chút nhé!'.`;
+    // Đã nâng cấp lên model gemini-2.5-flash vì Google đã loại bỏ bản 1.5
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    const currentModel = "gemini-1.5-flash-latest";
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel(
-      { model: currentModel, systemInstruction: systemInstructionText },
-      { apiVersion: "v1beta" }
-    );
-
-    const result = await model.generateContent(prompt);
+    const result = await model.generateContent(fullPrompt);
     const response = await result.response;
     const text = response.text();
     
@@ -141,4 +145,3 @@ Giới hạn: Nếu không biết câu trả lời, hãy lịch sự báo là 'T
     return res.status(200).json({ success: false, error: "Tiger AI đang bảo trì, sếp hãy nhắn cho nhân viên ở phía dưới nhé!" });
   }
 };
-

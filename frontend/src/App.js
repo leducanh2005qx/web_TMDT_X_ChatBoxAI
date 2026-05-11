@@ -39,8 +39,7 @@ import ManagerShifts from "./pages/manager/ManagerShifts";
 import ManagerVoucher from "./components/manager/ManagerVoucher";
 
 /* ================= CHAT ================= */
-import ChatWidget from "./components/chat/ChatWidget";
-import AiChatWidget from "./components/chat/AiChatWidget";
+import UnifiedChatWidget from "./components/chat/UnifiedChatWidget";
 
 function App() {
   const [cart, setCart] = useState([]);
@@ -417,12 +416,7 @@ function App() {
       </Routes>
 
       {/* ================= CUSTOMER CHAT ================= */}
-      {!hideChat && (
-        <>
-          <AiChatWidget />
-          <ChatWidget />
-        </>
-      )}
+      {!hideChat && <UnifiedChatWidget />}
     </>
   );
 }

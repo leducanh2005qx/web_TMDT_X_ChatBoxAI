@@ -1,5 +1,6 @@
 const Product = require("../models/Product");
 const db = require("../config/db");
+const { autoVectorize } = require("../utils/aiHelper");
 
 // ✅ LẤY TẤT CẢ SẢN PHẨM
 exports.getAllProducts = (req, res) => {
@@ -145,6 +146,10 @@ exports.createProduct = (req, res) => {
       },
       (err, result) => {
         if (err) return res.status(500).json(err);
+
+        // Tự động Vector hóa sản phẩm (chạy ngầm)
+        autoVectorize(result.insertId);
+
         res.json({ message: "Thành công", id: result.insertId, image, status });
       },
     );
@@ -176,6 +181,10 @@ exports.updateProduct = (req, res) => {
       },
       (err) => {
         if (err) return res.status(500).json(err);
+
+        // Cập nhật lại Vector khi sửa sản phẩm (chạy ngầm)
+        autoVectorize(id);
+
         res.json({ message: "Cập nhật thành công", image });
       },
     );
