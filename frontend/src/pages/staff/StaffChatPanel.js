@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { io } from 'socket.io-client';
 import { 
   ArrowLeft, Send, Image as ImageIcon, Sparkles, 
-  User, CheckCheck, Loader2, Bot, Power
+  User, Loader2, Bot
 } from 'lucide-react';
 import './SupportCenter.css';
 
@@ -61,6 +61,7 @@ export default function StaffChatPanel({ thread, onBack }) {
       socket.off("newMessage", onNew);
       socket.off("thread_status_updated");
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [thread.threadId, socket]);
 
   useEffect(() => {

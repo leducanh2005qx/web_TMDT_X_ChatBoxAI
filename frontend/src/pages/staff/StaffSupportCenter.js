@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { io } from 'socket.io-client';
-import { MessageSquare, User, Clock, AlertCircle, CheckCircle2, ChevronRight, Search } from 'lucide-react';
+import { MessageSquare, User, Search } from 'lucide-react';
 import StaffChatPanel from './StaffChatPanel';
 import './SupportCenter.css';
 
@@ -9,7 +9,7 @@ const BACKEND_URL = 'http://localhost:5000';
 export default function StaffSupportCenter() {
   const [threads, setThreads] = useState([]);
   const [selectedThread, setSelectedThread] = useState(null);
-  const [socket, setSocket] = useState(null);
+  const [, setSocket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -21,6 +21,7 @@ export default function StaffSupportCenter() {
     s.on("thread_status_updated", () => fetchThreads());
 
     return () => s.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchThreads = async () => {
@@ -40,6 +41,7 @@ export default function StaffSupportCenter() {
 
   useEffect(() => {
     fetchThreads();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filteredThreads = useMemo(() => {

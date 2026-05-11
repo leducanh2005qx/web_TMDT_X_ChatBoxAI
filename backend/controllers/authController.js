@@ -2,7 +2,6 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const db = require("../config/db");
-const { giftWelcomeVoucher } = require("../services/voucherService");
 
 // =======================
 // REGISTER (CHỈ CUSTOMER)
@@ -39,12 +38,36 @@ exports.register = async (req, res) => {
         db.query("UPDATE users SET birthday = ? WHERE id = ?", [birthday, newUserId]);
       }
 
-      // 🎁 Tặng Welcome Voucher 10%
       if (newUserId) {
-        giftWelcomeVoucher(newUserId);
+        // 🎁 Tặng Voucher 50% độc quyền của sếp Đức Anh
+        const code = `CHAO_MUNG_TVM_50_${newUserId}`;
+        const now = new Date();
+        const endDate = new Date(now);
+        endDate.setDate(endDate.getDate() + 30); // HSD 30 ngày
+        const startStr = now.toISOString().slice(0, 10);
+        const endStr = endDate.toISOString().slice(0, 10);
+
+        db.query(
+          `INSERT INTO vouchers (code, type, value, min_order_value, max_discount, quantity, used, start_date, end_date, status, source)
+           VALUES (?, 'percent', 50, 50000, 100000, 1, 0, ?, ?, 'active', 'WELCOME')`,
+          [code, startStr, endStr],
+          (errVoucher, resultVoucher) => {
+            if (!errVoucher && resultVoucher.insertId) {
+              const voucherId = resultVoucher.insertId;
+              db.query("INSERT INTO user_vouchers (user_id, voucher_id, used) VALUES (?, ?, 0)", [newUserId, voucherId]);
+            }
+          }
+        );
+
+        const giftMessage = `Chúc mừng sếp Đức Anh! Đã gửi tặng Voucher độc quyền giảm 50% (tối đa 100.000đ) mã ${code} vào ví của sếp.`;
+        return res.json({ 
+          message: "Register successful", 
+          welcomeVoucher: true,
+          giftMessage
+        });
       }
 
-      res.json({ message: "Register successful", welcomeVoucher: true });
+      res.json({ message: "Register successful", welcomeVoucher: false });
     });
   });
 };

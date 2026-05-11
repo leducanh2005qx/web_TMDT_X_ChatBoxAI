@@ -56,6 +56,62 @@
   margin-top: 5px;
 }
 
+/* Tab Navigation */
+.voucher-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 40px;
+}
+
+.voucher-tab {
+  padding: 12px 32px;
+  border: 2px solid #e2e8f0;
+  background: #fff;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.voucher-tab:hover {
+  border-color: #ee4d2d;
+  color: #ee4d2d;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(238, 77, 45, 0.15);
+}
+
+.voucher-tab.active {
+  background: #ee4d2d;
+  color: #fff;
+  border-color: #ee4d2d;
+  box-shadow: 0 4px 15px rgba(238, 77, 45, 0.35);
+}
+
+/* My Voucher Status */
+.my-voucher-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-text {
+  color: #10b981;
+  font-weight: 700;
+  font-size: 0.8rem;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 6px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.received-badge {
+  color: #10b981 !important;
+  font-weight: 700;
+}
+
 /* Grid Layout */
 .vouchers-grid-premium {
   display: grid;

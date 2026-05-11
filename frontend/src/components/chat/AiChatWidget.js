@@ -57,6 +57,16 @@ export default function AiChatWidget() {
           senderRole: "SYSTEM",
           message: data.reply
         }]);
+
+        if (data.voucher) {
+          setTimeout(() => {
+            setMessages(prev => [...prev, {
+              id: "sys-voucher-" + Date.now(),
+              senderRole: "SYSTEM",
+              message: `🎁 TIGER TẶNG SẾP MÃ: **${data.voucher}**\nSếp áp dụng ngay trong trang thanh toán để được giảm giá nhé!`
+            }]);
+          }, 1000);
+        }
       } else {
         setMessages(prev => [...prev, {
           id: "sys-" + Date.now(),

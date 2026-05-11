@@ -18,10 +18,12 @@ function Register() {
 
     try {
       const result = await register(name, email, password, phone, birthday);
-      const welcomeMsg = result.welcomeVoucher
-        ? "\n🎁 Bạn đã nhận được mã giảm giá Welcome 10%!"
-        : "";
-      alert(`✅ Đăng ký thành công! Hãy đăng nhập ngay.${welcomeMsg}`);
+      const giftMsg = result.giftMessage
+        ? `\n🎁 ${result.giftMessage}`
+        : result.welcomeVoucher
+          ? "\n🎁 Bạn đã nhận được Voucher giảm 50% (tối đa 100k) cho đơn từ 50k!"
+          : "";
+      alert(`✅ Đăng ký thành công! Hãy đăng nhập để mua sắm ngay.${giftMsg}`);
       navigate("/login");
     } catch (err) {
       setError(err.message || "Đăng ký thất bại");

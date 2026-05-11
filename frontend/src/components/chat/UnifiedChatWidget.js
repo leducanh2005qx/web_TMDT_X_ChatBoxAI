@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { io } from "socket.io-client";
-import { Send, User, Bot, X, MessageCircle, Sparkles } from "lucide-react";
+import { Send, User, X, MessageCircle, Sparkles } from "lucide-react";
 import { getMyThread, getMyMessages, getMyOrdersSummary } from "../../services/chatApi";
 import "./Chat.css";
 
@@ -139,6 +139,16 @@ export default function UnifiedChatWidget() {
         role: "AI",
         text: data.reply || data.error || "Tiger AI đang bảo trì ạ..."
       }]);
+
+      if (data.voucher) {
+        setTimeout(() => {
+          setAiMessages(prev => [...prev, {
+            id: "ai-voucher-" + Date.now(),
+            role: "AI",
+            text: `🎁 TIGER TẶNG SẾP MÃ: **${data.voucher}**\nSếp áp dụng ngay trong trang thanh toán để được giảm giá nhé!`
+          }]);
+        }, 1000);
+      }
     } catch (err) {
       setAiMessages(prev => [...prev, { id: "ai-err", role: "AI", text: "Lỗi kết nối AI rồi sếp ơi! 🐯" }]);
     } finally {

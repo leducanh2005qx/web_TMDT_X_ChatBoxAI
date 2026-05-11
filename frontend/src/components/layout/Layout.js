@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
-  Search, ShoppingCart, User, MessageCircle, X, Mail, Share2,
-  Home, LayoutGrid
+  Search, ShoppingCart, User, MessageCircle, X, Mail,
+  Home, LayoutGrid, MapPin, Phone
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import UserMenu from "../common/UserMenu";
@@ -181,42 +181,45 @@ function Layout({ children, cart = [], onSearch }) {
         </Link>
       </nav>
 
-      {/* FOOTER */}
-      <footer className="bg-white border-t border-gray-100 pt-12 pb-24 lg:pb-12 mt-12 text-gray-500 text-sm">
-        <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          <div>
-            <h3 className="font-bold text-[#333] mb-4 uppercase text-xs tracking-widest">Tiger Shop</h3>
-            <p className="text-xs leading-relaxed opacity-80">Trải nghiệm mua sắm đẳng cấp với hệ thống Tiger Shop. Cam kết hàng chính hãng và dịch vụ tận tâm.</p>
+      {/* KHỐI MỜI ĐĂNG KÝ THÀNH VIÊN - ĐẶT TRÊN FOOTER */}
+      {!isLogin && (
+        <div className="registration-banner">
+          <div className="banner-content">
+            <h2>GIA NHẬP ĐẠI GIA ĐÌNH TIGER SHOP 🐯</h2>
+            <p>Đăng ký thành viên ngay để nhận <b>Voucher 50% (giảm tới 100k)</b> cho đơn hàng đầu tiên từ 50k!</p>
+            <button className="register-now-btn" onClick={() => navigate('/register')}>Đăng ký nhận quà ngay</button>
           </div>
-          <div>
-            <h3 className="font-bold text-[#333] mb-4 uppercase text-xs tracking-widest">Hỗ trợ khách hàng</h3>
-            <ul className="space-y-2 text-xs">
-              <li><Link to="/about" className="hover:text-[#FF8C00]">Về chúng tôi</Link></li>
-              <li><Link to="/policy/shipping" className="hover:text-[#FF8C00]">Vận chuyển</Link></li>
-              <li><Link to="/policy/returns" className="hover:text-[#FF8C00]">Hoàn trả</Link></li>
+        </div>
+      )}
+
+      {/* FOOTER CHỈN CHU CHO TIGER SHOP */}
+      <footer className="tiger-footer">
+        <div className="container">
+          <div className="footer-column">
+            <h3 className="footer-logo"><span>TIGER</span> SHOP</h3>
+            <p><MapPin size={16} color="#FF8C00" /> Tiger Shop - Yên Nghĩa - Hà Đông</p>
+            <p style={{fontStyle: 'italic', opacity: 0.8}}>"Đồ tốt, giá gốc – Ship Hỏa Tốc khắp Hà Đông!"</p>
+          </div>
+          <div className="footer-column">
+            <h4>CHÍNH SÁCH</h4>
+            <ul>
+              <li>Chính sách bảo hành</li>
+              <li>Giao hàng hỏa tốc</li>
+              <li>Đổi trả trong 7 ngày</li>
             </ul>
           </div>
-          <div>
-            <h3 className="font-bold text-[#333] mb-4 uppercase text-xs tracking-widest">Kết nối</h3>
-            <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-[#FF8C00] hover:text-white transition-all cursor-pointer"><Share2 size={14}/></div>
-              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-[#FF8C00] hover:text-white transition-all cursor-pointer"><Mail size={14}/></div>
-            </div>
-          </div>
-          <div>
-            <h3 className="font-bold text-[#333] mb-4 uppercase text-xs tracking-widest">Tải ứng dụng</h3>
-            <div className="flex gap-2">
-              <div className="bg-black text-white px-3 py-1 rounded flex items-center gap-2 cursor-pointer">
-                <div className="text-[8px] leading-tight">Download on the<br/><span className="text-xs font-bold">App Store</span></div>
-              </div>
-              <div className="bg-black text-white px-3 py-1 rounded flex items-center gap-2 cursor-pointer">
-                <div className="text-[8px] leading-tight">GET IT ON<br/><span className="text-xs font-bold">Google Play</span></div>
-              </div>
+          <div className="footer-column">
+            <h4>LIÊN HỆ SẾP ĐỨC ANH</h4>
+            <p><Phone size={16} color="#FF8C00" /> Hotline: 0xxx.xxx.xxx</p>
+            <p><Mail size={16} color="#FF8C00" /> Email: 23010219@st.phenikaa-uni.edu.vn</p>
+            <div className="social-icons">
+              <div><i className="fab fa-facebook text-lg"></i></div>
+              <div><i className="fab fa-tiktok text-lg"></i></div>
             </div>
           </div>
         </div>
-        <div className="text-center mt-12 pt-8 border-t border-gray-50 text-[10px] font-medium uppercase tracking-tighter opacity-50">
-          © 2026 TIGER SHOP. Designed for Excellence.
+        <div className="footer-bottom">
+          <p>© 2026 Tiger Shop - Sản phẩm của sếp Lê Đình Đức Anh - MSSV: 23010219</p>
         </div>
       </footer>
 

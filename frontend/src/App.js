@@ -34,7 +34,6 @@ import ManagerRoute from "./components/admin/ManagerRoute";
 import ManagerWorkspace from "./pages/manager/ManagerWorkspace";
 import StaffRoute from "./components/admin/StaffRoute";
 import StaffWorkspace from "./pages/staff/StaffWorkspace";
-import StaffShifts from "./pages/staff/StaffShifts";
 import ManagerShifts from "./pages/manager/ManagerShifts";
 import ManagerVoucher from "./components/manager/ManagerVoucher";
 

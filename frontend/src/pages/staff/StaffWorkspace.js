@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+
 import {
   getAllOrdersAdmin,
   getOrderDetailAdmin,
@@ -12,19 +12,14 @@ import {
 } from "../../services/api";
 import { 
   Package, 
-  Send, 
   RotateCcw, 
   CheckCircle, 
   Clock, 
   Search, 
-  Filter,
   ChevronRight,
-  MoreVertical,
   Mail,
-  Smartphone,
   Layout as LayoutIcon,
   User,
-  MessageCircle,
   Briefcase,
   Printer,
   Truck
@@ -35,7 +30,7 @@ import StaffShifts from "./StaffShifts"; // ✅ NEW
 import "./StaffWorkspace.css";
 
 function StaffWorkspace({ section = "dashboard" }) {
-  const navigate = useNavigate();
+
   const [orders, setOrders] = useState([]);
   const [attendance, setAttendance] = useState(null);
   const [activeSection, setActiveSection] = useState(section); // orders, support, attendance, payroll

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Filter, SlidersHorizontal, ChevronDown, Search, X } from "lucide-react";
+import { Filter, SlidersHorizontal, X } from "lucide-react";
 import { getProducts, getCategories } from "../../services/api";
 import SmartProductCard from "../../components/customer/SmartProductCard";
 

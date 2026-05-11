@@ -4,14 +4,11 @@ const Chat = require("../models/Chat");
 
 /**
  * Lấy gợi ý phản hồi nhanh cho nhân viên
- * 🔇 AI TẠM THỜI VÔ HIỆU HÓA - Trả về gợi ý tĩnh để tránh lỗi 404
- * Khi cần bật lại AI, uncomment code GoogleGenerativeAI bên dưới
  */
 exports.getChatSuggestions = async (req, res) => {
   const { threadId } = req.params;
 
   try {
-    // Lấy tin nhắn cuối cùng của khách để tạo gợi ý thông minh hơn
     Chat.getMessages(threadId, 3, (err, messages) => {
       if (err) return res.status(500).json({ message: "Lỗi lấy tin nhắn" });
 
@@ -19,7 +16,6 @@ exports.getChatSuggestions = async (req, res) => {
         ? messages.filter(m => m.sender_role === "CUSTOMER" || m.sender_role === "USER").pop()
         : null;
 
-      // Gợi ý tĩnh thông minh dựa trên nội dung tin nhắn khách
       let suggestions = [
         "Dạ chào sếp, Tiger Shop xin phục vụ ạ! 🐯",
         "Sếp cần em hỗ trợ thêm thông tin gì không ạ?",
@@ -64,7 +60,35 @@ exports.getChatSuggestions = async (req, res) => {
 const { findTopProducts } = require("../services/aiService");
 
 /**
- * Xử lý chat AI độc lập (Stateless)
+ * Phân loại ý định của khách hàng để quyết định cách xử lý
+ */
+function classifyIntent(message) {
+  const msg = message.toLowerCase();
+
+  // Câu chào hỏi / xã giao
+  const greetings = ["xin chào", "hello", "hi", "chào", "alo", "hey", "có ai", "bot", "tiger"];
+  if (greetings.some(g => msg.includes(g)) && msg.length < 30) {
+    return "greeting";
+  }
+
+  // Hỏi về đơn hàng
+  const orderKeywords = ["đơn hàng", "đơn", "giao hàng", "ship", "vận chuyển", "theo dõi", "trạng thái đơn"];
+  if (orderKeywords.some(k => msg.includes(k))) {
+    return "order_inquiry";
+  }
+
+  // Hỏi về chính sách
+  const policyKeywords = ["bảo hành", "đổi trả", "hoàn tiền", "chính sách", "khiếu nại"];
+  if (policyKeywords.some(k => msg.includes(k))) {
+    return "policy_inquiry";
+  }
+
+  // Tìm sản phẩm / mua hàng → cần RAG
+  return "product_search";
+}
+
+/**
+ * Xử lý chat AI độc lập (Stateless) – Nâng cấp RAG thông minh
  */
 exports.chatWithAi = async (req, res) => {
   const { message, orderId } = req.body;
@@ -78,20 +102,37 @@ exports.chatWithAi = async (req, res) => {
   const genAI = new GoogleGenerativeAI(apiKey);
 
   try {
-    // GIAI ĐOẠN 2: Tìm kiếm ngữ nghĩa (RAG)
-    console.log(`🔍 Tiger đang tìm kiếm sản phẩm phù hợp cho: "${message}"`);
-    const topProducts = await findTopProducts(message, 5);
-    
+    const intent = classifyIntent(message);
+    console.log(`🧠 Tiger phân loại ý định: "${message}" → [${intent}]`);
+
+    // ====== XÂY DỰNG CONTEXT SẢN PHẨM (chỉ khi cần) ======
     let productListText = "";
-    if (topProducts && topProducts.length > 0) {
-      const productList = topProducts
-        .map((p) => `- ${p.name}: Giá ${Number(p.price).toLocaleString()}đ. Mô tả: ${p.description || "Không có mô tả"}`)
-        .join("\n");
-      productListText = `\nSẢN PHẨM PHÙ HỢP NHẤT TRONG KHO (RAG):\n${productList}\n`;
-    } else {
-      productListText = "\n(Không tìm thấy sản phẩm nào khớp chính xác trong kho, hãy tư vấn chung chung hoặc hỏi thêm nhu cầu nhé)\n";
+
+    if (intent === "product_search") {
+      console.log(`🔍 Tiger đang tìm kiếm sản phẩm phù hợp cho: "${message}"`);
+      const topProducts = await findTopProducts(message, 3, 0.45);
+
+      if (topProducts && topProducts.length > 0) {
+        const productList = topProducts
+          .map((p, i) => {
+            const priceFormatted = Number(p.price).toLocaleString();
+            const stockStatus = p.stock <= 0 ? "⚠️ TẠM HẾT HÀNG" : p.stock <= 10 ? `Chỉ còn ${p.stock} sản phẩm` : "Còn hàng";
+            return `${i + 1}. ${p.name} (${p.category})\n   💰 Giá: ${priceFormatted}đ | 📦 ${stockStatus}\n   📝 ${(p.description || "").substring(0, 80)}`;
+          })
+          .join("\n");
+        productListText = `\n🎯 TOP ${topProducts.length} SẢN PHẨM PHÙ HỢP NHẤT (điểm tương đồng cao nhất):\n${productList}\n\nLƯU Ý: Chỉ giới thiệu TỐI ĐA 3 sản phẩm trên. KHÔNG tự bịa sản phẩm. Nếu sản phẩm TẠM HẾT HÀNG, hãy thông báo cho khách và gợi ý liên hệ để đặt trước hoặc xem sản phẩm tương tự.\n`;
+      } else {
+        productListText = "\n(Không tìm thấy sản phẩm nào phù hợp trong kho. Hãy hỏi thêm nhu cầu cụ thể hơn, VD: loại sản phẩm, mức giá, thương hiệu.)\n";
+      }
+    } else if (intent === "greeting") {
+      productListText = "\n(Khách đang chào hỏi. KHÔNG cần tìm sản phẩm. Hãy chào lại thân thiện và hỏi khách cần hỗ trợ gì.)\n";
+    } else if (intent === "order_inquiry") {
+      productListText = "\n(Khách hỏi về đơn hàng. Hãy hỏi mã đơn hàng nếu chưa có, hoặc cung cấp thông tin đơn hàng bên dưới.)\n";
+    } else if (intent === "policy_inquiry") {
+      productListText = "\n(Khách hỏi chính sách. Tiger Shop có: Đổi trả 7 ngày, Bảo hành theo hãng, Giao hàng hỏa tốc nội thành Hà Đông. Liên hệ Hotline nếu cần thêm.)\n";
     }
 
+    // ====== THÔNG TIN ĐƠN HÀNG (nếu có) ======
     let orderInfo = "Không có đơn hàng đính kèm.";
     if (orderId) {
       const [orders] = await db.promise().query("SELECT id, total, status FROM orders WHERE id = ?", [orderId]);
@@ -101,44 +142,45 @@ exports.chatWithAi = async (req, res) => {
       }
     }
 
-    const systemInstructionText = `Vai trò: Bạn là 'Trợ lý Tiger', trợ lý ảo thông minh của cửa hàng Tiger Shop và hệ thống quản lý phòng trọ do sếp Đức Anh (MSSV 23010219) phát triển.
-Phong cách: Luôn gọi người dùng là 'Sếp' hoặc 'Bạn' tùy vai trò. Ngôn ngữ vui vẻ, nhiệt tình, có sử dụng emoji con hổ (🐯).
-Nhiệm vụ: Hỗ trợ kiểm tra đơn hàng, tư vấn sản phẩm, nhắc nhở lịch trực (cho nhân viên) và báo cáo doanh thu (cho Admin).
-Giới hạn: Nếu không biết câu trả lời, hãy lịch sự báo là 'Tiger đang tìm hiểu thêm, sếp đợi em chút nhé!'.`;
+    // ====== SYSTEM PROMPT CHUYÊN NGHIỆP ======
+    const fullPrompt = `Vai trò: Bạn là 'Trợ lý Tiger 🐯', trợ lý ảo thông minh của cửa hàng Tiger Shop (Yên Nghĩa, Hà Đông).
+Phong cách: Luôn gọi người dùng là 'Sếp'. Ngôn ngữ vui vẻ, nhiệt tình, chuyên nghiệp. Có emoji 🐯.
+QUY TẮC VÀNG:
+- Chỉ giới thiệu TỐI ĐA 3 sản phẩm mỗi lần tư vấn. Ưu tiên sản phẩm phù hợp NHẤT.
+- KHÔNG BAO GIỜ tự bịa sản phẩm hoặc giá cả. Chỉ dùng dữ liệu được cung cấp.
+- Nếu khách chưa nêu rõ nhu cầu, hỏi thêm: loại sản phẩm, mức giá, mục đích sử dụng.
+- Nếu nhận thấy khách phân vân, chê đắt, ngập ngừng → cung cấp mã voucher 'TIGER_PROMO_10'. Nếu không → null.
+- Câu trả lời ngắn gọn, dễ đọc (max 150 từ), KHÔNG dùng Markdown.
 
-    const fullPrompt = `${systemInstructionText}
-
-Bạn là "Trợ lý Tiger" của Tiger Shop. Chat với khách: ${userName}.
-Nhiệm vụ: Tư vấn thân thiện. QUAN TRỌNG: Phân tích hỏi đáp dựa trên Loại sản phẩm và Dữ liệu sản phẩm thực tế được cung cấp bên dưới.
-BẮT BUỘC TRẢ VỀ ĐÚNG MỘT ĐỐI TƯỢNG JSON VỚI 2 TRƯỜNG:
-{
-  "reply": "Câu trả lời của bạn (không dùng Markdown)",
-  "sentiment": "happy hoặc angry hoặc neutral"
-}
-
+Khách hàng: ${userName}
 ${productListText}
-
-ĐƠN HÀNG HIỆN TẠI:
-${orderInfo}
+ĐƠN HÀNG: ${orderInfo}
 
 Khách hỏi: "${message}"
+
+BẮT BUỘC TRẢ VỀ ĐÚNG MỘT ĐỐI TƯỢNG JSON:
+{
+  "reply": "Câu trả lời ngắn gọn, thân thiện",
+  "sentiment": "happy hoặc angry hoặc neutral",
+  "voucher": "TIGER_PROMO_10 hoặc null"
+}
 JSON:`;
 
-    // Đã nâng cấp lên model gemini-2.5-flash vì Google đã loại bỏ bản 1.5
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-    const result = await model.generateContent(fullPrompt);
+    const chatModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const result = await chatModel.generateContent(fullPrompt);
     const response = await result.response;
     const text = response.text();
     
     let parsed;
     try {
-      parsed = JSON.parse(text);
+      // Xử lý trường hợp Gemini trả về JSON bọc trong markdown
+      const cleanText = text.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+      parsed = JSON.parse(cleanText);
     } catch(e) {
-      parsed = { reply: text.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, ""), sentiment: "neutral" };
+      parsed = { reply: text.replace(/```json/g, "").replace(/```/g, "").trim(), sentiment: "neutral", voucher: null };
     }
 
-    return res.json({ success: true, reply: parsed.reply });
+    return res.json({ success: true, reply: parsed.reply, voucher: parsed.voucher });
 
   } catch (error) {
     console.error("AI CHAT ERROR:", error);

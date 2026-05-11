@@ -1,6 +1,5 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { Link } from "react-router-dom";
-import { Search, Filter, Plus, TrendingUp, Package, DollarSign } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { Filter, TrendingUp, Package, DollarSign } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis } from "recharts";
 import "./AdminDashboard.css";
 import { getInventoryAlert, getOrderStatsAdmin, getCategoryRevenueAdmin, getMonthlyRevenueAdmin, getTopProfitProductsAdmin } from "../../services/api";
@@ -68,21 +67,7 @@ function AdminDashboard() {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  const deleteProduct = (id) => {
-    if (!window.confirm("Xoá sản phẩm này sẽ chuyển vào thùng rác. Bạn chắc chắn?")) return;
-    fetch(`http://localhost:5000/api/products/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: "Bearer " + token },
-    })
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Lỗi xóa");
-        alert("Đã xóa xong!");
-        if (showTrash) loadTrash();
-        loadDashboardData();
-      })
-      .catch((err) => alert(err.message));
-  };
+
 
   const loadTrash = () => {
     setLoadingTrash(true);

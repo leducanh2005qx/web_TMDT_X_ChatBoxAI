@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, ShoppingBag, ShieldCheck, Truck, Zap } from "lucide-react";
+import { ArrowRight, ShieldCheck, Truck, Zap } from "lucide-react";
 import { getProducts } from "../../services/api";
 import SmartProductCard from "../../components/customer/SmartProductCard";
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Autoplay, Navigation, Pagination } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
 
 function Home({ addToCart }) {
   const [featuredProducts, setFeaturedProducts] = useState([]);
@@ -12,7 +17,7 @@ function Home({ addToCart }) {
   useEffect(() => {
     getProducts().then((data) => {
       const list = Array.isArray(data) ? data : [];
-      setFeaturedProducts(list.slice(0, 4)); // Get first 4 for featured
+      setFeaturedProducts(list.slice(0, 10)); // Lấy 10 sản phẩm nổi bật
     });
   }, []);
 
@@ -148,20 +153,53 @@ function Home({ addToCart }) {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-8">
-          {featuredProducts.length > 0 ? (
-            featuredProducts.map(p => (
-              <SmartProductCard 
-                key={p.id} 
-                product={p} 
-                onAddToCart={addToCart} 
-              />
-            ))
+        <div className="w-full">
+          {featuredProducts.length > 4 ? (
+             <Swiper
+               modules={[Autoplay, Navigation, Pagination]}
+               spaceBetween={24}
+               slidesPerView={2}
+               breakpoints={{
+                 768: { slidesPerView: 3 },
+                 1024: { slidesPerView: 4 },
+               }}
+               navigation
+               autoplay={{
+                 delay: 3000,
+                 disableOnInteraction: false,
+               }}
+               className="pb-10 !px-2"
+               style={{
+                 '--swiper-navigation-color': '#FF8C00',
+                 '--swiper-pagination-color': '#FF8C00',
+               }}
+             >
+               {featuredProducts.map(p => (
+                 <SwiperSlide key={p.id} className="h-auto pb-4">
+                   <SmartProductCard 
+                     product={p} 
+                     onAddToCart={addToCart} 
+                   />
+                 </SwiperSlide>
+               ))}
+             </Swiper>
+          ) : featuredProducts.length > 0 ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-8 px-2">
+              {featuredProducts.map(p => (
+                <SmartProductCard 
+                  key={p.id} 
+                  product={p} 
+                  onAddToCart={addToCart} 
+                />
+              ))}
+            </div>
           ) : (
             // Skeleton Placeholders
-            Array(4).fill(0).map((_, i) => (
-              <div key={i} className="bg-gray-100 animate-pulse aspect-[3/4] rounded-2xl"></div>
-            ))
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-8 px-2">
+              {Array(4).fill(0).map((_, i) => (
+                <div key={i} className="bg-gray-100 animate-pulse aspect-[3/4] rounded-[12px]"></div>
+              ))}
+            </div>
           )}
         </div>
       </section>
@@ -169,7 +207,7 @@ function Home({ addToCart }) {
       {/* CALL TO ACTION */}
       <section className="bg-gradient-to-r from-[#FF8C00] to-[#CC7000] rounded-[2rem] p-10 lg:p-20 text-white flex flex-col lg:flex-row items-center justify-between gap-10">
         <div className="max-w-xl text-center lg:text-left">
-          <h2 className="text-4xl lg:text-5xl mb-6">Trở thành thành viên của Tiger Shop</h2>
+          <h2 className="text-4xl lg:text-5xl mb-6 font-bold">Trở thành thành viên của Tiger Shop</h2>
           <p className="text-white/80 text-lg">Đăng ký ngay để nhận thông báo về các siêu phẩm giới hạn và ưu đãi độc quyền 50% cho đơn hàng đầu tiên.</p>
         </div>
         <div className="flex items-center gap-4 bg-white/20 p-2 rounded-2xl backdrop-blur-md w-full max-w-md">

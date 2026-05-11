@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 import {
   AreaChart,
@@ -50,7 +50,7 @@ const COLORS = ["#ee4d2d", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"
 
 function ManagerWorkspace() {
   const location = useLocation();
-  const navigate = useNavigate();
+
 
   const activeTab = useMemo(() => {
     const path = location.pathname;

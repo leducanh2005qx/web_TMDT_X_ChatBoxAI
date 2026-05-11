@@ -621,6 +621,13 @@ export const cancelOrderCustomer = (orderId) =>
     body: JSON.stringify({}),
   }).then(handleResponse);
 
+export const requestReturnWarranty = (orderId, reason) =>
+  fetch(`${API_URL}/orders/${orderId}/return-warranty`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ reason }),
+  }).then(handleResponse);
+
 export const cancelOrderStaff = (orderId, reason) =>
   fetch(`${API_URL}/orders/staff/${orderId}/cancel`, {
     method: "POST",

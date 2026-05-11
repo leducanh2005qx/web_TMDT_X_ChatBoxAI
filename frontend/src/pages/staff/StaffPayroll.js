@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { CreditCard, DollarSign, TrendingUp, PieChart, Calendar, Award } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { PieChart, Calendar, Award } from 'lucide-react';
 import { getMyPayroll } from '../../services/api';
 
 export default function StaffPayroll() {
@@ -21,6 +21,7 @@ export default function StaffPayroll() {
 
   useEffect(() => {
     loadPayroll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month]);
 
   if (loading) return <div className="text-center py-5">Đang tính toán bảng lương...</div>;

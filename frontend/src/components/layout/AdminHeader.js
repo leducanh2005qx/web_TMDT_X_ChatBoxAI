@@ -5,11 +5,6 @@ import "./AdminHeader.css";
 function AdminHeader() {
   const navigate = useNavigate();
 
-  const logout = () => {
-    localStorage.clear();
-    navigate("/login");
-    window.location.reload();
-  };
 
   return (
     <header className="admin-header">

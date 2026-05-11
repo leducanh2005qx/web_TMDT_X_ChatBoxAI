@@ -111,3 +111,198 @@ h1, h2, h3, h4, h5, h6 {
   border-color: var(--tiger-orange-light);
   box-shadow: var(--shadow-lg);
 }
+
+/* ==================================================
+   🐯 TIGER SHOP FOOTER & REGISTRATION BANNER
+================================================== */
+
+.registration-banner {
+  background: linear-gradient(135deg, var(--tiger-orange) 0%, var(--tiger-orange-dark) 100%);
+  color: white;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  border-radius: 2rem 2rem 0 0;
+  max-width: 1000px;
+  margin: 3rem auto 0;
+  box-shadow: var(--shadow-tiger);
+  position: relative;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.registration-banner::before {
+  content: '';
+  position: absolute;
+  top: -50px;
+  left: -50px;
+  width: 150px;
+  height: 150px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  filter: blur(30px);
+}
+
+.registration-banner::after {
+  content: '';
+  position: absolute;
+  bottom: -50px;
+  right: -50px;
+  width: 200px;
+  height: 200px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  filter: blur(40px);
+}
+
+.banner-content {
+  position: relative;
+  z-index: 20;
+}
+
+.banner-content h2 {
+  font-family: 'Lexend', sans-serif;
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+.banner-content p {
+  font-size: 1.1rem;
+  opacity: 0.95;
+  margin-bottom: 1.5rem;
+}
+
+.banner-content b {
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.register-now-btn {
+  background: white;
+  color: var(--tiger-orange-dark);
+  padding: 12px 32px;
+  border-radius: var(--radius-full);
+  font-weight: 800;
+  font-size: 1.05rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.register-now-btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  background: #f8f9fa;
+}
+
+/* FOOTER */
+.tiger-footer {
+  background: #111;
+  color: #a0aec0;
+  padding: 5rem 0 2rem;
+  font-size: 0.9rem;
+  margin-top: -2rem; /* Pull up to hide under banner */
+  position: relative;
+  z-index: 1;
+}
+
+.tiger-footer .container {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 2.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  margin-bottom: 3rem;
+}
+
+@media (min-width: 768px) {
+  .tiger-footer .container {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.footer-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.footer-logo {
+  font-family: 'Lexend', sans-serif;
+  font-size: 1.75rem;
+  font-weight: 900;
+  color: white;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+
+.footer-logo span {
+  color: var(--tiger-orange);
+}
+
+.footer-column h4 {
+  color: white;
+  font-family: 'Lexend', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.footer-column ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.footer-column li {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.footer-column li:hover {
+  color: var(--tiger-orange);
+}
+
+.footer-column p {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.social-icons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.social-icons div {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #222;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.social-icons div:hover {
+  background: var(--tiger-orange);
+  transform: translateY(-3px);
+}
+
+.footer-bottom {
+  border-top: 1px solid #333;
+  padding-top: 2rem;
+  text-align: center;
+  font-size: 0.8rem;
+  opacity: 0.6;
+}

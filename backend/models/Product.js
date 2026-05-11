@@ -15,12 +15,13 @@ const Product = {
   // CREATE (có thêm các trường mới)
   create: (product, callback) => {
     const sql = `
-      INSERT INTO products (name, price, description, stock, image, category_id, status, manager_id, display_type, specifications)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO products (name, price, original_price, description, stock, image, category_id, status, manager_id, display_type, specifications)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     const params = [
       product.name,
       product.price,
+      product.original_price || null,
       product.description,
       product.stock,
       product.image,
@@ -74,11 +75,12 @@ const Product = {
   update: (id, product, callback) => {
     let sql = `
       UPDATE products
-      SET name = ?, price = ?, description = ?, stock = ?, category_id = ?, display_type = ?, specifications = ?, status = ?
+      SET name = ?, price = ?, original_price = ?, description = ?, stock = ?, category_id = ?, display_type = ?, specifications = ?, status = ?
     `;
     const params = [
       product.name,
       product.price,
+      product.original_price || null,
       product.description,
       product.stock,
       product.category_id || null,

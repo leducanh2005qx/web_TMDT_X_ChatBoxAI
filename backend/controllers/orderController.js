@@ -442,6 +442,42 @@ exports.cancelOrder = async (req, res) => {
 
 
 /* =====================================================
+    RETURN & WARRANTY REQUEST
+===================================================== */
+exports.requestReturnWarranty = async (req, res) => {
+  const orderId = req.params.id;
+  const userId = req.user.id;
+  const { reason } = req.body;
+
+  if (!reason || !reason.trim()) {
+    return res.status(400).json({ message: "Vui lòng nhập lý do." });
+  }
+
+  let connection;
+  try {
+    connection = await db.promise().getConnection();
+    const [orders] = await connection.query("SELECT * FROM orders WHERE id = ? AND user_id = ?", [orderId, userId]);
+    
+    if (!orders.length) return res.status(404).json({ message: "Không tìm thấy đơn hàng." });
+    
+    if (orders[0].status !== 'completed') {
+      return res.status(400).json({ message: "Chỉ đơn hàng đã giao thành công mới có thể yêu cầu bảo hành/đổi trả." });
+    }
+
+    await connection.query(
+      "INSERT INTO return_requests (user_id, order_id, reason) VALUES (?, ?, ?)",
+      [userId, orderId, reason.trim()]
+    );
+
+    res.json({ success: true, message: "Đã gửi yêu cầu bảo hành/đổi trả thành công." });
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi gửi yêu cầu.", error: error.message });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+/* =====================================================
     STATISTICS (GIỮ NGUYÊN)
 ===================================================== */
 exports.getStatistics = (req, res) => {
