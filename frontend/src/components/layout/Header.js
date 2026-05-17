@@ -11,9 +11,19 @@ function Header({ cart = [], cartCount = 0, onSearch }) {
   const [keyword, setKeyword] = useState("");
   const [isLogin, setIsLogin] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [bump, setBump] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
+  const currentCartCount = cartCount || cart.length;
+
+  // ===== CART ANIMATION =====
+  useEffect(() => {
+    if (currentCartCount === 0) return;
+    setBump(true);
+    const timer = setTimeout(() => setBump(false), 400); // Wait for animation
+    return () => clearTimeout(timer);
+  }, [currentCartCount]);
 
   // ===== CHECK LOGIN + ROLE =====
   useEffect(() => {
@@ -122,10 +132,10 @@ function Header({ cart = [], cartCount = 0, onSearch }) {
       {/* ===== RIGHT ===== */}
       <div className="header-right">
         {/* 🛒 CART ITEM - Thêm class cart-icon-nav để làm hiệu ứng bay */}
-        <Link to="/cart" className="cart-btn cart-icon-nav">
+        <Link to="/cart" className={`cart-btn cart-icon-nav ${bump ? "bump-pop" : ""}`}>
           🛒
-          {(cartCount || cart.length) > 0 && (
-            <span className="cart-badge">{cartCount || cart.length}</span>
+          {currentCartCount > 0 && (
+            <span className="cart-badge">{currentCartCount}</span>
           )}
         </Link>
 

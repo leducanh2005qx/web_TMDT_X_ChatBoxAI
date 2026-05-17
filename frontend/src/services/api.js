@@ -450,6 +450,18 @@ export const fixAttendanceCheckout = (sessionId, check_out_at) =>
     body: JSON.stringify({ check_out_at }),
   }).then(handleResponse);
 
+export const assignShift = (payload) =>
+  fetch(`${API_URL}/shifts/assign`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
+
+export const getAllShiftsAdmin = (week = "") =>
+  fetch(`${API_URL}/shifts/all?week=${week}`, { headers: getAuthHeader() }).then(
+    handleResponse,
+  );
+
 /* ================= VOUCHERS (ADMIN & PUBLIC) ================= */
 
 // ✅ Lấy voucher công khai cho khách (Không cần nhấn nhận thủ công)

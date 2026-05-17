@@ -8,7 +8,9 @@ import {
   requestOrderRefund,
   getMyAttendanceStatus,
   staffClockIn,
-  staffClockOut
+  staffClockOut,
+  createStaffRequest,
+  getMyStaffRequests
 } from "../../services/api";
 import { 
   Package, 
@@ -51,6 +53,59 @@ function StaffWorkspace({ section = "dashboard" }) {
   // View Detail Modal
   const [viewOrder, setViewOrder] = useState(null);
   const [viewLoading, setViewLoading] = useState(false);
+
+  // Request states
+  const [myRequests, setMyRequests] = useState([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [requestType, setRequestType] = useState("leave"); // leave, late
+  const [requestDate, setRequestDate] = useState("");
+  const [minutesLate, setMinutesLate] = useState("");
+  const [requestReason, setRequestReason] = useState("");
+  const [requestSubmitting, setRequestSubmitting] = useState(false);
+
+  const loadRequests = useCallback(async () => {
+    setRequestsLoading(true);
+    try {
+      const data = await getMyStaffRequests();
+      setMyRequests(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Lỗi tải danh sách đơn:", err);
+    } finally {
+      setRequestsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeSection === "requests") {
+      loadRequests();
+    }
+  }, [activeSection, loadRequests]);
+
+  const handleSubmitRequest = async (e) => {
+    e.preventDefault();
+    if (!requestDate) return alert("Vui lòng chọn ngày!");
+    if (!requestReason.trim()) return alert("Vui lòng nhập lý do!");
+    
+    setRequestSubmitting(true);
+    try {
+      const payload = {
+        request_type: requestType,
+        request_date: requestDate,
+        reason: requestReason,
+        minutes_late: requestType === "late" ? Number(minutesLate || 0) : null
+      };
+      await createStaffRequest(payload);
+      alert("🎉 Đã gửi đơn thành công!");
+      setRequestDate("");
+      setMinutesLate("");
+      setRequestReason("");
+      loadRequests(); // refresh list
+    } catch (err) {
+      alert("Lỗi: " + err.message);
+    } finally {
+      setRequestSubmitting(false);
+    }
+  };
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -311,7 +366,7 @@ function StaffWorkspace({ section = "dashboard" }) {
 
       <div className="workspace-controls">
         <div className="filter-group">
-          {['pending', 'confirmed', 'shipping', 'all'].map(s => (
+          {['pending', 'confirmed', 'shipping', 'completed', 'all'].map(s => (
             <button 
               key={s} 
               className={`filter-btn ${orderStatusFilter === s ? 'active' : ''}`}
@@ -378,6 +433,11 @@ function StaffWorkspace({ section = "dashboard" }) {
                               <Truck size={16} /> Giao
                             </button>
                           )}
+                          {order.status === 'shipping' && (
+                            <button className="btn-action btn-complete" onClick={() => handleUpdateStatus(order.id, 'completed', 'Hoàn tất giao hàng')} style={{background:'#10b981',color:'#fff'}}>
+                              <CheckCircle size={16} /> Hoàn tất
+                            </button>
+                          )}
                           <button className="btn-action btn-print" onClick={() => handlePrintInvoice(order)} style={{background:'#6366f1',color:'#fff'}}>
                             <Printer size={16} /> In
                           </button>
@@ -422,6 +482,11 @@ function StaffWorkspace({ section = "dashboard" }) {
                     {order.status === 'confirmed' && (
                       <button className="mobile-btn mobile-btn-primary" onClick={() => handleUpdateStatus(order.id, 'shipping', 'Giao')} style={{background:'#3b82f6'}}>
                         <Truck size={18} /> Giao
+                      </button>
+                    )}
+                    {order.status === 'shipping' && (
+                      <button className="mobile-btn mobile-btn-primary" onClick={() => handleUpdateStatus(order.id, 'completed', 'Hoàn tất')} style={{background:'#10b981'}}>
+                        <CheckCircle size={18} /> Hoàn tất
                       </button>
                     )}
                     <button className="mobile-btn mobile-btn-info" onClick={() => handlePrintInvoice(order)} style={{background:'#6366f1',color:'#fff'}}>
@@ -529,15 +594,159 @@ function StaffWorkspace({ section = "dashboard" }) {
     </div>
   );
 
-  const renderRequests = () => (
-    <div className="requests-section">
-       <h3 className="mb-4 d-flex align-items-center gap-2"><Briefcase /> Lịch sử yêu cầu hoàn trả</h3>
-       <div className="alert alert-info border-0 rounded-4 shadow-sm">
-         💡 Các yêu cầu hoàn trả của bạn sẽ được Manager xem xét và phê duyệt tại đây.
-       </div>
-       <p className="text-center text-muted py-5">Đang tải danh sách yêu cầu...</p>
-    </div>
-  );
+  const renderRequests = () => {
+    const getStatusBadgeClass = (s) => {
+      switch(s?.toLowerCase()) {
+        case "approved": return "badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1.5";
+        case "rejected": return "badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3 py-1.5";
+        default: return "badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-3 py-1.5";
+      }
+    };
+
+    const getStatusText = (s) => {
+      switch(s?.toLowerCase()) {
+        case "approved": return "Đã Duyệt";
+        case "rejected": return "Từ Chối";
+        default: return "Chờ Duyệt";
+      }
+    };
+
+    const getRequestTypeText = (t) => {
+      switch(t?.toLowerCase()) {
+        case "leave": return "🌴 Xin Nghỉ Phép";
+        case "late": return "⏰ Xin Đến Muộn";
+        case "refund": return "💵 Hoàn Tiền";
+        default: return t;
+      }
+    };
+
+    return (
+      <div className="requests-section" style={{ animation: "fadeIn 0.3s ease" }}>
+         <div className="d-flex justify-content-between align-items-center mb-4">
+           <h2 className="m-0 h4 d-flex align-items-center gap-2"><Briefcase className="text-primary" /> Quản lý đơn xin nghỉ & Đến muộn</h2>
+         </div>
+
+         <div className="row g-4">
+           {/* FORM ĐĂNG KÝ */}
+           <div className="col-12 col-lg-5">
+             <div className="card p-4 border-0 shadow-sm rounded-4 bg-white">
+               <h4 className="mb-4 text-dark fw-bold" style={{ fontSize: "16px", borderBottom: "2px solid #fff5eb", paddingBottom: "10px" }}>📝 Tạo Đơn Mới</h4>
+               <form onSubmit={handleSubmitRequest}>
+                 <div className="mb-3">
+                   <label className="form-label small fw-bold text-muted">Loại đơn</label>
+                   <select 
+                     className="form-select form-select-sm rounded-3" 
+                     value={requestType}
+                     onChange={(e) => setRequestType(e.target.value)}
+                   >
+                     <option value="leave">🌴 Xin Nghỉ Phép</option>
+                     <option value="late">⏰ Xin Đến Muộn</option>
+                   </select>
+                 </div>
+
+                 <div className="mb-3">
+                   <label className="form-label small fw-bold text-muted">Ngày áp dụng</label>
+                   <input 
+                     type="date" 
+                     className="form-control form-control-sm rounded-3" 
+                     value={requestDate}
+                     onChange={(e) => setRequestDate(e.target.value)}
+                     required
+                   />
+                 </div>
+
+                 {requestType === "late" && (
+                   <div className="mb-3">
+                     <label className="form-label small fw-bold text-muted">Số phút đi muộn (dự kiến)</label>
+                     <input 
+                       type="number" 
+                       className="form-control form-control-sm rounded-3" 
+                       placeholder="Ví dụ: 30"
+                       value={minutesLate}
+                       onChange={(e) => setMinutesLate(e.target.value)}
+                       min="1"
+                       required
+                     />
+                   </div>
+                 )}
+
+                 <div className="mb-4">
+                   <label className="form-label small fw-bold text-muted">Lý do chi tiết</label>
+                   <textarea 
+                     className="form-control form-control-sm rounded-3" 
+                     rows="4"
+                     placeholder="Vui lòng cung cấp lý do rõ ràng..."
+                     value={requestReason}
+                     onChange={(e) => setRequestReason(e.target.value)}
+                     required
+                   ></textarea>
+                 </div>
+
+                 <button 
+                   type="submit" 
+                   className="btn btn-warning w-100 fw-bold py-2.5 rounded-3 text-white shadow-sm"
+                   style={{ backgroundColor: "#FF7A00", borderColor: "#FF7A00" }}
+                   disabled={requestSubmitting}
+                 >
+                   {requestSubmitting ? "Đang gửi yêu cầu..." : "Gửi Đơn Xin Duyệt"}
+                 </button>
+               </form>
+             </div>
+           </div>
+
+           {/* LỊCH SỬ ĐƠN */}
+           <div className="col-12 col-lg-7">
+             <div className="card p-4 border-0 shadow-sm rounded-4 bg-white" style={{ minHeight: "380px" }}>
+               <h4 className="mb-4 text-dark fw-bold" style={{ fontSize: "16px", borderBottom: "2px solid #ebf5ff", paddingBottom: "10px" }}>📜 Lịch Sử Yêu Cầu</h4>
+               
+               {requestsLoading ? (
+                 <div className="text-center py-5 text-muted">Đang tải lịch sử đơn...</div>
+               ) : myRequests.length === 0 ? (
+                 <div className="text-center py-5 text-muted">
+                    <div className="fs-3 mb-2">🌴</div>
+                    <span>Bạn chưa gửi yêu cầu nào.</span>
+                 </div>
+               ) : (
+                 <div className="table-responsive">
+                   <table className="table align-middle">
+                     <thead>
+                       <tr className="table-light">
+                         <th className="small text-muted py-2 border-0">Loại đơn</th>
+                         <th className="small text-muted py-2 border-0">Ngày</th>
+                         <th className="small text-muted py-2 border-0">Lý do</th>
+                         <th className="small text-muted py-2 border-0 text-end">Trạng thái</th>
+                       </tr>
+                     </thead>
+                     <tbody>
+                       {myRequests.map((req) => (
+                         <tr key={req.id}>
+                           <td className="border-bottom-0 py-3">
+                             <div className="fw-bold text-dark">{getRequestTypeText(req.request_type)}</div>
+                             {req.minutes_late && <div className="text-muted xsmall" style={{ fontSize: "11px" }}>Trễ {req.minutes_late} phút</div>}
+                           </td>
+                           <td className="border-bottom-0 py-3 text-dark small">
+                             {new Date(req.request_date).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                           </td>
+                           <td className="border-bottom-0 py-3 text-muted small text-truncate" style={{ maxWidth: "200px" }} title={req.reason}>
+                             {req.reason}
+                           </td>
+                           <td className="border-bottom-0 py-3 text-end">
+                             <span className={getStatusBadgeClass(req.status)}>
+                               {getStatusText(req.status)}
+                             </span>
+                           </td>
+                         </tr>
+                       ))}
+                     </tbody>
+                   </table>
+                 </div>
+               )}
+             </div>
+           </div>
+         </div>
+      </div>
+    );
+  };
 
   if (loading) return <div className="staff-loading">🐯 Tiger đang chuẩn bị...</div>;
 

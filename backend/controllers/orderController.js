@@ -170,8 +170,45 @@ exports.getOrdersByUser = async (req, res) => {
        FROM orders WHERE user_id = ? ORDER BY created_at DESC`,
       [req.user.id]
     );
-    res.json(rows);
+
+    if (rows.length === 0) {
+      return res.json([]);
+    }
+
+    const orderIds = rows.map(r => r.orderId);
+    const [items] = await db.promise().query(
+      `SELECT oi.order_id, oi.quantity, oi.price, oi.product_id,
+              IFNULL(p.name, oi.product_name) AS name,
+              IFNULL(p.image, oi.product_image) AS image,
+              pv.variant_name
+       FROM order_items oi
+       LEFT JOIN products p ON oi.product_id = p.id
+       LEFT JOIN product_variants pv ON oi.variant_id = pv.id
+       WHERE oi.order_id IN (?)`,
+      [orderIds]
+    );
+
+    const orderMap = {};
+    rows.forEach(r => {
+      orderMap[r.orderId] = { ...r, items: [] };
+    });
+
+    items.forEach(item => {
+      if (orderMap[item.order_id]) {
+        orderMap[item.order_id].items.push({
+          product_id: item.product_id,
+          name: item.name || "Sản phẩm Tiger Shop",
+          variant_name: item.variant_name || null,
+          image: item.image || null,
+          quantity: item.quantity,
+          price: item.price
+        });
+      }
+    });
+
+    res.json(rows.map(r => orderMap[r.orderId]));
   } catch (err) {
+    console.error("Lỗi lấy danh sách đơn hàng:", err.message);
     res.status(500).json({ message: "Lỗi lấy đơn hàng" });
   }
 };
@@ -183,8 +220,9 @@ exports.getOrderDetail = async (req, res) => {
 
     const [orders] = await db.promise().query(
       `SELECT id AS orderId, total, status, created_at, receiver_name, receiver_phone, 
-              shipping_address, expected_delivery, payment_method 
-       FROM orders WHERE id = ? AND user_id = ?`,
+              shipping_address, expected_delivery, payment_method
+       FROM orders
+       WHERE id = ? AND user_id = ?`,
       [orderId, userId]
     );
 
@@ -197,8 +235,8 @@ exports.getOrderDetail = async (req, res) => {
     const [items] = await db.promise().query(
       `SELECT oi.quantity, oi.price,
               oi.product_id, 
-              IFNULL(oi.product_name, p.name) AS name, 
-              IFNULL(oi.product_image, p.image) AS image,
+              IFNULL(p.name, oi.product_name) AS name, 
+              IFNULL(p.image, oi.product_image) AS image,
               pv.variant_name
        FROM order_items oi
        LEFT JOIN products p ON oi.product_id = p.id
@@ -209,6 +247,7 @@ exports.getOrderDetail = async (req, res) => {
 
     res.json({
       ...orderInfo,
+      voucher_code: null,
       items: items.map(r => ({
         product_id: r.product_id,
         name: r.name || "Sản phẩm Tiger Shop",
@@ -249,10 +288,9 @@ exports.getOrderDetailAdmin = async (req, res) => {
     const [orders] = await db.promise().query(
       `SELECT o.id AS orderId, o.total, o.status, o.created_at, o.receiver_name, o.receiver_phone, 
               o.shipping_address, o.expected_delivery, o.payment_method, u.email,
-              v.code AS voucher_code, staff.name AS staff_name
+              staff.name AS staff_name
        FROM orders o
        LEFT JOIN users u ON o.user_id = u.id
-       LEFT JOIN vouchers v ON o.voucher_id = v.id
        LEFT JOIN users staff ON o.processed_by = staff.id
        WHERE o.id = ?`,
       [orderId]
@@ -269,8 +307,8 @@ exports.getOrderDetailAdmin = async (req, res) => {
     const [items] = await db.promise().query(
       `SELECT oi.quantity, oi.price,
               oi.product_id, 
-              IFNULL(oi.product_name, p.name) AS name, 
-              IFNULL(oi.product_image, p.image) AS image,
+              IFNULL(p.name, oi.product_name) AS name, 
+              IFNULL(p.image, oi.product_image) AS image,
               pv.variant_name
        FROM order_items oi
        LEFT JOIN products p ON oi.product_id = p.id
@@ -281,6 +319,7 @@ exports.getOrderDetailAdmin = async (req, res) => {
 
     res.json({
       ...orderInfo,
+      voucher_code: null,
       items: items.map(r => ({
         product_id: r.product_id,
         name: r.name || "Sản phẩm Tiger Shop",

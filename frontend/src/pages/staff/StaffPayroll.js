@@ -1,11 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { PieChart, Calendar, Award } from 'lucide-react';
-import { getMyPayroll } from '../../services/api';
+import { getMyPayroll, getMyPayrollDetail } from '../../services/api';
+import PayslipModal from '../../components/payroll/PayslipModal';
 
 export default function StaffPayroll() {
   const [payrollData, setPayrollData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+
+  // Payslip Modal states
+  const [showPayslip, setShowPayslip] = useState(false);
+  const [payslipData, setPayslipData] = useState(null);
+  const [payslipLoading, setPayslipLoading] = useState(false);
 
   const loadPayroll = async () => {
     setLoading(true);
@@ -16,6 +22,21 @@ export default function StaffPayroll() {
       console.error("Lỗi tải bảng lương:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleViewDetail = async () => {
+    setPayslipLoading(true);
+    setShowPayslip(true);
+    try {
+      const data = await getMyPayrollDetail(month);
+      setPayslipData(data);
+    } catch (err) {
+      console.error("Lỗi tải chi tiết bảng lương:", err);
+      alert("Không thể tải chi tiết lương theo ngày!");
+      setShowPayslip(false);
+    } finally {
+      setPayslipLoading(false);
     }
   };
 
@@ -33,14 +54,23 @@ export default function StaffPayroll() {
 
   return (
     <div className="payroll-section">
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
          <h2 className="m-0 h4">💰 Thu nhập cá nhân</h2>
-         <input 
-            type="month" 
-            className="form-control form-control-sm w-auto" 
-            value={month} 
-            onChange={(e) => setMonth(e.target.value)} 
-         />
+         <div className="d-flex align-items-center gap-2">
+            <button 
+              className="btn btn-warning btn-sm fw-bold px-3 text-white rounded-3 shadow-sm"
+              style={{ backgroundColor: "#FF7A00", borderColor: "#FF7A00" }}
+              onClick={handleViewDetail}
+            >
+              📄 Chi tiết theo ngày
+            </button>
+            <input 
+               type="month" 
+               className="form-control form-control-sm w-auto" 
+               value={month} 
+               onChange={(e) => setMonth(e.target.value)} 
+            />
+         </div>
       </div>
 
       <div className="stats-strip">
@@ -114,6 +144,14 @@ export default function StaffPayroll() {
           .performance-grid { grid-template-columns: 1fr; }
         }
       `}</style>
+
+      {showPayslip && (
+        <PayslipModal
+          data={payslipData}
+          loading={payslipLoading}
+          onClose={() => { setShowPayslip(false); setPayslipData(null); }}
+        />
+      )}
     </div>
   );
 }

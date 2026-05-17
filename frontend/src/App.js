@@ -141,7 +141,7 @@ function App() {
           path="/orders"
           element={
             <Layout cart={cart}>
-              <Orders />
+              <Orders cart={cart} setCart={setCart} />
             </Layout>
           }
         />
@@ -150,7 +150,7 @@ function App() {
           path="/orders/:id"
           element={
             <Layout cart={cart}>
-              <OrderDetail />
+              <OrderDetail cart={cart} setCart={setCart} />
             </Layout>
           }
         />

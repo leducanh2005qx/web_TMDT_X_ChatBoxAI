@@ -255,8 +255,7 @@ exports.createOrUpdateProductReview = (req, res) => {
     const verifySql = `
       SELECT 1 FROM orders o
       JOIN order_items oi ON oi.order_id = o.id
-      JOIN product_variants pv ON pv.id = oi.variant_id
-      WHERE o.user_id = ? AND pv.product_id = ? AND (o.payment_method = 'qr' OR o.status = 'completed')
+      WHERE o.user_id = ? AND oi.product_id = ? AND (o.payment_method = 'qr' OR o.status = 'completed')
       LIMIT 1
     `;
     db.query(verifySql, [req.user.id, id], (verifyErr, verifyRows) => {

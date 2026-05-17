@@ -38,10 +38,14 @@ import {
   getVariantsByProductId,
   bulkUpdateVariantStock,
   getStaffPayrollDetail,
+  toggleUserStatusAdmin,
+  approveOfficialStaff,
+  updateProduct,
   getAllUsersAdmin,
   changeJobInfoAdmin,
-  toggleUserStatusAdmin,
-  approveOfficialStaff
+  assignShift,
+  getAllShiftsAdmin,
+  decideShift
 } from "../../services/api";
 import PayslipModal from "../../components/payroll/PayslipModal";
 import "./ManagerWorkspace.css";
@@ -70,7 +74,7 @@ function ManagerWorkspace() {
   const [stockInput, setStockInput] = useState({});
   const [orderStatusFilter] = useState("all");
   const [orderKeyword] = useState("");
-  const [productKeyword] = useState("");
+  const [productKeyword, setProductKeyword] = useState("");
   const handleApproveOfficial = async (id) => {
     if (!window.confirm("Duyệt nhân viên này lên CHÍNH THỨC (Tăng lương 20k -> 25k)?")) return;
     try {
@@ -82,10 +86,11 @@ function ManagerWorkspace() {
     }
   };
 
-  const [lowStockOnly] = useState(false);
+  const [lowStockOnly, setLowStockOnly] = useState(false);
   const [payrollRows, setPayrollRows] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [attendanceIssues, setAttendanceIssues] = useState([]);
+  const [allShifts, setAllShifts] = useState([]);
   const [payrollMonth, setPayrollMonth] = useState(
     new Date().toISOString().slice(0, 7),
   );
@@ -119,10 +124,48 @@ function ManagerWorkspace() {
   const [payslipLoading, setPayslipLoading] = useState(false);
   const [showPayslip, setShowPayslip] = useState(false);
 
-  // --- Modal Edit Order ---
   const [editingOrder, setEditingOrder] = useState(null);
   const [editingOrderStatus, setEditingOrderStatus] = useState("");
   const [orderModalLoading, setOrderModalLoading] = useState(false);
+
+  // --- Modal Edit Product ---
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editProductForm, setEditProductForm] = useState({ name: "", price: "", description: "", stock: "", category_id: "" });
+  const [editProductImage, setEditProductImage] = useState(null);
+  const [editProductLoading, setEditProductLoading] = useState(false);
+
+  // --- Modal Fix Checkout ---
+  const [fixingSession, setFixingSession] = useState(null);
+  const [fixCheckoutTime, setFixCheckoutTime] = useState("");
+  const [fixModalLoading, setFixModalLoading] = useState(false);
+
+  // --- Modal Assign Shift ---
+  const [showAssignShiftModal, setShowAssignShiftModal] = useState(false);
+  const [assignShiftForm, setAssignShiftForm] = useState({ staff_id: "", shift_date: "", start_time: "08:00", end_time: "17:00", note: "Quản lý xếp lịch" });
+  const [assignShiftLoading, setAssignShiftLoading] = useState(false);
+
+  const handleSaveProduct = async (e) => {
+    e.preventDefault();
+    setEditProductLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("name", editProductForm.name);
+      formData.append("price", editProductForm.price);
+      formData.append("description", editProductForm.description);
+      formData.append("stock", editProductForm.stock);
+      if (editProductForm.category_id) formData.append("category_id", editProductForm.category_id);
+      if (editProductImage) formData.append("image", editProductImage);
+      
+      await updateProduct(editingProduct.id, formData);
+      setSuccess("Cập nhật sản phẩm thành công!");
+      setEditingProduct(null);
+      await loadData();
+    } catch (err) {
+      setError(err.message || "Lỗi cập nhật sản phẩm");
+    } finally {
+      setEditProductLoading(false);
+    }
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -152,16 +195,18 @@ function ManagerWorkspace() {
       }
 
       await getProbationStaff();
-      const [reqData, issueData, allUsersData] = await Promise.all([
+      const [reqData, issueData, allUsersData, shiftsData] = await Promise.all([
         getPendingStaffRequests(),
         getAttendanceIssues(),
-        getAllUsersAdmin()
+        getAllUsersAdmin(),
+        getAllShiftsAdmin()
       ]);
       await getPendingShifts();
       
       setPendingRequests(Array.isArray(reqData) ? reqData : []);
       setAttendanceIssues(Array.isArray(issueData) ? issueData : []);
       setAllStaff(Array.isArray(allUsersData) ? allUsersData.filter(u => u.role_id === 2 || u.role_id === 3) : []);
+      setAllShifts(Array.isArray(shiftsData) ? shiftsData : []);
       
       setError("");
     } catch (err) {
@@ -309,13 +354,39 @@ function ManagerWorkspace() {
     }
   };
 
-  const handleFixCheckout = async (id, time) => {
+  const handleFixCheckout = async (e) => {
+    e.preventDefault();
+    if (!fixingSession || !fixCheckoutTime) return;
     try {
-      await fixAttendanceCheckout(id, time);
-      setSuccess("Đã cập nhật check-out.");
+      setFixModalLoading(true);
+      await fixAttendanceCheckout(fixingSession.id, fixCheckoutTime);
+      setSuccess("Đã cập nhật check-out thành công.");
+      setFixingSession(null);
       await loadData();
     } catch (err) {
       setError(err.message || "Không thể chỉnh check-out");
+    } finally {
+      setFixModalLoading(false);
+    }
+  };
+
+  const handleAssignShift = async (e) => {
+    e.preventDefault();
+    if (!assignShiftForm.staff_id || !assignShiftForm.shift_date) {
+      setError("Vui lòng chọn nhân viên và ngày trực");
+      return;
+    }
+    try {
+      setAssignShiftLoading(true);
+      await assignShift(assignShiftForm);
+      setSuccess("Đã xếp lịch ca cho nhân viên thành công!");
+      setShowAssignShiftModal(false);
+      setAssignShiftForm({ staff_id: "", shift_date: "", start_time: "08:00", end_time: "17:00", note: "Quản lý xếp lịch" });
+      await loadData();
+    } catch (err) {
+      setError(err.message || "Không thể xếp lịch");
+    } finally {
+      setAssignShiftLoading(false);
     }
   };
 
@@ -500,8 +571,7 @@ function ManagerWorkspace() {
                 <th>Khách hàng</th>
                 <th>Tổng tiền</th>
                 <th>Ngày tạo</th>
-                <th>Trạng thái</th>
-                <th className="text-end">Thao tác</th>
+                <th className="text-end">Trạng thái</th>
               </tr>
             </thead>
             <tbody>
@@ -514,21 +584,13 @@ function ManagerWorkspace() {
                   </td>
                   <td className="price-accent">{Number(o.total).toLocaleString()} đ</td>
                   <td>{new Date(o.created_at).toLocaleDateString()}</td>
-                  <td>
-                    <span className={`badge bg-${o.status === "completed" ? "success" : o.status === "cancelled" ? "danger" : "warning"}-subtle text-${o.status === "completed" ? "success" : o.status === "cancelled" ? "danger" : "warning"} border px-3`}>
-                      {o.status.toUpperCase()}
-                    </span>
-                  </td>
                   <td className="text-end">
-                    <button 
-                      className="btn btn-primary btn-sm"
-                      onClick={() => {
-                        setEditingOrder(o);
-                        setEditingOrderStatus(o.status);
-                      }}
-                    >
-                      Sửa
-                    </button>
+                    <span className={`badge bg-${o.status === "completed" ? "success" : o.status === "cancelled" ? "danger" : "warning"}-subtle text-${o.status === "completed" ? "success" : o.status === "cancelled" ? "danger" : "warning"} border px-3`}>
+                      {o.status === "pending" ? "ĐANG CHỜ" : 
+                       o.status === "completed" ? "HOÀN THÀNH" : 
+                       o.status === "cancelled" ? "ĐÃ HỦY" : 
+                       o.status === "shipping" ? "ĐANG GIAO" : o.status.toUpperCase()}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -554,6 +616,52 @@ function ManagerWorkspace() {
             </p>
           </div>
         </div>
+
+        {/* 🔍 Bộ lọc & Tìm kiếm cao cấp */}
+        <div className="inventory-filters d-flex flex-column flex-md-row gap-3 align-items-stretch align-items-md-center mb-4 p-3 bg-light rounded-3 border">
+          <div className="search-box position-relative flex-fill">
+            <span className="position-absolute start-0 top-50 translate-middle-y ms-3 text-muted">🔍</span>
+            <input
+              type="text"
+              className="form-control ps-5 rounded-pill"
+              style={{
+                border: "1.5px solid #e2e8f0",
+                height: "46px",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
+                transition: "all 0.2s ease"
+              }}
+              placeholder="Tìm kiếm sản phẩm theo tên hoặc mã sản phẩm (ID)..."
+              value={productKeyword}
+              onChange={(e) => setProductKeyword(e.target.value)}
+            />
+            {productKeyword && (
+              <button
+                type="button"
+                className="btn btn-link position-absolute end-0 top-50 translate-middle-y me-3 text-secondary p-0 text-decoration-none"
+                onClick={() => setProductKeyword("")}
+                style={{ zIndex: 10 }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
+          
+          <div className="d-flex align-items-center gap-2">
+            <button
+              type="button"
+              className={`btn rounded-pill px-4 d-flex align-items-center gap-2 ${lowStockOnly ? 'btn-danger text-white shadow-sm' : 'btn-outline-secondary'}`}
+              style={{ height: '46px', transition: 'all 0.2s ease' }}
+              onClick={() => setLowStockOnly(!lowStockOnly)}
+            >
+              ⚠️ <span style={{ fontSize: '0.9rem', fontWeight: '500' }}>Cảnh báo hết hàng</span>
+            </button>
+
+            <div className="badge bg-white text-secondary border px-3 py-2 rounded-pill shadow-xs d-flex align-items-center gap-2" style={{ height: '46px' }}>
+              <span style={{ fontSize: '0.9rem' }}>📦 Kết quả: <strong>{filteredProducts.length}</strong> / {products.length}</span>
+            </div>
+          </div>
+        </div>
+
         <div className="table-responsive">
           <table className="table align-middle">
             <thead className="bg-light">
@@ -566,7 +674,16 @@ function ManagerWorkspace() {
               </tr>
             </thead>
             <tbody>
-              {filteredProducts.map((p) => {
+              {filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-5 text-muted">
+                    <div className="mb-2" style={{ fontSize: "2.5rem" }}>🔍</div>
+                    <div className="fw-semibold">Không tìm thấy sản phẩm nào khớp với tìm kiếm</div>
+                    <small className="text-muted">Thử thay đổi từ khóa hoặc bộ lọc của sếp</small>
+                  </td>
+                </tr>
+              ) : (
+                filteredProducts.map((p) => {
                 const hasVariants = p.variants && p.variants.length > 0;
                 const isLowStock = Number(p.stock) < 10;
                 return (
@@ -637,6 +754,22 @@ function ManagerWorkspace() {
                           </button>
                         )}
                         <button
+                          className="btn btn-sm btn-outline-secondary"
+                          onClick={() => {
+                            setEditingProduct(p);
+                            setEditProductForm({
+                              name: p.name || "",
+                              price: p.price || "",
+                              description: p.description || "",
+                              stock: p.stock || 0,
+                              category_id: p.category_id || ""
+                            });
+                            setEditProductImage(null);
+                          }}
+                        >
+                          Sửa
+                        </button>
+                        <button
                           className="btn btn-sm btn-outline-danger"
                           onClick={() => handleDeleteProduct(p.id)}
                         >
@@ -646,7 +779,8 @@ function ManagerWorkspace() {
                     </td>
                   </tr>
                 );
-              })}
+              })
+            )}
             </tbody>
           </table>
         </div>
@@ -736,33 +870,173 @@ function ManagerWorkspace() {
           </p>
         </div>
       </div>
-      <h5 className="fw-bold mb-4">Chấm công & Ca làm</h5>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h5 className="fw-bold m-0">Chấm công & Ca làm</h5>
+        <button className="btn btn-tiger btn-tiger-primary" onClick={() => setShowAssignShiftModal(true)}>
+          📅 Xếp lịch ca trực
+        </button>
+      </div>
       <div className="row g-4">
         <div className="col-md-6">
-          <div className="card p-4 border-0 bg-light">
-            <h6 className="fw-bold mb-3">Đơn xin nghỉ / Muộn ({pendingRequests.length})</h6>
-            {pendingRequests.map(r => (
-              <div key={r.id} className="p-2 bg-white rounded border mb-2 d-flex justify-content-between align-items-center">
-                <small><strong>{r.staff_name}</strong> - {r.request_type}</small>
-                <button className="btn btn-sm btn-primary" onClick={() => handleRequestDecision(r.id, "approved")}>Duyệt</button>
-              </div>
-            ))}
+          <div className="card p-4 border-0 bg-light h-100">
+            <h6 className="fw-bold mb-3">Đơn xin nghỉ / Muộn ({pendingRequests.filter(r => r.request_type !== 'refund').length})</h6>
+            {pendingRequests.filter(r => r.request_type !== 'refund').length === 0 ? (
+              <p className="text-muted small italic">Không có đơn xin nghỉ hay đi muộn nào đang chờ.</p>
+            ) : (
+              pendingRequests.filter(r => r.request_type !== 'refund').map(r => (
+                <div key={r.id} className="p-2 bg-white rounded border mb-2 d-flex justify-content-between align-items-center">
+                  <div>
+                    <div className="fw-bold small">{r.staff_name}</div>
+                    <small className="text-muted">
+                      {r.request_type === 'leave' ? 'Xin nghỉ' : r.request_type === 'late' ? 'Xin đi muộn' : 'Yêu cầu khác'} - {new Date(r.created_at).toLocaleDateString()}
+                    </small>
+                  </div>
+                  <button className="btn btn-sm btn-primary" onClick={() => handleRequestDecision(r.id, "approved")}>Duyệt</button>
+                </div>
+              ))
+            )}
           </div>
         </div>
         <div className="col-md-6">
-          <div className="card p-4 border-0 bg-light">
+          <div className="card p-4 border-0 bg-light h-100">
             <h6 className="fw-bold mb-3">Ca lỗi Check-out ({attendanceIssues.length})</h6>
-            {attendanceIssues.map(i => (
-              <div key={i.id} className="p-2 bg-white rounded border mb-2 d-flex justify-content-between align-items-center">
-                <small><strong>{i.staff_name}</strong> - {new Date(i.check_in_at).toLocaleDateString()}</small>
-                <button className="btn btn-sm btn-warning" onClick={() => handleFixCheckout(i.id, new Date().toISOString())}>Fix</button>
-              </div>
-            ))}
+            {attendanceIssues.length === 0 ? (
+              <p className="text-muted small italic">Tất cả nhân viên đều Check-out đầy đủ sếp nhé!</p>
+            ) : (
+              attendanceIssues.map(i => (
+                <div key={i.id} className="p-2 bg-white rounded border mb-2 d-flex justify-content-between align-items-center">
+                  <small><strong>{i.staff_name}</strong> - {new Date(i.check_in_at).toLocaleString()}</small>
+                  <button className="btn btn-sm btn-warning" onClick={() => {
+                    setFixingSession(i);
+                    // Default to 8 hours after check-in or current time
+                    const checkIn = new Date(i.check_in_at);
+                    checkIn.setHours(checkIn.getHours() + 8);
+                    setFixCheckoutTime(checkIn.toISOString().slice(0, 16));
+                  }}>Fix</button>
+                </div>
+              ))
+            )}
           </div>
         </div>
+      <div className="mt-4">
+        <h6 className="fw-bold mb-3">Lịch ca làm việc (Toàn bộ)</h6>
+        <div className="table-responsive bg-white rounded border">
+          <table className="table align-middle mb-0">
+            <thead className="bg-light">
+              <tr>
+                <th>Nhân viên</th>
+                <th>Ngày trực</th>
+                <th>Thời gian</th>
+                <th>Ghi chú</th>
+                <th>Trạng thái</th>
+                <th className="text-end">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {allShifts.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-4 text-muted">Chưa có lịch ca nào được xếp</td></tr>
+              ) : (
+                allShifts.map(s => (
+                  <tr key={s.id}>
+                    <td>
+                      <div className="fw-bold small">{s.staff_name}</div>
+                      <small className="text-muted">{s.staff_email}</small>
+                    </td>
+                    <td>{new Date(s.shift_date).toLocaleDateString()}</td>
+                    <td>{s.start_time.slice(0,5)} - {s.end_time.slice(0,5)}</td>
+                    <td className="small">{s.note}</td>
+                    <td>
+                      <span className={`badge ${s.status === 'approved' ? 'bg-success' : s.status === 'pending' ? 'bg-warning text-dark' : 'bg-danger'}`}>
+                        {s.status === 'approved' ? 'ĐÃ DUYỆT' : s.status === 'pending' ? 'ĐANG CHỜ' : 'BỊ TỪ CHỐI'}
+                      </span>
+                    </td>
+                    <td className="text-end">
+                      {s.status === 'pending' && (
+                        <div className="d-flex gap-1 justify-content-end">
+                          <button className="btn btn-sm btn-success" onClick={async () => {
+                            try {
+                              await decideShift(s.id, { decision: 'approved' });
+                              setSuccess("Đã duyệt ca làm.");
+                              loadData();
+                            } catch (err) { setError(err.message); }
+                          }}>Duyệt</button>
+                          <button className="btn btn-sm btn-outline-danger" onClick={async () => {
+                            try {
+                              await decideShift(s.id, { decision: 'rejected' });
+                              setSuccess("Đã từ chối ca làm.");
+                              loadData();
+                            } catch (err) { setError(err.message); }
+                          }}>Hủy</button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
       </div>
     </div>
   );
+
+  const renderApprovals = () => {
+    const refundRequests = pendingRequests.filter(r => r.request_type === 'refund');
+    return (
+      <div className="card shadow-sm border-0 p-4">
+        <div className="ai-tiger-alert alert d-flex align-items-center mb-4">
+          <div className="ai-tiger-avatar me-3">🐯</div>
+          <div>
+            <h6 className="mb-1 fw-bold">AI Tiger Phê Duyệt</h6>
+            <p className="mb-0 small">
+              {refundRequests.length > 0 
+                ? `Sếp ơi, có ${refundRequests.length} yêu cầu hoàn tiền đang chờ sếp xem xét kìa.` 
+                : "Hiện tại không có yêu cầu phê duyệt đặc biệt nào từ nhân viên sếp nhé."}
+            </p>
+          </div>
+        </div>
+        <h5 className="fw-bold mb-4">Phê duyệt yêu cầu đặc biệt</h5>
+        <div className="card p-4 border-0 bg-light">
+          <h6 className="fw-bold mb-3">Yêu cầu hoàn trả / Hoàn tiền ({refundRequests.length})</h6>
+          {refundRequests.length === 0 ? (
+            <div className="text-center py-5">
+              <div className="mb-2" style={{fontSize: '2rem'}}>🍃</div>
+              <p className="text-muted mb-0">Không có yêu cầu hoàn trả nào cần xử lý sếp ơi!</p>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table bg-white rounded shadow-sm">
+                <thead>
+                  <tr>
+                    <th>Nhân viên</th>
+                    <th>Nội dung yêu cầu</th>
+                    <th>Ngày yêu cầu</th>
+                    <th className="text-end">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {refundRequests.map(r => (
+                    <tr key={r.id}>
+                      <td className="fw-bold">{r.staff_name}</td>
+                      <td>{r.reason || "Yêu cầu hoàn trả đơn hàng"}</td>
+                      <td>{new Date(r.created_at).toLocaleDateString()}</td>
+                      <td className="text-end">
+                        <div className="d-flex gap-2 justify-content-end">
+                          <button className="btn btn-sm btn-success" onClick={() => handleRequestDecision(r.id, "approved")}>Chấp nhận</button>
+                          <button className="btn btn-sm btn-outline-danger" onClick={() => handleRequestDecision(r.id, "rejected")}>Từ chối</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const renderPayroll = () => (
     <div className="card shadow-sm border-0 p-4">
@@ -847,6 +1121,7 @@ function ManagerWorkspace() {
             {activeTab === "orders" && renderOrders()}
             {activeTab === "staff" && renderStaff()}
             {activeTab === "attendance" && renderAttendance()}
+            {activeTab === "approvals" && renderApprovals()}
             {activeTab === "payroll" && renderPayroll()}
           </div>
         )}
@@ -1140,6 +1415,171 @@ function ManagerWorkspace() {
                 {staffModalLoading ? "Đang lưu..." : "Lưu Thay Đổi"}
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Modal Sửa Sản Phẩm */}
+    {editingProduct && (
+      <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 10000 }}>
+        <div className="modal-dialog modal-lg">
+          <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px' }}>
+            <div className="modal-header border-0 pb-0">
+              <h5 className="modal-title fw-bold">Sửa Sản Phẩm #{editingProduct.id}</h5>
+              <button type="button" className="btn-close" onClick={() => setEditingProduct(null)}></button>
+            </div>
+            <form onSubmit={handleSaveProduct}>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label small fw-bold text-muted">Tên sản phẩm</label>
+                  <input type="text" className="form-control" value={editProductForm.name} onChange={e => setEditProductForm({...editProductForm, name: e.target.value})} required />
+                </div>
+                <div className="row mb-3">
+                  <div className="col-md-6">
+                    <label className="form-label small fw-bold text-muted">Giá bán (đ)</label>
+                    <input type="number" className="form-control" value={editProductForm.price} onChange={e => setEditProductForm({...editProductForm, price: e.target.value})} required />
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label small fw-bold text-muted">Tồn kho</label>
+                    <input type="number" className="form-control" value={editProductForm.stock} onChange={e => setEditProductForm({...editProductForm, stock: e.target.value})} required />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label small fw-bold text-muted">Mô tả</label>
+                  <textarea className="form-control" rows="3" value={editProductForm.description} onChange={e => setEditProductForm({...editProductForm, description: e.target.value})}></textarea>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label small fw-bold text-muted">Hình ảnh mới (bỏ trống nếu giữ nguyên)</label>
+                  <input type="file" className="form-control" onChange={e => setEditProductImage(e.target.files[0])} accept="image/*" />
+                </div>
+              </div>
+              <div className="modal-footer border-0 pt-0">
+                <button type="button" className="btn btn-light px-4" onClick={() => setEditingProduct(null)}>Hủy</button>
+                <button type="submit" className="btn btn-primary px-4" disabled={editProductLoading}>
+                  {editProductLoading ? "Đang lưu..." : "Lưu thay đổi"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    )}
+    {/* Modal Fix Checkout */}
+    {fixingSession && (
+      <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 10000 }}>
+        <div className="modal-dialog">
+          <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px' }}>
+            <div className="modal-header border-0 pb-0">
+              <h5 className="modal-title fw-bold">Sửa lỗi Check-out</h5>
+              <button type="button" className="btn-close" onClick={() => setFixingSession(null)}></button>
+            </div>
+            <form onSubmit={handleFixCheckout}>
+              <div className="modal-body p-4">
+                <p className="small text-muted mb-3">
+                  Nhân viên: <strong>{fixingSession.staff_name}</strong><br/>
+                  Giờ vào: <strong>{new Date(fixingSession.check_in_at).toLocaleString()}</strong>
+                </p>
+                <div className="mb-3">
+                  <label className="form-label small fw-bold text-muted">Giờ ra (Check-out) dự kiến</label>
+                  <input 
+                    type="datetime-local" 
+                    className="form-control" 
+                    value={fixCheckoutTime} 
+                    onChange={e => setFixCheckoutTime(e.target.value)} 
+                    required 
+                  />
+                </div>
+                <div className="ai-tiger-alert alert py-2 small mb-0">
+                  🐯: Sếp nên chọn giờ ra cách giờ vào khoảng 4-8 tiếng tùy ca làm của bạn ấy nhé!
+                </div>
+              </div>
+              <div className="modal-footer border-0 pt-0">
+                <button type="button" className="btn btn-light px-4" onClick={() => setFixingSession(null)}>Đóng</button>
+                <button type="submit" className="btn btn-warning px-4" disabled={fixModalLoading}>
+                  {fixModalLoading ? "Đang xử lý..." : "Xác nhận Fix"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    )}
+    {/* Modal Xếp Lịch Ca */}
+    {showAssignShiftModal && (
+      <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 10000 }}>
+        <div className="modal-dialog">
+          <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px' }}>
+            <div className="modal-header border-0 pb-0">
+              <h5 className="modal-title fw-bold">📅 Xếp lịch ca trực cho nhân viên</h5>
+              <button type="button" className="btn-close" onClick={() => setShowAssignShiftModal(false)}></button>
+            </div>
+            <form onSubmit={handleAssignShift}>
+              <div className="modal-body p-4">
+                <div className="mb-3">
+                  <label className="form-label small fw-bold text-muted">Nhân viên</label>
+                  <select 
+                    className="form-select" 
+                    value={assignShiftForm.staff_id} 
+                    onChange={e => setAssignShiftForm({...assignShiftForm, staff_id: e.target.value})}
+                    required
+                  >
+                    <option value="">-- Chọn nhân viên --</option>
+                    {allStaff.filter(s => s.role_id === 3).map(s => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.email})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label small fw-bold text-muted">Ngày trực</label>
+                  <input 
+                    type="date" 
+                    className="form-control" 
+                    value={assignShiftForm.shift_date} 
+                    onChange={e => setAssignShiftForm({...assignShiftForm, shift_date: e.target.value})} 
+                    required 
+                  />
+                </div>
+                <div className="row mb-3">
+                  <div className="col-md-6">
+                    <label className="form-label small fw-bold text-muted">Bắt đầu</label>
+                    <input 
+                      type="time" 
+                      className="form-control" 
+                      value={assignShiftForm.start_time} 
+                      onChange={e => setAssignShiftForm({...assignShiftForm, start_time: e.target.value})} 
+                      required 
+                    />
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label small fw-bold text-muted">Kết thúc</label>
+                    <input 
+                      type="time" 
+                      className="form-control" 
+                      value={assignShiftForm.end_time} 
+                      onChange={e => setAssignShiftForm({...assignShiftForm, end_time: e.target.value})} 
+                      required 
+                    />
+                  </div>
+                </div>
+                <div className="mb-0">
+                  <label className="form-label small fw-bold text-muted">Ghi chú</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="VD: Ca sáng, Ca tối..."
+                    value={assignShiftForm.note} 
+                    onChange={e => setAssignShiftForm({...assignShiftForm, note: e.target.value})} 
+                  />
+                </div>
+              </div>
+              <div className="modal-footer border-0 pt-0">
+                <button type="button" className="btn btn-light px-4" onClick={() => setShowAssignShiftModal(false)}>Hủy</button>
+                <button type="submit" className="btn btn-primary px-4" disabled={assignShiftLoading}>
+                  {assignShiftLoading ? "Đang lưu..." : "Xác nhận xếp lịch"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>

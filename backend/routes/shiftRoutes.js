@@ -52,6 +52,23 @@ router.delete("/:id", authMiddleware, canStaff, (req, res) => {
   );
 });
 
+/* ── MANAGER: Xếp ca cho nhân viên ───────────────────── */
+// POST /api/shifts/assign
+router.post("/assign", authMiddleware, canManage, (req, res) => {
+  const { staff_id, shift_date, start_time, end_time, note } = req.body;
+  if (!staff_id || !shift_date || !start_time || !end_time)
+    return res.status(400).json({ message: "Thiếu thông tin ca làm" });
+
+  db.query(
+    "INSERT INTO shift_registrations (staff_id, shift_date, start_time, end_time, note, status, manager_id) VALUES (?,?,?,?,?,?,?)",
+    [staff_id, shift_date, start_time, end_time, note || "Quản lý xếp lịch", "approved", req.user.id],
+    (err, result) => {
+      if (err) return res.status(500).json({ message: "Lỗi DB: " + err.message });
+      res.json({ success: true, id: result.insertId });
+    }
+  );
+});
+
 /* ── MANAGER: Xem tất cả ca trong tuần ───────────────── */
 // GET /api/shifts/all?week=YYYY-MM-DD
 router.get("/all", authMiddleware, canManage, (req, res) => {

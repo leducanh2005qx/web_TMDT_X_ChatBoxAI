@@ -60,3 +60,4 @@ router.post("/:userId/reset-password", authMiddleware, roleMiddleware(['ADMIN', 
 router.get("/logs", authMiddleware, isAdmin, userController.getSystemLogs);
 
 module.exports = router;
+module.exports = router;

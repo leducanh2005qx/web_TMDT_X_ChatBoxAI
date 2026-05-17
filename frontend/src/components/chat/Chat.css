@@ -85,12 +85,12 @@
   display: flex;
   flex-direction: column;
   max-width: 85%;
-  animation: fadeIn 0.3s ease;
+  animation: fadeInUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes fadeInUp {
+  0% { opacity: 0; transform: translateY(20px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .chat-msg.me { align-self: flex-end; align-items: flex-end; }
@@ -217,3 +217,78 @@
 .chat-body::-webkit-scrollbar { width: 5px; }
 .chat-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
 .chat-body::-webkit-scrollbar-thumb:hover { background: var(--tiger-orange); }
+
+/* Unified Chat Selector Styles */
+.chat-menu-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: white;
+  padding: 24px;
+}
+
+.btn-chat-choice {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  outline: none;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  width: 100%;
+  padding: 16px;
+  border-radius: 16px;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  text-align: left;
+  margin-bottom: 12px;
+}
+
+.btn-chat-choice:hover {
+  border-color: var(--tiger-orange);
+  background: #fffbea;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 4px 12px rgba(248, 125, 9, 0.08);
+}
+
+.btn-chat-choice:active {
+  transform: translateY(0) scale(1);
+}
+
+.choice-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.choice-icon.ai-icon {
+  background: #fff5eb;
+  color: var(--tiger-deep-orange);
+}
+
+.choice-icon.staff-icon {
+  background: #ebf5ff;
+  color: #2563eb;
+}
+
+.chat-back-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 8px;
+  transition: 0.2s;
+}
+
+.chat-back-btn:hover {
+  background: #f1f5f9;
+  color: var(--tiger-dark);
+}
+

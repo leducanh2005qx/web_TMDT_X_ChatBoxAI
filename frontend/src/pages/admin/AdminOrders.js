@@ -96,9 +96,8 @@ function AdminOrders() {
                   <th>Mã đơn</th>
                   <th>Khách hàng</th>
                   <th>Tổng tiền</th>
-                  <th>Trạng thái</th>
                   <th>Ngày đặt</th>
-                  <th className="text-right">Hành động</th>
+                  <th className="text-right">Trạng thái</th>
                 </tr>
               </thead>
               <tbody>
@@ -123,62 +122,12 @@ function AdminOrders() {
                           {Number(o.total).toLocaleString()} đ
                         </td>
                         <td>
-                          <span className={`badge ${o.status}`}>
-                            {statusLabel(o.status)}
-                          </span>
-                        </td>
-                        <td>
                           {new Date(o.created_at).toLocaleDateString("vi-VN")}
                         </td>
                         <td className="text-right">
-                          <div className="action-group">
-                            {o.status === "pending" && (
-                              <>
-                                <button
-                                  className="btn-action confirm"
-                                  onClick={() =>
-                                    triggerModal(orderId, "confirmed")
-                                  }
-                                >
-                                  Duyệt
-                                </button>
-                                <button
-                                  className="btn-action delete"
-                                  onClick={() =>
-                                    triggerModal(orderId, "cancelled")
-                                  }
-                                >
-                                  Hủy
-                                </button>
-                              </>
-                            )}
-                            {o.status === "confirmed" && (
-                              <>
-                                <button
-                                  className="btn-action complete"
-                                  onClick={() =>
-                                    triggerModal(orderId, "completed")
-                                  }
-                                >
-                                  Xong
-                                </button>
-                                <button
-                                  className="btn-action delete"
-                                  onClick={() =>
-                                    triggerModal(orderId, "cancelled")
-                                  }
-                                >
-                                  Hủy
-                                </button>
-                              </>
-                            )}
-                            {o.status === "completed" && (
-                              <span className="text-success">✔ Thành công</span>
-                            )}
-                            {o.status === "cancelled" && (
-                              <span className="text-muted">✖ Đã hủy</span>
-                            )}
-                          </div>
+                          <span className={`badge ${o.status}`}>
+                            {statusLabel(o.status)}
+                          </span>
                         </td>
                       </tr>
                     );
