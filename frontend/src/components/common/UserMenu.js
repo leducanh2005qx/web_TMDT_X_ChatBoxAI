@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Menu, Transition } from "@headlessui/react";
 import { Fragment } from "react";
-import { User, LogOut, KeyRound, Bell, ChevronDown, Ticket } from "lucide-react";
+import { User, LogOut, KeyRound, Bell, ChevronDown, Ticket, ShoppingBag } from "lucide-react";
 import ChangePasswordModal from "./ChangePasswordModal";
 
 export default function UserMenu({ textColor = "text-gray-800", unreadCount = 0 }) {
@@ -144,6 +144,20 @@ export default function UserMenu({ textColor = "text-gray-800", unreadCount = 0 
                     >
                       <Ticket size={16} className={`transition-colors duration-150 ${active ? "text-[#FF8C00]" : "text-[#64748b]"}`} />
                       Kho Voucher
+                    </Link>
+                  )}
+                </Menu.Item>
+
+                <Menu.Item>
+                  {({ active }) => (
+                    <Link
+                      to="/orders"
+                      className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150 no-underline group ${
+                        active ? "text-[#FF8C00] bg-orange-50/50" : "text-gray-700"
+                      }`}
+                    >
+                      <ShoppingBag size={16} className={`transition-colors duration-150 ${active ? "text-[#FF8C00]" : "text-[#64748b]"}`} />
+                      Đơn hàng của tôi
                     </Link>
                   )}
                 </Menu.Item>

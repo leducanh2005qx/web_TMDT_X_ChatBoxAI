@@ -180,8 +180,19 @@ function StaffWorkspace({ section = "dashboard" }) {
   };
 
   // 🖨️ IN PHIẾU GIAO HÀNG (iframe — không bị trắng xóa)
-  const handlePrintInvoice = (order) => {
+  const handlePrintInvoice = async (order) => {
     if (!order?.id) return;
+
+    // Tải thông tin chi tiết đầy đủ của đơn hàng (bao gồm danh sách sản phẩm) nếu chưa có
+    let fullOrder = order;
+    if (!order.items || order.items.length === 0) {
+      try {
+        const data = await getOrderDetailAdmin(order.id || order.orderId);
+        fullOrder = { ...data, id: data.id || data.orderId };
+      } catch (err) {
+        console.error("Lỗi lấy chi tiết đơn hàng trước khi in:", err);
+      }
+    }
 
     // Xóa iframe cũ nếu có
     const old = document.getElementById('tiger-print-frame');
@@ -192,13 +203,24 @@ function StaffWorkspace({ section = "dashboard" }) {
     iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:none;';
     document.body.appendChild(iframe);
 
+    // Chuẩn bị HTML danh sách sản phẩm
+    const itemsHtml = (fullOrder.items || []).map((item, idx) => `
+      <tr>
+        <td class="c">${idx + 1}</td>
+        <td>${item.name || 'Sản phẩm Tiger Shop'}${item.variant_name ? ` (${item.variant_name})` : ''}</td>
+        <td class="c">${item.quantity || 1}</td>
+        <td class="r">${Number(item.price || 0).toLocaleString()}đ</td>
+        <td class="r">${Number((item.quantity || 1) * (item.price || 0)).toLocaleString()}đ</td>
+      </tr>
+    `).join('');
+
     const doc = iframe.contentDocument || iframe.contentWindow.document;
     doc.open();
     doc.write(`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8"/>
-  <title>Phiếu giao hàng #${order.id}</title>
+  <title>Phiếu giao hàng #${fullOrder.id}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Arial, sans-serif; padding: 24px; color: #222; font-size: 13px; }
@@ -233,15 +255,15 @@ function StaffWorkspace({ section = "dashboard" }) {
     <div class="sub">PHIẾU GIAO HÀNG</div>
   </div>
 
-  <div class="order-code">#${order.id}</div>
+  <div class="order-code">#${fullOrder.id}</div>
 
   <table class="info-table">
-    <tr><td class="lbl">Khách hàng:</td><td>${order.receiver_name || 'N/A'}</td></tr>
-    <tr><td class="lbl">Số điện thoại:</td><td>${order.receiver_phone || 'N/A'}</td></tr>
-    <tr><td class="lbl">Địa chỉ giao:</td><td class="addr">${order.shipping_address || 'N/A'}</td></tr>
-    <tr><td class="lbl">Thanh toán:</td><td>${order.payment_method === 'qr' ? 'Chuyển khoản QR' : 'Tiền mặt (COD)'}</td></tr>
-    <tr><td class="lbl">Ngày đặt:</td><td>${order.created_at ? new Date(order.created_at).toLocaleDateString('vi-VN') : ''}</td></tr>
-    <tr><td class="lbl">Dự kiến giao:</td><td>${order.expected_delivery || 'N/A'}</td></tr>
+    <tr><td class="lbl">Khách hàng:</td><td>${fullOrder.receiver_name || 'N/A'}</td></tr>
+    <tr><td class="lbl">Số điện thoại:</td><td>${fullOrder.receiver_phone || 'N/A'}</td></tr>
+    <tr><td class="lbl">Địa chỉ giao:</td><td class="addr">${fullOrder.shipping_address || 'N/A'}</td></tr>
+    <tr><td class="lbl">Thanh toán:</td><td>${fullOrder.payment_method === 'qr' ? 'Chuyển khoản QR' : 'Tiền mặt (COD)'}</td></tr>
+    <tr><td class="lbl">Ngày đặt:</td><td>${fullOrder.created_at ? new Date(fullOrder.created_at).toLocaleDateString('vi-VN') : ''}</td></tr>
+    <tr><td class="lbl">Dự kiến giao:</td><td>${fullOrder.expected_delivery || 'N/A'}</td></tr>
   </table>
 
   <table class="items-table">
@@ -255,16 +277,18 @@ function StaffWorkspace({ section = "dashboard" }) {
       </tr>
     </thead>
     <tbody>
-      <tr>
-        <td class="c" colspan="5" style="font-style:italic;color:#888;">
-          (Chi tiết sản phẩm xem tại đơn hàng online)
-        </td>
-      </tr>
+      ${itemsHtml || `
+        <tr>
+          <td class="c" colspan="5" style="font-style:italic;color:#888;">
+            (Không có thông tin sản phẩm)
+          </td>
+        </tr>
+      `}
     </tbody>
   </table>
 
   <div class="total-section">
-    <div class="grand">TỔNG: ${Number(order.total).toLocaleString()}đ</div>
+    <div class="grand">TỔNG: ${Number(fullOrder.total || 0).toLocaleString()}đ</div>
   </div>
 
   <div class="footer-section">

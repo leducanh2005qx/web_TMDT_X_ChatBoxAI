@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Filter, SlidersHorizontal, X } from "lucide-react";
 import { getProducts, getCategories } from "../../services/api";
@@ -16,6 +17,14 @@ function Shop({ keyword, addToCart }) {
   // Dynamic filter states
   const [techFilters, setTechFilters] = useState({ ram: "all", storage: "all" });
   const [fashionFilters, setFashionFilters] = useState({ color: "all", size: "all" });
+
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state && location.state.category) {
+      setSelectedCategory(location.state.category);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     setLoading(true);

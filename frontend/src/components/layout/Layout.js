@@ -127,7 +127,7 @@ function Layout({ children, cart = [], onSearch }) {
 
           {/* Desktop Actions */}
           <div className="hidden lg:flex items-center gap-6">
-            <Link to="/cart" className={`relative transition-colors ${isScrolled ? "text-gray-700 hover:text-[#FF8C00]" : "text-white hover:text-white/80"}`}>
+            <Link to="/cart" className={`relative transition-colors cart-icon-nav ${isScrolled ? "text-gray-700 hover:text-[#FF8C00]" : "text-white hover:text-white/80"}`}>
               <ShoppingCart size={24} />
               {cartCount > 0 && (
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
@@ -166,7 +166,7 @@ function Layout({ children, cart = [], onSearch }) {
           <LayoutGrid size={22} />
           <span className="text-[10px] font-bold">Danh mục</span>
         </Link>
-        <Link to="/cart" className={`flex flex-col items-center gap-1 relative ${location.pathname === "/cart" ? "text-[#FF8C00]" : "text-gray-400"}`}>
+        <Link to="/cart" className={`flex flex-col items-center gap-1 relative cart-icon-nav ${location.pathname === "/cart" ? "text-[#FF8C00]" : "text-gray-400"}`}>
           <ShoppingCart size={22} />
           {cartCount > 0 && (
             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white">
