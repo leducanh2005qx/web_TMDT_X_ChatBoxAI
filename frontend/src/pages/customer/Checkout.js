@@ -27,6 +27,7 @@ function Checkout({ cart, setCart }) {
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [shippingMethod, setShippingMethod] = useState("standard");
   const [city, setCity] = useState("Hà Nội");
+  const [isWaitingPayment, setIsWaitingPayment] = useState(false);
 
   const subtotal = useMemo(() => {
     return checkoutItems.reduce((sum, i) => sum + Number(i.price || 0) * Number(i.quantity || 0), 0);
@@ -78,10 +79,7 @@ function Checkout({ cart, setCart }) {
 
   const removeVoucher = (type) => setSelectedVouchers((p) => ({ ...p, [type]: null }));
 
-  const handleCheckout = async () => {
-    if (checkoutItems.length === 0) return alert("Không có sản phẩm để thanh toán");
-    if (!address.trim() || !city) return alert("Vui lòng nhập địa chỉ và chọn Tỉnh/Thành phố");
-
+  const processOrder = async () => {
     const appliedVoucherIds = [selectedVouchers.item?.voucher_id, selectedVouchers.shipping?.voucher_id].filter(Boolean);
 
     try {
@@ -99,6 +97,18 @@ function Checkout({ cart, setCart }) {
     } catch (err) {
       alert("Lỗi: " + err.message);
     }
+  };
+
+  const handleCheckout = async () => {
+    if (checkoutItems.length === 0) return alert("Không có sản phẩm để thanh toán");
+    if (!address.trim() || !city) return alert("Vui lòng nhập địa chỉ và chọn Tỉnh/Thành phố");
+
+    if (paymentMethod === 'qr') {
+      setIsWaitingPayment(true);
+      return;
+    }
+
+    await processOrder();
   };
 
   const formatNumber = (p) => new Intl.NumberFormat("vi-VN").format(p || 0);
@@ -290,17 +300,7 @@ function Checkout({ cart, setCart }) {
               </div>
            </div>
 
-           {/* QR DISPLAY IF SELECTED */}
-           {paymentMethod === 'qr' && (
-             <div className="p-6 bg-[#f5f5f5] flex items-center justify-center border-b border-gray-100">
-                <div className="flex flex-col items-center gap-2">
-                   <div className="w-48 h-48 bg-white border border-gray-200 p-2 rounded-[12px] shadow-sm">
-                      <img src={qrCodeUrl} alt="QR Code" className="w-full h-full object-contain rounded-[8px]" />
-                   </div>
-                   <p className="text-sm text-[#FF7A00] font-bold mt-2">Mở App Ngân hàng quét mã để thanh toán</p>
-                </div>
-             </div>
-           )}
+
 
            {/* TOTAL SUMMARY */}
            <div className="bg-[#fffefb] p-6 lg:p-8 flex flex-col items-end gap-3 text-sm text-[#222]">
@@ -345,6 +345,45 @@ function Checkout({ cart, setCart }) {
         </div>
 
       </div>
+
+      {/* MODAL GIẢ LẬP THANH TOÁN QR */}
+      {isWaitingPayment && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[20px] w-full max-w-md p-6 flex flex-col items-center shadow-2xl relative">
+            <button 
+              onClick={() => setIsWaitingPayment(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-800"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <h3 className="text-xl font-bold text-[#222] mb-2">Thanh toán QR</h3>
+            <p className="text-sm text-gray-500 mb-6 text-center">Mở ứng dụng ngân hàng và quét mã để thanh toán.</p>
+            
+            <div className="w-56 h-56 bg-white border-2 border-[#FF7A00] p-2 rounded-[16px] shadow-sm mb-4 flex items-center justify-center">
+              <img src={qrCodeUrl} alt="QR Code" className="w-full h-full object-contain rounded-[12px]" />
+            </div>
+            
+            <div className="flex items-center gap-2 text-[#FF7A00] font-bold mb-6">
+              <div className="w-4 h-4 rounded-full border-2 border-[#FF7A00] border-t-transparent animate-spin"></div>
+              Hệ thống đang chờ nhận tiền...
+            </div>
+
+            <div className="w-full border-t border-dashed border-gray-200 pt-4 mt-2">
+               <button 
+                 onClick={() => {
+                   setIsWaitingPayment(false);
+                   processOrder();
+                 }}
+                 className="w-full bg-[#00bfa5] text-white py-3 rounded-xl font-bold hover:bg-[#00a891] transition-colors shadow-lg shadow-[#00bfa5]/30 flex justify-center items-center gap-2"
+               >
+                  ✨ [Demo] Giả lập thanh toán thành công
+               </button>
+               <p className="text-xs text-gray-400 text-center mt-2">Nút này dùng để qua nhanh bước thanh toán lúc demo</p>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

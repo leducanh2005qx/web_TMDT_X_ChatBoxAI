@@ -402,8 +402,17 @@ function OrderDetail({ cart = [], setCart }) {
               <span className="text-slate-500 font-medium">Phương thức thanh toán</span>
               <span className="font-extrabold text-slate-800">{methodText}</span>
            </div>
+
+           <div className="flex justify-between items-center sm:w-96 self-end gap-4 w-full pt-1">
+              <span className="text-slate-500 font-medium">Trạng thái thanh toán</span>
+              {isQR ? (
+                <span className="font-extrabold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-[6px] border border-emerald-100 text-[11px]">Đã thanh toán (QR)</span>
+              ) : (
+                <span className="font-extrabold text-[#FF7A00] bg-orange-50 px-2.5 py-0.5 rounded-[6px] border border-orange-100 text-[11px]">Chưa thanh toán (COD)</span>
+              )}
+           </div>
            
-           <div className="flex justify-between items-center sm:w-96 self-end gap-4 w-full border-b border-dashed border-[#ffe6d1] pb-2">
+           <div className="flex justify-between items-center sm:w-96 self-end gap-4 w-full border-b border-dashed border-[#ffe6d1] pb-2 mt-1">
               <span className="text-slate-500 font-medium">Tổng tiền giao (tiền hàng)</span>
               <span className="font-extrabold text-slate-800">₫{formatNumber(subtotal)}</span>
            </div>

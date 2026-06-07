@@ -530,8 +530,7 @@ exports.getStatistics = (req, res) => {
         COUNT(DISTINCT o.user_id) AS totalCustomers
       FROM order_items oi
       JOIN orders o ON oi.order_id = o.id
-      JOIN product_variants pv ON oi.variant_id = pv.id
-      JOIN products p ON pv.product_id = p.id
+      JOIN products p ON oi.product_id = p.id
       WHERE o.status = 'completed' AND p.category_id = ?
     `;
     db.query(sql, [categoryId], (err, rows) => {
@@ -560,8 +559,7 @@ exports.getBestSellingProducts = (req, res) => {
   const sql = `
     SELECT p.id, p.name, p.image, SUM(oi.quantity) AS totalSold 
     FROM order_items oi 
-    JOIN product_variants pv ON oi.variant_id = pv.id 
-    JOIN products p ON pv.product_id = p.id 
+    JOIN products p ON oi.product_id = p.id 
     JOIN orders o ON oi.order_id = o.id 
     WHERE o.status = 'completed' ${categoryFilter}
     GROUP BY p.id 
@@ -581,8 +579,7 @@ exports.getTopProfitProducts = (req, res) => {
   const sql = `
     SELECT p.id, p.name, p.image, SUM(oi.quantity * oi.price) AS totalRevenue 
     FROM order_items oi 
-    JOIN product_variants pv ON oi.variant_id = pv.id 
-    JOIN products p ON pv.product_id = p.id 
+    JOIN products p ON oi.product_id = p.id 
     JOIN orders o ON oi.order_id = o.id 
     WHERE o.status = 'completed' ${categoryFilter}
     GROUP BY p.id 
@@ -619,8 +616,7 @@ exports.getCategoryRevenue = (req, res) => {
     SELECT c.name AS category_name, SUM(oi.quantity * oi.price) AS total_revenue
     FROM order_items oi
     JOIN orders o ON oi.order_id = o.id
-    JOIN product_variants pv ON oi.variant_id = pv.id
-    JOIN products p ON pv.product_id = p.id
+    JOIN products p ON oi.product_id = p.id
     JOIN categories c ON p.category_id = c.id
     WHERE o.status = 'completed' ${categoryFilter}
     GROUP BY c.id, c.name
@@ -656,8 +652,7 @@ exports.getMonthlyRevenue = (req, res) => {
         SUM(oi.quantity * oi.price) AS revenue
       FROM order_items oi
       JOIN orders o ON oi.order_id = o.id
-      JOIN product_variants pv ON oi.variant_id = pv.id
-      JOIN products p ON pv.product_id = p.id
+      JOIN products p ON oi.product_id = p.id
       WHERE o.status = 'completed' AND p.category_id = ?
       GROUP BY label
       ORDER BY MIN(o.created_at) ASC

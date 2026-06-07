@@ -427,6 +427,7 @@ function StaffWorkspace({ section = "dashboard" }) {
                     <th>Khách Hàng</th>
                     <th>Tổng Tiền</th>
                     <th>Trạng Thái</th>
+                    <th>TT Thanh Toán</th>
                     <th>Thao Tác</th>
                   </tr>
                 </thead>
@@ -442,6 +443,13 @@ function StaffWorkspace({ section = "dashboard" }) {
                       </td>
                       <td className="fw-bold">{Number(order.total).toLocaleString()}đ</td>
                       <td>{renderStatusTag(order.status)}</td>
+                      <td>
+                        {order.payment_method === 'qr' ? (
+                          <span className="status-tag status-completed" style={{fontSize: '11px', padding: '4px 8px'}}>Đã TT (QR)</span>
+                        ) : (
+                          <span className="status-tag status-pending" style={{fontSize: '11px', padding: '4px 8px'}}>Chưa TT (COD)</span>
+                        )}
+                      </td>
                       <td className="text-end">
                         <div className="action-btns">
                           <button className="btn-action btn-view" onClick={() => handleViewOrder(order.id)}>
@@ -492,6 +500,14 @@ function StaffWorkspace({ section = "dashboard" }) {
                     </div>
                     <div className="price-row">
                       <span>Tổng tiền:</span> <span className="price">{Number(order.total).toLocaleString()}đ</span>
+                    </div>
+                    <div className="price-row" style={{ marginTop: '4px' }}>
+                      <span>Thanh toán:</span> 
+                      {order.payment_method === 'qr' ? (
+                        <span style={{color: '#10b981', fontWeight: 'bold', fontSize: '13px'}}>Đã TT (QR)</span>
+                      ) : (
+                        <span style={{color: '#FF7A00', fontWeight: 'bold', fontSize: '13px'}}>Chưa TT (COD)</span>
+                      )}
                     </div>
                   </div>
                   <div className="card-footer">
