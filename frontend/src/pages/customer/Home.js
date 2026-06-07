@@ -43,15 +43,40 @@ function Home({ addToCart }) {
     visible: { y: 0, opacity: 1, transition: { duration: 0.6, ease: "easeOut" } }
   };
 
-  // Helper for category emojis
-  const getCategoryEmoji = (name) => {
+  // Helper for category images matching Shopee circular style
+  const getCategoryImage = (name) => {
     const n = name.toLowerCase();
-    if (n.includes("điện tử") || n.includes("electronics") || n.includes("điện thoại") || n.includes("máy tính")) return "💻";
-    if (n.includes("thời trang") || n.includes("fashion") || n.includes("quần áo")) return "👕";
-    if (n.includes("phụ kiện") || n.includes("accessory")) return "🎧";
-    if (n.includes("giày") || n.includes("shoes")) return "👟";
-    if (n.includes("mỹ phẩm") || n.includes("beauty")) return "💄";
-    return "📦";
+    if (n.includes("thời trang nam")) {
+      return "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=200&auto=format&fit=crop"; // Blue shirt on white
+    }
+    if (n.includes("thời trang nữ")) {
+      return "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?q=80&w=200&auto=format&fit=crop"; // Orange dress / clothing
+    }
+    if (n.includes("điện thoại") || n.includes("phụ kiện")) {
+      return "https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=200&auto=format&fit=crop"; // Phone on white
+    }
+    if (n.includes("điện tử") || n.includes("electronics")) {
+      return "https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=200&auto=format&fit=crop"; // TV
+    }
+    if (n.includes("máy ảnh") || n.includes("camera")) {
+      return "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=200&auto=format&fit=crop"; // Camera
+    }
+    if (n.includes("đồng hồ") || n.includes("watch")) {
+      return "https://images.unsplash.com/photo-1524805444758-089113d48a6d?q=80&w=200&auto=format&fit=crop"; // Watch
+    }
+    if (n.includes("giày dép nam")) {
+      return "https://images.unsplash.com/photo-1549298916-b41d501d3772?q=80&w=200&auto=format&fit=crop"; // Shoes
+    }
+    if (n.includes("giày dép nữ")) {
+      return "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?q=80&w=200&auto=format&fit=crop"; // Heels
+    }
+    if (n.includes("nội thất") || n.includes("furniture")) {
+      return "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?q=80&w=200&auto=format&fit=crop"; // Chair
+    }
+    if (n.includes("đồ ăn") || n.includes("food")) {
+      return "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=200&auto=format&fit=crop"; // Food
+    }
+    return "https://images.unsplash.com/photo-1531403009284-440f080d1e12?q=80&w=200&auto=format&fit=crop"; // Default tech/project icon
   };
 
   const testimonials = [
@@ -253,12 +278,16 @@ function Home({ addToCart }) {
                 <SwiperSlide key={cat.id}>
                   <div 
                     onClick={() => navigate("/shop", { state: { category: cat.name } })}
-                    className="bg-white border border-gray-100 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 text-center cursor-pointer shadow-sm hover:shadow-md hover:border-[#FF8C00] transition-all hover:-translate-y-1.5 h-full"
+                    className="flex flex-col items-center justify-center gap-2 text-center cursor-pointer transition-all hover:-translate-y-1 h-full py-2"
                   >
-                    <div className="w-14 h-14 rounded-full bg-orange-50 flex items-center justify-center text-2xl shadow-inner shrink-0">
-                      {getCategoryEmoji(cat.name)}
+                    <div className="w-20 h-20 rounded-full bg-[#f3f4f6] flex items-center justify-center overflow-hidden shrink-0 border border-gray-100/50 shadow-sm transition-all hover:scale-105">
+                      <img 
+                        src={getCategoryImage(cat.name)} 
+                        alt={cat.name} 
+                        className="w-full h-full object-cover"
+                      />
                     </div>
-                    <span className="text-xs font-bold text-gray-700 truncate w-full">{cat.name}</span>
+                    <span className="text-xs font-bold text-gray-700 line-clamp-2 w-full leading-tight mt-1">{cat.name}</span>
                   </div>
                 </SwiperSlide>
               ))}

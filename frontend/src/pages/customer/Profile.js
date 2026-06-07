@@ -1,20 +1,27 @@
-import { useEffect, useState } from "react";
-import { getMyProfile, updateMyProfile } from "../../services/api";
+import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { getMyProfile, updateMyProfile, uploadAvatar } from "../../services/api";
+import { Camera, X, User } from "lucide-react";
 import "./Profile.css";
 
 function Profile() {
   const [user, setUser] = useState(null);
+  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     getMyProfile()
       .then((data) => {
         setUser(data);
+        setName(data.name || "");
         setPhone(data.phone || "");
         localStorage.setItem("user", JSON.stringify(data));
       })
+      .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   }, []);
 
@@ -22,11 +29,11 @@ function Profile() {
     try {
       setSaving(true);
       await updateMyProfile({
-        name: user.name,
+        name,
         phone,
       });
 
-      const updated = { ...user, phone };
+      const updated = { ...user, name, phone };
       setUser(updated);
       localStorage.setItem("user", JSON.stringify(updated));
       alert("✅ Cập nhật thành công");
@@ -37,20 +44,39 @@ function Profile() {
     }
   };
 
-  // Màn hình loading sắc nét hơn
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      setSaving(true);
+      const res = await uploadAvatar(file);
+      if (res.success) {
+        const updated = { ...user, avatar: res.avatar };
+        setUser(updated);
+        localStorage.setItem("user", JSON.stringify(updated));
+        alert("✅ Cập nhật ảnh đại diện thành công!");
+      }
+    } catch (err) {
+      alert(err.message || "❌ Lỗi tải lên ảnh");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleClose = () => {
+    navigate(-1); // Quay lại trang trước đó
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current.click();
+  };
+
   if (loading)
     return (
       <div className="profile-page">
-        <div
-          className="profile-card"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <p style={{ color: "#ffffff", fontWeight: 600 }}>
-            🔍 Đang lấy dữ liệu...
+        <div className="profile-card loading-card">
+          <p className="loading-text">
+            🔍 Đang lấy dữ liệu hồ sơ...
           </p>
         </div>
       </div>
@@ -59,38 +85,91 @@ function Profile() {
   return (
     <div className="profile-page">
       <div className="profile-card">
-        {/* Avatar với chữ cái đầu của tên */}
-        <div className="profile-avatar">
-          <span>{user.name?.charAt(0).toUpperCase()}</span>
+        {/* Header */}
+        <div className="profile-header">
+          <div className="header-title-container">
+            <div className="header-icon-box">
+              <User size={20} className="header-icon" />
+            </div>
+            <span className="header-title-text">Hồ sơ cá nhân</span>
+          </div>
+          <button className="header-close-btn" onClick={handleClose}>
+            <X size={20} />
+          </button>
         </div>
 
-        <h2 className="profile-title">Tài khoản</h2>
-        <p className="profile-sub">Quản lý và bảo mật thông tin cá nhân</p>
+        {/* Avatar Section */}
+        <div className="avatar-section">
+          <div className="avatar-wrapper" onClick={triggerFileInput}>
+            {user.avatar ? (
+              <img
+                src={`http://localhost:5000/${user.avatar}`}
+                alt="Avatar"
+                className="avatar-img"
+              />
+            ) : (
+              <div className="avatar-letter">
+                {name?.charAt(0).toUpperCase() || "U"}
+              </div>
+            )}
+            <div className="camera-btn">
+              <Camera size={14} />
+            </div>
+          </div>
+          <span className="avatar-caption">Nhấn để thay đổi ảnh đại diện</span>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleAvatarChange}
+            accept="image/*"
+            style={{ display: "none" }}
+          />
+        </div>
 
+        {/* Form Fields */}
         <div className="profile-form">
           <div className="form-group">
-            <label>Họ và tên</label>
-            <input value={user.name} disabled />
-          </div>
-
-          <div className="form-group">
-            <label>Địa chỉ Email</label>
-            <input value={user.email} disabled />
-          </div>
-
-          <div className="form-group">
-            <label>Số điện thoại</label>
+            <label className="form-label">Tên hiển thị</label>
             <input
-              type="tel"
-              placeholder="Nhập số điện thoại liên lạc"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              type="text"
+              className="form-input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nhập tên hiển thị"
             />
           </div>
 
-          <button className="save-btn" onClick={handleSave} disabled={saving}>
-            {saving ? <>⏳ Đang xử lý...</> : <>💾 Lưu thay đổi</>}
-          </button>
+          <div className="form-group">
+            <label className="form-label">Số điện thoại</label>
+            <input
+              type="tel"
+              className="form-input"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Nhập số điện thoại"
+            />
+          </div>
+
+          {/* Note Callout */}
+          <div className="note-callout">
+            <span className="note-text">
+              💡 Lưu ý: Bạn không thể tự sửa chức vụ, mức lương, hay email tài khoản. Nếu cần thay đổi, vui lòng liên hệ Quản lý.
+            </span>
+          </div>
+
+          {/* Actions */}
+          <div className="profile-actions">
+            <button className="profile-btn-close" onClick={handleClose}>
+              Đóng
+            </button>
+            <button
+              className="profile-btn-save"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? "Đang lưu..." : "Lưu thay đổi"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
