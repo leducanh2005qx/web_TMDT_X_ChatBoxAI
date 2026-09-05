@@ -108,4 +108,10 @@ router.post("/switch-to-human", authMiddleware, (req, res) => {
 ===================================================== */
 router.post("/ai/talk", authMiddleware, aiChatController.chatWithAi);
 
+/* =====================================================
+   AI CHAT HISTORY – GET & CLEAR
+===================================================== */
+router.get("/ai/history",    authMiddleware, aiChatController.getAiHistory);
+router.delete("/ai/history", authMiddleware, aiChatController.clearAiHistory);
+
 module.exports = router;

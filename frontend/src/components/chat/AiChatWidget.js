@@ -58,12 +58,16 @@ export default function AiChatWidget() {
           message: data.reply
         }]);
 
-        if (data.voucher) {
+        // BUG FIX: chỉ hiển thị voucher khi giá trị thực sự hợp lệ
+        // Gemini đôi khi trả về chuỗi "null" thay vì null thực
+        const vc = data.voucher;
+        const hasVoucher = vc && vc !== "null" && vc !== "undefined" && String(vc).trim().length > 0;
+        if (hasVoucher) {
           setTimeout(() => {
             setMessages(prev => [...prev, {
               id: "sys-voucher-" + Date.now(),
               senderRole: "SYSTEM",
-              message: `🎁 TIGER TẶNG SẾP MÃ: **${data.voucher}**\nSếp áp dụng ngay trong trang thanh toán để được giảm giá nhé!`
+              message: `🎁 TIGER TẶNG SẾP MÃ: **${vc}**\nSếp áp dụng ngay trong trang thanh toán để được giảm giá nhé!`
             }]);
           }, 1000);
         }

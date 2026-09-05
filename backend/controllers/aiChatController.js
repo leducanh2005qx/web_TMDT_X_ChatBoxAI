@@ -2,6 +2,88 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const db = require("../config/db");
 const Chat = require("../models/Chat");
 
+// ============================================================
+//  🗃️ AI CHAT HISTORY HELPERS
+// ============================================================
+
+/**
+ * Lấy hoặc tạo mới session AI chat cho user
+ */
+async function getOrCreateSession(userId) {
+  const [rows] = await db.promise().query(
+    "SELECT id FROM ai_chat_sessions WHERE user_id = ?",
+    [userId]
+  );
+  if (rows.length > 0) return rows[0].id;
+
+  const [result] = await db.promise().query(
+    "INSERT INTO ai_chat_sessions (user_id) VALUES (?)",
+    [userId]
+  );
+  return result.insertId;
+}
+
+/**
+ * Lưu một tin nhắn vào lịch sử
+ */
+async function saveMessage(sessionId, role, message, voucher = null) {
+  await db.promise().query(
+    "INSERT INTO ai_chat_messages (session_id, role, message, voucher) VALUES (?, ?, ?, ?)",
+    [sessionId, role, message, voucher]
+  );
+}
+
+/**
+ * GET /ai/history – Lấy toàn bộ lịch sử chat AI của user hiện tại
+ */
+exports.getAiHistory = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const [sessions] = await db.promise().query(
+      "SELECT id FROM ai_chat_sessions WHERE user_id = ?",
+      [userId]
+    );
+    if (sessions.length === 0) return res.json([]);
+
+    const sessionId = sessions[0].id;
+    const [messages] = await db.promise().query(
+      `SELECT id, role, message, voucher, created_at
+       FROM ai_chat_messages
+       WHERE session_id = ?
+       ORDER BY created_at ASC
+       LIMIT 100`,
+      [sessionId]
+    );
+    res.json(messages);
+  } catch (err) {
+    console.error("getAiHistory error:", err);
+    res.status(500).json({ error: "Lỗi lấy lịch sử chat" });
+  }
+};
+
+/**
+ * DELETE /ai/history – Xoá toàn bộ lịch sử chat AI của user
+ */
+exports.clearAiHistory = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const [sessions] = await db.promise().query(
+      "SELECT id FROM ai_chat_sessions WHERE user_id = ?",
+      [userId]
+    );
+    if (sessions.length === 0) return res.json({ success: true });
+
+    await db.promise().query(
+      "DELETE FROM ai_chat_messages WHERE session_id = ?",
+      [sessions[0].id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("clearAiHistory error:", err);
+    res.status(500).json({ error: "Lỗi xoá lịch sử" });
+  }
+};
+
 /**
  * Lấy gợi ý phản hồi nhanh cho nhân viên
  */
@@ -92,6 +174,7 @@ function classifyIntent(message) {
  */
 exports.chatWithAi = async (req, res) => {
   const { message, orderId } = req.body;
+  const userId   = req.user ? req.user.id   : null;
   const userName = req.user ? req.user.name : "bạn";
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -180,7 +263,28 @@ JSON:`;
       parsed = { reply: text.replace(/```json/g, "").replace(/```/g, "").trim(), sentiment: "neutral", voucher: null };
     }
 
-    return res.json({ success: true, reply: parsed.reply, voucher: parsed.voucher });
+    // BUG FIX: Chuẩn hóa giá trị voucher – Gemini đôi khi trả về chuỗi "null" thay vì null thực
+    // Cần đảm bảo frontend không nhận được chuỗi giả này
+    const rawVoucher = parsed.voucher;
+    const sanitizedVoucher = (
+      rawVoucher
+      && rawVoucher !== "null"
+      && rawVoucher !== "undefined"
+      && String(rawVoucher).trim().length > 0
+    ) ? String(rawVoucher).trim() : null;
+
+    // ── Lưu lịch sử vào DB ──
+    if (userId) {
+      try {
+        const sessionId = await getOrCreateSession(userId);
+        await saveMessage(sessionId, "USER", message, null);
+        await saveMessage(sessionId, "AI",   parsed.reply, sanitizedVoucher);
+      } catch (saveErr) {
+        console.error("Save AI history error:", saveErr);
+      }
+    }
+
+    return res.json({ success: true, reply: parsed.reply, voucher: sanitizedVoucher });
 
   } catch (error) {
     console.error("AI CHAT ERROR:", error);

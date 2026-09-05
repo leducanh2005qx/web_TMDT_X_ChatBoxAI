@@ -12,6 +12,8 @@ import ManagerLayout from "./components/layout/ManagerLayout";
 import StaffLayout from "./components/layout/StaffLayout";
 
 /* ================= CUSTOMER ================= */
+import TigerHeroShowcase from "./components/customer/TigerHeroShowcase";
+import Tiger3DExperience from "./components/customer/Tiger3DExperience";
 import Home from "./pages/customer/Home";
 import Shop from "./pages/customer/Shop";
 import Orders from "./pages/customer/Orders";
@@ -87,6 +89,12 @@ function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+
+        {/* ================= TIGER HERO SHOWCASE ================= */}
+        <Route path="/showcase" element={<TigerHeroShowcase />} />
+
+        {/* ================= TIGER 3D EXPERIENCE ================= */}
+        <Route path="/3d" element={<Tiger3DExperience />} />
 
         <Route
           path="/home"
