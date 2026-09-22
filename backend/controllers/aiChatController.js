@@ -1,6 +1,7 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const db = require("../config/db");
 const Chat = require("../models/Chat");
+const { getInStockProducts } = require("../services/aiService");
 
 // ============================================================
 //  🗃️ AI CHAT HISTORY HELPERS
@@ -34,6 +35,29 @@ async function saveMessage(sessionId, role, message, voucher = null) {
 }
 
 /**
+ * Lấy N tin nhắn gần nhất của session để nạp vào history Gemini
+ * Trả về theo thứ tự ASC (cũ → mới) để Gemini hiểu đúng thứ tự hội thoại
+ */
+async function getRecentMessages(sessionId, limit = 10) {
+  const [rows] = await db.promise().query(
+    `SELECT role, message FROM (
+       SELECT role, message, created_at
+       FROM ai_chat_messages
+       WHERE session_id = ?
+       ORDER BY created_at DESC
+       LIMIT ?
+     ) AS recent
+     ORDER BY created_at ASC`,
+    [sessionId, limit]
+  );
+  return rows;
+}
+
+// ============================================================
+//  📖 GET AI HISTORY – Lấy toàn bộ lịch sử chat AI
+// ============================================================
+
+/**
  * GET /ai/history – Lấy toàn bộ lịch sử chat AI của user hiện tại
  */
 exports.getAiHistory = async (req, res) => {
@@ -61,6 +85,10 @@ exports.getAiHistory = async (req, res) => {
   }
 };
 
+// ============================================================
+//  🗑️ CLEAR AI HISTORY – Xoá lịch sử chat AI
+// ============================================================
+
 /**
  * DELETE /ai/history – Xoá toàn bộ lịch sử chat AI của user
  */
@@ -84,8 +112,12 @@ exports.clearAiHistory = async (req, res) => {
   }
 };
 
+// ============================================================
+//  💡 GET CHAT SUGGESTIONS – Gợi ý phản hồi nhanh cho nhân viên
+// ============================================================
+
 /**
- * Lấy gợi ý phản hồi nhanh cho nhân viên
+ * Lấy gợi ý phản hồi nhanh cho nhân viên (human chat panel)
  */
 exports.getChatSuggestions = async (req, res) => {
   const { threadId } = req.params;
@@ -139,43 +171,29 @@ exports.getChatSuggestions = async (req, res) => {
   }
 };
 
-const { findTopProducts } = require("../services/aiService");
+// ============================================================
+//  🤖 CHAT WITH AI – Core handler (Multi-turn + Grounding)
+// ============================================================
 
 /**
- * Phân loại ý định của khách hàng để quyết định cách xử lý
- */
-function classifyIntent(message) {
-  const msg = message.toLowerCase();
-
-  // Câu chào hỏi / xã giao
-  const greetings = ["xin chào", "hello", "hi", "chào", "alo", "hey", "có ai", "bot", "tiger"];
-  if (greetings.some(g => msg.includes(g)) && msg.length < 30) {
-    return "greeting";
-  }
-
-  // Hỏi về đơn hàng
-  const orderKeywords = ["đơn hàng", "đơn", "giao hàng", "ship", "vận chuyển", "theo dõi", "trạng thái đơn"];
-  if (orderKeywords.some(k => msg.includes(k))) {
-    return "order_inquiry";
-  }
-
-  // Hỏi về chính sách
-  const policyKeywords = ["bảo hành", "đổi trả", "hoàn tiền", "chính sách", "khiếu nại"];
-  if (policyKeywords.some(k => msg.includes(k))) {
-    return "policy_inquiry";
-  }
-
-  // Tìm sản phẩm / mua hàng → cần RAG
-  return "product_search";
-}
-
-/**
- * Xử lý chat AI độc lập (Stateless) – Nâng cấp RAG thông minh
+ * POST /ai/talk – Xử lý chat với Tiger AI
+ *
+ * Luồng xử lý:
+ *  Bước 1: Lấy session + 10 tin nhắn gần nhất → build history[]
+ *  Bước 2: Query catalog sản phẩm còn hàng (stock > 0) → grounding data
+ *  Bước 3: Thiết lập systemInstruction nghiêm ngặt với catalog thực tế
+ *  Bước 4: Gọi Gemini multi-turn chat với history đầy đủ
+ *  Bước 5: Lưu USER message + AI reply vào DB
+ *  Bước 6: Trả response về client
  */
 exports.chatWithAi = async (req, res) => {
   const { message, orderId } = req.body;
   const userId   = req.user ? req.user.id   : null;
   const userName = req.user ? req.user.name : "bạn";
+
+  if (!message || !message.trim()) {
+    return res.status(400).json({ success: false, error: "Tin nhắn không được để trống." });
+  }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -185,109 +203,132 @@ exports.chatWithAi = async (req, res) => {
   const genAI = new GoogleGenerativeAI(apiKey);
 
   try {
-    const intent = classifyIntent(message);
-    console.log(`🧠 Tiger phân loại ý định: "${message}" → [${intent}]`);
+    // ── BƯỚC 1: Lấy session + lịch sử hội thoại gần nhất ──
+    let sessionId = null;
+    let conversationHistory = [];
 
-    // ====== XÂY DỰNG CONTEXT SẢN PHẨM (chỉ khi cần) ======
-    let productListText = "";
+    if (userId) {
+      sessionId = await getOrCreateSession(userId);
+      const recentMessages = await getRecentMessages(sessionId, 10);
 
-    if (intent === "product_search") {
-      console.log(`🔍 Tiger đang tìm kiếm sản phẩm phù hợp cho: "${message}"`);
-      const topProducts = await findTopProducts(message, 3, 0.45);
-
-      if (topProducts && topProducts.length > 0) {
-        const productList = topProducts
-          .map((p, i) => {
-            const priceFormatted = Number(p.price).toLocaleString();
-            const stockStatus = p.stock <= 0 ? "⚠️ TẠM HẾT HÀNG" : p.stock <= 10 ? `Chỉ còn ${p.stock} sản phẩm` : "Còn hàng";
-            return `${i + 1}. ${p.name} (${p.category})\n   💰 Giá: ${priceFormatted}đ | 📦 ${stockStatus}\n   📝 ${(p.description || "").substring(0, 80)}`;
-          })
-          .join("\n");
-        productListText = `\n🎯 TOP ${topProducts.length} SẢN PHẨM PHÙ HỢP NHẤT (điểm tương đồng cao nhất):\n${productList}\n\nLƯU Ý: Chỉ giới thiệu TỐI ĐA 3 sản phẩm trên. KHÔNG tự bịa sản phẩm. Nếu sản phẩm TẠM HẾT HÀNG, hãy thông báo cho khách và gợi ý liên hệ để đặt trước hoặc xem sản phẩm tương tự.\n`;
-      } else {
-        productListText = "\n(Không tìm thấy sản phẩm nào phù hợp trong kho. Hãy hỏi thêm nhu cầu cụ thể hơn, VD: loại sản phẩm, mức giá, thương hiệu.)\n";
+      // Chuyển đổi sang định dạng Gemini multi-turn history
+      // Lưu ý: Gemini yêu cầu history phải bắt đầu bằng role 'user'
+      // và phải xen kẽ user/model. Ta lọc để đảm bảo tính hợp lệ.
+      for (const msg of recentMessages) {
+        conversationHistory.push({
+          role: msg.role === "USER" ? "user" : "model",
+          parts: [{ text: msg.message }]
+        });
       }
-    } else if (intent === "greeting") {
-      productListText = "\n(Khách đang chào hỏi. KHÔNG cần tìm sản phẩm. Hãy chào lại thân thiện và hỏi khách cần hỗ trợ gì.)\n";
-    } else if (intent === "order_inquiry") {
-      productListText = "\n(Khách hỏi về đơn hàng. Hãy hỏi mã đơn hàng nếu chưa có, hoặc cung cấp thông tin đơn hàng bên dưới.)\n";
-    } else if (intent === "policy_inquiry") {
-      productListText = "\n(Khách hỏi chính sách. Tiger Shop có: Đổi trả 7 ngày, Bảo hành theo hãng, Giao hàng hỏa tốc nội thành Hà Đông. Liên hệ Hotline nếu cần thêm.)\n";
+
+      // Đảm bảo history hợp lệ: không bắt đầu bằng 'model'
+      if (conversationHistory.length > 0 && conversationHistory[0].role === "model") {
+        conversationHistory.shift();
+      }
     }
 
-    // ====== THÔNG TIN ĐƠN HÀNG (nếu có) ======
-    let orderInfo = "Không có đơn hàng đính kèm.";
+    // ── BƯỚC 2: Query catalog sản phẩm còn hàng ──
+    const inStockProducts = await getInStockProducts();
+
+    let productCatalogText = "(Hiện tại kho hàng chưa có sản phẩm nào. Hãy thông báo cho khách hàng.)";
+    if (inStockProducts.length > 0) {
+      const catalogLines = inStockProducts.map(p => {
+        const priceFormatted = Number(p.price).toLocaleString("vi-VN");
+        const desc = p.description ? p.description.substring(0, 60).replace(/\n/g, " ") : "";
+        return `• [ID:${p.id}] ${p.name} | Giá: ${priceFormatted}đ | Tồn kho: ${p.stock} | Danh mục: ${p.category}${desc ? ` | Mô tả: ${desc}` : ""}`;
+      });
+      productCatalogText = catalogLines.join("\n");
+    }
+
+    // ── BƯỚC 3: Thông tin đơn hàng (nếu có) ──
+    let orderInfo = "";
     if (orderId) {
-      const [orders] = await db.promise().query("SELECT id, total, status FROM orders WHERE id = ?", [orderId]);
+      const [orders] = await db.promise().query(
+        "SELECT id, total, status FROM orders WHERE id = ?",
+        [orderId]
+      );
       if (orders.length > 0) {
         const o = orders[0];
-        orderInfo = `Đơn #${o.id}. Trạng thái: ${o.status}. Tổng: ${Number(o.total).toLocaleString()}đ.`;
+        orderInfo = `\n\nĐƠN HÀNG ĐÍNH KÈM: Đơn #${o.id} | Trạng thái: ${o.status} | Tổng: ${Number(o.total).toLocaleString("vi-VN")}đ`;
       }
     }
 
-    // ====== SYSTEM PROMPT CHUYÊN NGHIỆP ======
-    const fullPrompt = `Vai trò: Bạn là 'Trợ lý Tiger 🐯', trợ lý ảo thông minh của cửa hàng Tiger Shop (Yên Nghĩa, Hà Đông).
-Phong cách: Luôn gọi người dùng là 'Sếp'. Ngôn ngữ vui vẻ, nhiệt tình, chuyên nghiệp. Có emoji 🐯.
-QUY TẮC VÀNG:
-- Chỉ giới thiệu TỐI ĐA 3 sản phẩm mỗi lần tư vấn. Ưu tiên sản phẩm phù hợp NHẤT.
-- KHÔNG BAO GIỜ tự bịa sản phẩm hoặc giá cả. Chỉ dùng dữ liệu được cung cấp.
-- Nếu khách chưa nêu rõ nhu cầu, hỏi thêm: loại sản phẩm, mức giá, mục đích sử dụng.
-- Nếu nhận thấy khách phân vân, chê đắt, ngập ngừng → cung cấp mã voucher 'TIGER_PROMO_10'. Nếu không → null.
-- Câu trả lời ngắn gọn, dễ đọc (max 150 từ), KHÔNG dùng Markdown.
+    // ── BƯỚC 4: Xây dựng System Instruction nghiêm ngặt ──
+    const systemInstruction = `Bạn là "Tiger AI 🐯" – Trợ lý bán hàng chuyên nghiệp của Tiger Shop (Yên Nghĩa, Hà Đông).
+Khách hàng đang chat với bạn tên là: ${userName}.
 
-Khách hàng: ${userName}
-${productListText}
-ĐƠN HÀNG: ${orderInfo}
+═══════════════════════════════════════
+📦 DANH SÁCH SẢN PHẨM HIỆN CÓ TRONG KHO (CÒN HÀNG):
+═══════════════════════════════════════
+${productCatalogText}
+═══════════════════════════════════════
 
-Khách hỏi: "${message}"
+QUY TẮC BẮT BUỘC – VI PHẠM LÀ SAI:
 
-BẮT BUỘC TRẢ VỀ ĐÚNG MỘT ĐỐI TƯỢNG JSON:
-{
-  "reply": "Câu trả lời ngắn gọn, thân thiện",
-  "sentiment": "happy hoặc angry hoặc neutral",
-  "voucher": "TIGER_PROMO_10 hoặc null"
-}
-JSON:`;
+1. CHỈ ĐƯỢC GỢI Ý sản phẩm có trong danh sách trên. TUYỆT ĐỐI không tự bịa ra tên sản phẩm, giá bán, mã sản phẩm nào khác.
 
-    const chatModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const result = await chatModel.generateContent(fullPrompt);
+2. LỌC GIÁ CHÍNH XÁC: Khi khách nêu ngân sách (ví dụ "300k", "500 nghìn", "dưới 1 triệu"), chỉ gợi ý sản phẩm có giá ≤ ngân sách đó. Nếu không có sản phẩm nào phù hợp, thông báo lịch sự và gợi ý sản phẩm gần nhất.
+
+3. KHÔNG BỊA CHÍNH SÁCH: Chỉ nói về chính sách thực tế của Tiger Shop (Đổi trả 7 ngày, Giao hàng nội thành Hà Đông). KHÔNG được tự thêm chính sách bảo hành vô lý (ví dụ thực phẩm/đồ ăn không có bảo hành 12 tháng).
+
+4. TRÌNH BÀY SÚC TÍCH: Trả lời ngắn gọn, rõ ràng, xuống dòng từng ý. Tối đa 200 từ mỗi câu trả lời. Gọi khách là "Sếp".
+
+5. KHI KHÁCH PHÂN VÂN / CHÊ ĐẮT: Nhẹ nhàng hỏi thêm nhu cầu hoặc gợi ý sản phẩm tương tự rẻ hơn trong danh sách.
+
+6. CHÀO HỎI: Trả lời thân thiện, nhiệt tình với emoji 🐯. Hỏi khách cần hỗ trợ gì khi mới bắt đầu hội thoại.${orderInfo}`;
+
+    // ── BƯỚC 5: Gọi Gemini API với multi-turn history ──
+    console.log(`🐯 Tiger AI | User: ${userName} | History: ${conversationHistory.length} turns | Products: ${inStockProducts.length}`);
+
+    const chatModel = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      systemInstruction: systemInstruction,
+    });
+
+    const chat = chatModel.startChat({
+      history: conversationHistory,
+    });
+
+    const result = await chat.sendMessage(message.trim());
     const response = await result.response;
-    const text = response.text();
-    
-    let parsed;
-    try {
-      // Xử lý trường hợp Gemini trả về JSON bọc trong markdown
-      const cleanText = text.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-      parsed = JSON.parse(cleanText);
-    } catch(e) {
-      parsed = { reply: text.replace(/```json/g, "").replace(/```/g, "").trim(), sentiment: "neutral", voucher: null };
-    }
+    const aiReply = response.text().trim();
 
-    // BUG FIX: Chuẩn hóa giá trị voucher – Gemini đôi khi trả về chuỗi "null" thay vì null thực
-    // Cần đảm bảo frontend không nhận được chuỗi giả này
-    const rawVoucher = parsed.voucher;
-    const sanitizedVoucher = (
-      rawVoucher
-      && rawVoucher !== "null"
-      && rawVoucher !== "undefined"
-      && String(rawVoucher).trim().length > 0
-    ) ? String(rawVoucher).trim() : null;
-
-    // ── Lưu lịch sử vào DB ──
-    if (userId) {
+    // ── BƯỚC 6: Lưu USER message + AI reply vào DB ──
+    if (userId && sessionId) {
       try {
-        const sessionId = await getOrCreateSession(userId);
-        await saveMessage(sessionId, "USER", message, null);
-        await saveMessage(sessionId, "AI",   parsed.reply, sanitizedVoucher);
+        await saveMessage(sessionId, "USER", message.trim(), null);
+        await saveMessage(sessionId, "AI",   aiReply, null);
       } catch (saveErr) {
-        console.error("Save AI history error:", saveErr);
+        // Không block response nếu lưu lỗi
+        console.error("⚠️ Save AI history error:", saveErr.message);
       }
     }
 
-    return res.json({ success: true, reply: parsed.reply, voucher: sanitizedVoucher });
+    // ── Kiểm tra có nên tặng voucher không (dựa trên từ khoá) ──
+    const lowerReply = aiReply.toLowerCase();
+    const lowerMsg   = message.toLowerCase();
+    const shouldOfferVoucher = (
+      lowerMsg.includes("đắt") ||
+      lowerMsg.includes("mắc") ||
+      lowerMsg.includes("chê") ||
+      lowerMsg.includes("suy nghĩ") ||
+      lowerMsg.includes("nghĩ thêm") ||
+      lowerReply.includes("ưu đãi") ||
+      lowerReply.includes("khuyến mãi")
+    );
+    const voucher = shouldOfferVoucher ? "TIGER_PROMO_10" : null;
+
+    return res.json({
+      success: true,
+      reply: aiReply,
+      voucher: voucher
+    });
 
   } catch (error) {
-    console.error("AI CHAT ERROR:", error);
-    return res.status(200).json({ success: false, error: "Tiger AI đang bảo trì, sếp hãy nhắn cho nhân viên ở phía dưới nhé!" });
+    console.error("❌ AI CHAT ERROR:", error.message || error);
+    return res.status(200).json({
+      success: false,
+      error: "Tiger AI đang bảo trì, sếp hãy nhắn cho nhân viên ở phía dưới nhé!"
+    });
   }
 };

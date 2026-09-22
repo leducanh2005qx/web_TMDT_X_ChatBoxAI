@@ -234,12 +234,14 @@ export const restoreProductToPending = (id) =>
     headers: getAuthHeader(),
   }).then(handleResponse);
 
-export const createCategory = (name) =>
-  fetch(`${API_URL}/categories`, {
+export const createCategory = (payload) => {
+  const body = typeof payload === "object" ? payload : { name: payload };
+  return fetch(`${API_URL}/categories`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...getAuthHeader() },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(body),
   }).then(handleResponse);
+};
 
 export const updateCategory = (id, name) =>
   fetch(`${API_URL}/categories/${id}`, {

@@ -45,7 +45,10 @@ import {
   changeJobInfoAdmin,
   assignShift,
   getAllShiftsAdmin,
-  decideShift
+  decideShift,
+  getCategories,
+  createCategory,
+  deleteCategory,
 } from "../../services/api";
 import PayslipModal from "../../components/payroll/PayslipModal";
 import "./ManagerWorkspace.css";
@@ -134,6 +137,13 @@ function ManagerWorkspace() {
   const [editProductImage, setEditProductImage] = useState(null);
   const [editProductLoading, setEditProductLoading] = useState(false);
 
+  // --- Categories (dynamic từ DB) ---
+  const [categories, setCategories] = useState([]);
+  const [showAddCatModal, setShowAddCatModal] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [addCatLoading, setAddCatLoading] = useState(false);
+  const [addCatError, setAddCatError] = useState("");
+
   // --- Modal Fix Checkout ---
   const [fixingSession, setFixingSession] = useState(null);
   const [fixCheckoutTime, setFixCheckoutTime] = useState("");
@@ -219,6 +229,53 @@ function ManagerWorkspace() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Load danh mục từ DB khi mount
+  useEffect(() => {
+    getCategories().then((data) => {
+      setCategories(Array.isArray(data) ? data : []);
+    }).catch(() => {});
+  }, []);
+
+  // Handler thêm danh mục mới
+  const handleAddCategory = async (e) => {
+    e.preventDefault();
+    if (!newCatName.trim()) return;
+    setAddCatLoading(true);
+    setAddCatError("");
+    try {
+      const created = await createCategory(newCatName.trim());
+      const newCat = { id: created.id, name: newCatName.trim() };
+      setCategories((prev) => [...prev, newCat]);
+      // Tự động chọn danh mục vừa thêm trong form sửa sản phẩm
+      setEditProductForm((prev) => ({ ...prev, category_id: created.id }));
+      setNewCatName("");
+      setShowAddCatModal(false);
+    } catch (err) {
+      setAddCatError(err.message || "Không thể thêm danh mục");
+    } finally {
+      setAddCatLoading(false);
+    }
+  };
+
+  // Handler xóa danh mục
+  const handleDeleteCategory = async (cat) => {
+    const confirmMsg = Number(cat.product_count) > 0
+      ? `Danh mục "${cat.name}" đang liên kết với ${cat.product_count} sản phẩm.\nNếu xóa, các sản phẩm này sẽ được chuyển về "Chưa phân loại".\n\nBạn có chắc chắn muốn xóa danh mục này?`
+      : `Bạn có chắc chắn muốn xóa danh mục "${cat.name}" không?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      await deleteCategory(cat.id);
+      setCategories((prev) => prev.filter((c) => c.id !== cat.id));
+      if (String(editProductForm.category_id) === String(cat.id)) {
+        setEditProductForm((prev) => ({ ...prev, category_id: "" }));
+      }
+    } catch (err) {
+      alert("Lỗi khi xóa danh mục: " + (err.message || "Không thể xóa"));
+    }
+  };
 
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
@@ -1453,6 +1510,30 @@ function ManagerWorkspace() {
                   <label className="form-label small fw-bold text-muted">Hình ảnh mới (bỏ trống nếu giữ nguyên)</label>
                   <input type="file" className="form-control" onChange={e => setEditProductImage(e.target.files[0])} accept="image/*" />
                 </div>
+                {/* ── Dropdown Danh mục động từ DB ── */}
+                <div className="mb-3">
+                  <label className="form-label small fw-bold text-muted d-flex align-items-center justify-content-between">
+                    <span>Danh mục</span>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-warning py-0 px-2"
+                      style={{ fontSize: "11px", borderRadius: "8px" }}
+                      onClick={() => { setShowAddCatModal(true); setAddCatError(""); setNewCatName(""); }}
+                    >
+                      ⚙️ Quản lý danh mục
+                    </button>
+                  </label>
+                  <select
+                    className="form-select"
+                    value={editProductForm.category_id}
+                    onChange={e => setEditProductForm({ ...editProductForm, category_id: e.target.value })}
+                  >
+                    <option value="">-- Chọn danh mục --</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="modal-footer border-0 pt-0">
                 <button type="button" className="btn btn-light px-4" onClick={() => setEditingProduct(null)}>Hủy</button>
@@ -1465,6 +1546,78 @@ function ManagerWorkspace() {
         </div>
       </div>
     )}
+
+    {/* ── Modal Quản Lý Danh Mục (Thêm / Xóa) ── */}
+    {showAddCatModal && (
+      <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.6)", zIndex: 10100 }}>
+        <div className="modal-dialog modal-md" style={{ marginTop: "12vh" }}>
+          <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "16px" }}>
+            <div className="modal-header border-0 pb-0">
+              <h6 className="modal-title fw-bold">📁 Quản lý danh mục sản phẩm</h6>
+              <button type="button" className="btn-close" onClick={() => setShowAddCatModal(false)} />
+            </div>
+            <div className="modal-body py-3 space-y-4">
+              {/* Form thêm mới */}
+              <form onSubmit={handleAddCategory} className="p-3 bg-light rounded-3 mb-3">
+                <div className="fw-bold small text-primary mb-2">+ Thêm danh mục mới</div>
+                {addCatError && (
+                  <div className="alert alert-danger py-1 small mb-2">{addCatError}</div>
+                )}
+                <div className="input-group">
+                  <input
+                    type="text"
+                    className="form-control form-control-sm"
+                    placeholder="Tên danh mục (VD: Phụ kiện...)"
+                    value={newCatName}
+                    onChange={e => setNewCatName(e.target.value)}
+                    required
+                  />
+                  <button type="submit" className="btn btn-warning btn-sm px-3 fw-bold" disabled={addCatLoading || !newCatName.trim()}>
+                    {addCatLoading ? "Đang thêm..." : "+ Thêm"}
+                  </button>
+                </div>
+              </form>
+
+              {/* Danh sách & nút xóa */}
+              <div>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <span className="small fw-bold text-muted text-uppercase">Danh sách danh mục ({categories.length})</span>
+                  <span className="text-muted" style={{ fontSize: "11px" }}>Bấm 🗑️ để xóa</span>
+                </div>
+                <div className="border rounded-3 overflow-hidden" style={{ maxHeight: "220px", overflowY: "auto" }}>
+                  {categories.map((c) => (
+                    <div key={c.id} className="d-flex justify-content-between align-items-center p-2 border-bottom hover-bg-light">
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="badge bg-light text-dark border">#{c.id}</span>
+                        <span className="fw-semibold small">{c.name}</span>
+                        {c.product_count !== undefined && (
+                          <span className="text-muted" style={{ fontSize: "11px" }}>({c.product_count} sp)</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-outline-danger btn-sm py-0 px-2"
+                        style={{ fontSize: "11px" }}
+                        onClick={() => handleDeleteCategory(c)}
+                        title={`Xóa danh mục "${c.name}"`}
+                      >
+                        🗑️ Xóa
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer border-0 pt-0">
+              <button type="button" className="btn btn-secondary btn-sm px-4" onClick={() => setShowAddCatModal(false)}>
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
     {/* Modal Fix Checkout */}
     {fixingSession && (
       <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 10000 }}>

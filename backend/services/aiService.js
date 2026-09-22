@@ -68,4 +68,31 @@ async function findTopProducts(userQuery, limit = 3, minScore = 0.45) {
   }
 }
 
-module.exports = { findTopProducts };
+/**
+ * Lấy danh sách sản phẩm còn hàng để làm kho tri thức (Grounding Data)
+ * Chỉ lấy sản phẩm: status = 'active', deleted_at IS NULL, stock > 0
+ * Giới hạn tối đa 60 sản phẩm để tránh prompt quá dài
+ *
+ * @returns {Promise<Array>} Danh sách sản phẩm còn hàng
+ */
+async function getInStockProducts() {
+  try {
+    const [products] = await db.promise().query(
+      `SELECT p.id, p.name, p.price, p.stock, p.description,
+              IFNULL(c.name, 'Chưa phân loại') AS category
+       FROM products p
+       LEFT JOIN categories c ON p.category_id = c.id
+       WHERE p.status = 'active'
+         AND p.deleted_at IS NULL
+         AND p.stock > 0
+       ORDER BY p.id DESC
+       LIMIT 60`
+    );
+    return products;
+  } catch (error) {
+    console.error("❌ Lỗi getInStockProducts:", error.message);
+    return [];
+  }
+}
+
+module.exports = { findTopProducts, getInStockProducts };

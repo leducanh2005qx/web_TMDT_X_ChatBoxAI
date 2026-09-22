@@ -34,7 +34,8 @@ function Cart({ cart, setCart }) {
   const updateQuantity = (cartKey, delta) => {
     setCart(prev => prev.map(item => {
       if (item.cartKey === cartKey) {
-        const newQty = Math.max(1, item.quantity + delta);
+        const maxStock = item.stock ?? Infinity;
+        const newQty = Math.min(maxStock, Math.max(1, item.quantity + delta));
         return { ...item, quantity: newQty };
       }
       return item;
@@ -144,7 +145,8 @@ function Cart({ cart, setCart }) {
                       </motion.span>
                       <button 
                         onClick={() => updateQuantity(item.cartKey, 1)}
-                        className="p-2 hover:bg-white rounded-lg transition-colors text-gray-500"
+                        disabled={item.quantity >= (item.stock ?? Infinity)}
+                        className={`p-2 rounded-lg transition-colors text-gray-500 ${item.quantity >= (item.stock ?? Infinity) ? "opacity-40 cursor-not-allowed" : "hover:bg-white"}`}
                       >
                         <Plus size={14} />
                       </button>

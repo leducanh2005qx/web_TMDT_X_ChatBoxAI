@@ -2,13 +2,20 @@ const db = require("../config/db");
 
 /* ===== GET ALL ===== */
 exports.getAllCategories = (req, res) => {
-  db.query("SELECT * FROM categories", (err, rows) => {
+  const sql = `
+    SELECT c.*, COUNT(p.id) AS product_count 
+    FROM categories c 
+    LEFT JOIN products p ON p.category_id = c.id AND p.deleted_at IS NULL 
+    GROUP BY c.id
+    ORDER BY c.id ASC
+  `;
+  db.query(sql, (err, rows) => {
     if (err) {
       console.error(err);
       return res.status(500).json({ message: "Get categories failed" });
     }
 
-    // 🔥 QUAN TRỌNG: rows LÀ ARRAY
+    // rows là Array chứa product_count của từng danh mục
     res.json(rows);
   });
 };
@@ -82,18 +89,30 @@ exports.updateCategory = (req, res) => {
 exports.deleteCategory = (req, res) => {
   const { id } = req.params;
 
-  db.query("DELETE FROM categories WHERE id=?", [id], (err) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ message: "Delete category failed" });
+  // 1. Chuyển các sản phẩm thuộc danh mục này về 'Chưa phân loại' (NULL)
+  db.query("UPDATE products SET category_id = NULL WHERE category_id = ?", [id], (updateErr) => {
+    if (updateErr) {
+      console.error("Lỗi gỡ liên kết sản phẩm:", updateErr);
     }
 
-    // Ghi log
-    db.query(
-      "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
-      [req.user.id, `Đã xóa danh mục #${id}`, id]
-    );
+    // 2. Xóa danh mục khỏi bảng categories
+    db.query("DELETE FROM categories WHERE id = ?", [id], (err, result) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Xóa danh mục thất bại: " + err.message });
+      }
 
-    res.json({ message: "Category deleted" });
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Không tìm thấy danh mục để xóa" });
+      }
+
+      // Ghi log
+      db.query(
+        "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
+        [req.user.id, `Đã xóa danh mục #${id}`, id]
+      );
+
+      res.json({ message: "Đã xóa danh mục thành công", id: Number(id) });
+    });
   });
 };

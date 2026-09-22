@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
 import { io } from "socket.io-client";
 import { Send, User, X, MessageCircle, Sparkles, ChevronLeft, Trash2 } from "lucide-react";
 import { getMyThread, getMyMessages, getMyOrdersSummary } from "../../services/chatApi";
@@ -53,10 +54,49 @@ function useStreamingEffect(text, speed = 20) {
   return { displayedText, isDone };
 }
 
+// ============================================================
+//  🎨 Markdown custom components – căn chỉnh khoảng cách list / paragraph
+// ============================================================
+const markdownComponents = {
+  // Đoạn văn: leading-relaxed + margin phía dưới
+  p: ({ children }) => (
+    <p className="ai-md-p">{children}</p>
+  ),
+  // Danh sách không thứ tự (•, *, -)
+  ul: ({ children }) => (
+    <ul className="ai-md-ul">{children}</ul>
+  ),
+  // Danh sách có thứ tự (1. 2. 3.)
+  ol: ({ children }) => (
+    <ol className="ai-md-ol">{children}</ol>
+  ),
+  // Từng mục list – khoảng cách rõ ràng giữa các sản phẩm
+  li: ({ children }) => (
+    <li className="ai-md-li">{children}</li>
+  ),
+  // In đậm
+  strong: ({ children }) => (
+    <strong className="ai-md-strong">{children}</strong>
+  ),
+  // In nghiêng
+  em: ({ children }) => <em>{children}</em>,
+  // Dòng kẻ ngang
+  hr: () => <hr className="ai-md-hr" />,
+};
+
 // Sub-component cho từng tin nhắn AI – chỉ tin cuối mới có hiệu ứng gõ chữ
 function AiMessage({ message, isLast }) {
   const { displayedText, isDone } = useStreamingEffect(message ?? "", isLast ? 15 : 0);
-  return <>{displayedText}{!isDone && isLast && "..."}</>;
+  return (
+    <div className="ai-md-root">
+      <ReactMarkdown components={markdownComponents}>
+        {displayedText}
+      </ReactMarkdown>
+      {!isDone && isLast && (
+        <span className="ai-typing-cursor">▋</span>
+      )}
+    </div>
+  );
 }
 
 // ============================================================

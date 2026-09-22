@@ -292,3 +292,113 @@
   color: var(--tiger-dark);
 }
 
+/* ============================================================
+   🤖 AI MARKDOWN RESPONSE STYLES
+   Căn chỉnh khoảng cách cho nội dung Markdown từ Tiger AI
+   ============================================================ */
+
+/* Wrapper gốc – leading-relaxed cho toàn bộ phản hồi AI */
+.ai-md-root {
+  line-height: 1.75;
+  color: #1e293b;
+  font-size: 0.85rem;
+  width: 100%;
+}
+
+/* Đoạn văn – khoảng cách phía dưới, không dính sát */
+.ai-md-root .ai-md-p {
+  margin: 0 0 0.6rem 0;
+  line-height: 1.75;
+}
+
+.ai-md-root .ai-md-p:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Danh sách không thứ tự (• gạch đầu dòng) ── */
+.ai-md-root .ai-md-ul {
+  margin: 0.4rem 0 0.6rem 0;
+  padding-left: 1.2rem;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;                 /* space-y-3 equivalent */
+}
+
+/* ── Danh sách có thứ tự (1. 2. 3.) ── */
+.ai-md-root .ai-md-ol {
+  margin: 0.4rem 0 0.6rem 0;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;                 /* khoảng cách rõ ràng giữa từng sản phẩm */
+  counter-reset: ai-item;
+}
+
+/* ── Từng mục list ── */
+.ai-md-root .ai-md-li {
+  line-height: 1.7;
+  position: relative;
+  padding-left: 1.4rem;
+}
+
+/* Bullet tuỳ chỉnh cho ul */
+.ai-md-root .ai-md-ul > .ai-md-li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--tiger-deep-orange);
+  font-weight: 900;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* Số thứ tự tuỳ chỉnh cho ol */
+.ai-md-root .ai-md-ol > .ai-md-li {
+  counter-increment: ai-item;
+}
+
+.ai-md-root .ai-md-ol > .ai-md-li::before {
+  content: counter(ai-item) ".";
+  position: absolute;
+  left: 0;
+  color: var(--tiger-deep-orange);
+  font-weight: 800;
+  font-size: 0.85rem;
+  min-width: 1.2rem;
+}
+
+/* ── In đậm – nổi bật tên sản phẩm ── */
+.ai-md-root .ai-md-strong {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* ── Đường kẻ ngang phân tách ── */
+.ai-md-root .ai-md-hr {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 0.5rem 0;
+}
+
+/* ── Con trỏ gõ chữ (typing cursor) ── */
+.ai-typing-cursor {
+  display: inline-block;
+  color: var(--tiger-deep-orange);
+  animation: blink-cursor 0.8s step-start infinite;
+  font-size: 0.9rem;
+  vertical-align: middle;
+  margin-left: 2px;
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ── Bong bóng AI: tăng padding để list không bị chật ── */
+.ai-msg .chat-bubble {
+  padding: 12px 16px;
+  line-height: 1.75;
+}

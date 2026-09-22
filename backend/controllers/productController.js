@@ -128,9 +128,9 @@ exports.getProductById = (req, res) => {
   });
 };
 
-// ✅ CREATE SẢN PHẨM (Mới)
+// ✅ CREATE SẢN PHẨM (Mới - Hỗ trợ Biến thể & Size)
 exports.createProduct = (req, res) => {
-  const { name, price, description, stock, category_id, display_type, specifications, image: imageFromBody } = req.body;
+  const { name, price, original_price, description, stock, category_id, display_type, specifications, image: imageFromBody, variants } = req.body;
   const image = req.file ? `uploads/${req.file.filename}` : imageFromBody || null;
 
   if (!name || !price) return res.status(400).json({ message: "Thiếu thông tin sản phẩm" });
@@ -138,13 +138,31 @@ exports.createProduct = (req, res) => {
   const userRole = String(req.user.role || "").toUpperCase();
   const status = ["ADMIN", "MANAGER"].includes(userRole) ? "active" : "pending";
 
+  // Parse mảng variants nếu có
+  let parsedVariants = [];
+  if (variants) {
+    try {
+      parsedVariants = typeof variants === "string" ? JSON.parse(variants) : variants;
+    } catch (e) {
+      parsedVariants = [];
+    }
+  }
+
+  // Tự động tính tổng kho từ các dòng size nếu có phân loại
+  let totalStock = stock ? Number(stock) : 0;
+  if (Array.isArray(parsedVariants) && parsedVariants.length > 0) {
+    const variantStockSum = parsedVariants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
+    totalStock = variantStockSum;
+  }
+
   const executeCreate = (finalCategoryId) => {
     Product.create(
       {
         name,
         price: Number(price),
+        original_price: original_price ? Number(original_price) : null,
         description: description || "",
-        stock: stock ? Number(stock) : 0,
+        stock: totalStock,
         image,
         category_id: finalCategoryId,
         status,
@@ -154,11 +172,34 @@ exports.createProduct = (req, res) => {
       },
       (err, result) => {
         if (err) return res.status(500).json(err);
+        const newProductId = result.insertId;
+
+        // Lưu các biến thể (variants) vào bảng product_variants
+        if (Array.isArray(parsedVariants) && parsedVariants.length > 0) {
+          const validVariants = parsedVariants.filter(v => v && v.variant_name && String(v.variant_name).trim());
+          if (validVariants.length > 0) {
+            const variantValues = validVariants.map(v => [
+              newProductId,
+              v.sku || null,
+              String(v.variant_name).trim(),
+              Number(v.price) > 0 ? Number(v.price) : Number(price),
+              Number(v.stock) >= 0 ? Number(v.stock) : 0
+            ]);
+
+            db.query(
+              `INSERT INTO product_variants (product_id, sku, variant_name, price, stock) VALUES ?`,
+              [variantValues],
+              (vErr) => {
+                if (vErr) console.error("Lỗi thêm variants:", vErr);
+              }
+            );
+          }
+        }
 
         // Tự động Vector hóa sản phẩm (chạy ngầm)
-        autoVectorize(result.insertId);
+        autoVectorize(newProductId);
 
-        res.json({ message: "Thành công", id: result.insertId, image, status });
+        res.json({ message: "Thành công", id: newProductId, image, status });
       },
     );
   };
@@ -166,12 +207,26 @@ exports.createProduct = (req, res) => {
   executeCreate(category_id ? Number(category_id) : null);
 };
 
-// ✅ UPDATE SẢN PHẨM
+// ✅ UPDATE SẢN PHẨM (Hỗ trợ Biến thể & Size)
 exports.updateProduct = (req, res) => {
   const { id } = req.params;
-  const { name, price, description, stock, category_id, display_type, specifications, image: imageFromBody } = req.body;
+  const { name, price, original_price, description, stock, category_id, display_type, specifications, image: imageFromBody, variants } = req.body;
   const image = req.file ? `uploads/${req.file.filename}` : imageFromBody || null;
   const userRole = String(req.user.role || "").toUpperCase();
+
+  let parsedVariants = null;
+  if (variants !== undefined) {
+    try {
+      parsedVariants = typeof variants === "string" ? JSON.parse(variants) : variants;
+    } catch (e) {
+      parsedVariants = null;
+    }
+  }
+
+  let finalStock = stock ? Number(stock) : 0;
+  if (Array.isArray(parsedVariants) && parsedVariants.length > 0) {
+    finalStock = parsedVariants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
+  }
 
   const executeUpdate = () => {
     Product.update(
@@ -179,8 +234,9 @@ exports.updateProduct = (req, res) => {
       {
         name,
         price: Number(price),
+        original_price: original_price ? Number(original_price) : null,
         description: description || "",
-        stock: stock ? Number(stock) : 0,
+        stock: finalStock,
         image,
         category_id: category_id ? Number(category_id) : null,
         display_type,
@@ -189,6 +245,33 @@ exports.updateProduct = (req, res) => {
       },
       (err) => {
         if (err) return res.status(500).json(err);
+
+        // Đồng bộ danh sách variants nếu có gửi lên
+        if (Array.isArray(parsedVariants)) {
+          // Xóa variants cũ
+          db.query("DELETE FROM product_variants WHERE product_id = ?", [id], (delErr) => {
+            if (delErr) console.error("Lỗi xóa variants cũ:", delErr);
+
+            const validVariants = parsedVariants.filter(v => v && v.variant_name && String(v.variant_name).trim());
+            if (validVariants.length > 0) {
+              const variantValues = validVariants.map(v => [
+                id,
+                v.sku || null,
+                String(v.variant_name).trim(),
+                Number(v.price) > 0 ? Number(v.price) : Number(price),
+                Number(v.stock) >= 0 ? Number(v.stock) : 0
+              ]);
+
+              db.query(
+                `INSERT INTO product_variants (product_id, sku, variant_name, price, stock) VALUES ?`,
+                [variantValues],
+                (vErr) => {
+                  if (vErr) console.error("Lỗi cập nhật variants mới:", vErr);
+                }
+              );
+            }
+          });
+        }
 
         // Cập nhật lại Vector khi sửa sản phẩm (chạy ngầm)
         autoVectorize(id);

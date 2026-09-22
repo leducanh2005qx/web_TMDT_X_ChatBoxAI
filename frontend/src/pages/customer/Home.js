@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, ShieldCheck, Truck, Zap, Quote } from "lucide-react";
 import { getProducts, getCategories } from "../../services/api";
 import SmartProductCard from "../../components/customer/SmartProductCard";
+import TigerProductHero from "../../components/customer/TigerProductHero";
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Navigation, Pagination } from 'swiper/modules';
 import 'swiper/css';
@@ -109,105 +110,9 @@ function Home({ addToCart }) {
       <div className="absolute top-[10%] left-[-200px] neon-blob blob-orange opacity-10"></div>
       <div className="absolute bottom-[20%] right-[-200px] neon-blob blob-peach opacity-10"></div>
 
-      {/* HERO SECTION WITH SWIPER CAROUSEL */}
-      <section className="relative h-[400px] md:h-[550px] lg:h-[600px] overflow-hidden rounded-[2rem] bg-gray-950 shadow-2xl">
-        <Swiper
-          modules={[Autoplay, Navigation, Pagination]}
-          spaceBetween={0}
-          slidesPerView={1}
-          navigation
-          pagination={{ clickable: true }}
-          autoplay={{
-            delay: 5000,
-            disableOnInteraction: false,
-          }}
-          className="h-full"
-          style={{
-            '--swiper-navigation-color': '#FFFFFF',
-            '--swiper-pagination-color': '#FF8C00',
-          }}
-        >
-          {/* Slide 1 - Tech */}
-          <SwiperSlide className="relative h-full flex items-center">
-            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/45 to-transparent z-10"></div>
-            <img 
-              src="https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop" 
-              alt="Tech Banner" 
-              className="absolute inset-0 w-full h-full object-cover opacity-60"
-            />
-            <div className="relative z-20 text-left px-8 md:px-20 max-w-3xl flex flex-col items-start gap-4">
-              <span className="premium-tag text-white text-[10px] font-black px-4 py-1.5 rounded-full tracking-[0.2em] uppercase">
-                ⚡ Tiger Tech Premium
-              </span>
-              <h1 className="text-4xl md:text-6xl lg:text-7xl text-white font-extrabold tracking-tight font-['Lexend'] leading-none">
-                BẢN LĨNH <span className="text-[#FF8C00]">CÔNG NGHỆ</span>
-              </h1>
-              <p className="text-gray-300 text-sm md:text-base lg:text-lg leading-relaxed max-w-xl font-medium">
-                Khám phá thế giới số đỉnh cao với những siêu phẩm công nghệ, điện thoại và phụ kiện chính hãng đẳng cấp dành cho người dẫn đầu.
-              </p>
-              <button 
-                onClick={() => navigate("/shop")}
-                className="tiger-btn mt-2 px-8 py-3.5 text-sm uppercase tracking-wider"
-              >
-                MUA SẮM NGAY <ArrowRight size={18} />
-              </button>
-            </div>
-          </SwiperSlide>
-
-          {/* Slide 2 - Fashion */}
-          <SwiperSlide className="relative h-full flex items-center">
-            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/45 to-transparent z-10"></div>
-            <img 
-              src="https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=2070&auto=format&fit=crop" 
-              alt="Fashion Banner" 
-              className="absolute inset-0 w-full h-full object-cover opacity-60"
-            />
-            <div className="relative z-20 text-left px-8 md:px-20 max-w-3xl flex flex-col items-start gap-4">
-              <span className="premium-tag text-white text-[10px] font-black px-4 py-1.5 rounded-full tracking-[0.2em] uppercase">
-                🔥 Tiger Fashion 2026
-              </span>
-              <h1 className="text-4xl md:text-6xl lg:text-7xl text-white font-extrabold tracking-tight font-['Lexend'] leading-none">
-                PHONG CÁCH <span className="text-[#FF8C00]">THỜI THƯỢNG</span>
-              </h1>
-              <p className="text-gray-300 text-sm md:text-base lg:text-lg leading-relaxed max-w-xl font-medium">
-                Tự tin khẳng định chất riêng qua những bộ trang phục thời thượng, kiểu dáng trẻ trung, hiện đại được đề xuất bởi sếp Đức Anh.
-              </p>
-              <button 
-                onClick={() => navigate("/shop")}
-                className="tiger-btn mt-2 px-8 py-3.5 text-sm uppercase tracking-wider"
-              >
-                XEM BỘ SƯU TẬP <ArrowRight size={18} />
-              </button>
-            </div>
-          </SwiperSlide>
-
-          {/* Slide 3 - Welcome Voucher */}
-          <SwiperSlide className="relative h-full flex items-center">
-            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/45 to-transparent z-10"></div>
-            <img 
-              src="https://images.unsplash.com/photo-1513885045260-6b35d6d3a9a7?q=80&w=2070&auto=format&fit=crop" 
-              alt="Voucher Banner" 
-              className="absolute inset-0 w-full h-full object-cover opacity-60"
-            />
-            <div className="relative z-20 text-left px-8 md:px-20 max-w-3xl flex flex-col items-start gap-4">
-              <span className="premium-tag text-white text-[10px] font-black px-4 py-1.5 rounded-full tracking-[0.2em] uppercase">
-                🎁 Quà Chào Mừng
-              </span>
-              <h1 className="text-4xl md:text-6xl lg:text-7xl text-white font-extrabold tracking-tight font-['Lexend'] leading-none">
-                TẶNG VOUCHER <span className="text-[#FF8C00]">GIẢM 50%</span>
-              </h1>
-              <p className="text-gray-300 text-sm md:text-base lg:text-lg leading-relaxed max-w-xl font-medium">
-                Mở tài khoản thành viên ngay hôm nay để nhận voucher giảm nửa giá tự động lên đến 100.000đ gửi thẳng vào ví cá nhân của bạn.
-              </p>
-              <button 
-                onClick={() => navigate("/register")}
-                className="tiger-btn mt-2 px-8 py-3.5 text-sm uppercase tracking-wider"
-              >
-                ĐĂNG KÝ NHẬN QUÀ <ArrowRight size={18} />
-              </button>
-            </div>
-          </SwiperSlide>
-        </Swiper>
+      {/* HERO SECTION PRODUCT SHOWCASE */}
+      <section className="relative w-full">
+        <TigerProductHero onAddToCart={addToCart} />
       </section>
 
       {/* SERVICE GRID */}

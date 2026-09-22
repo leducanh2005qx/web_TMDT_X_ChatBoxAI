@@ -55,6 +55,16 @@ function ProductDetail({ cart, setCart }) {
       return;
     }
 
+    // Kiểm tra tồn kho: tổng đã có trong giỏ + qty mới không vượt stock
+    const stock = selectedVariant?.stock ?? product.stock ?? 0;
+    const cartKey = selectedVariant ? `variant-${selectedVariant.id}` : product.id;
+    const existInCart = cart.find((i) => i.cartKey === cartKey);
+    const alreadyInCart = existInCart ? existInCart.quantity : 0;
+    if (alreadyInCart + qty > stock) {
+      alert(`Chỉ còn ${stock} sản phẩm trong kho${alreadyInCart > 0 ? `, bạn đã có ${alreadyInCart} trong giỏ hàng` : ""}.`);
+      return;
+    }
+
     if (!isBuyNow) {
       // Fly animation
       const imgEl = document.querySelector(`.main-product-image`);
@@ -94,7 +104,6 @@ function ProductDetail({ cart, setCart }) {
       }
     }
 
-    const cartKey = selectedVariant ? `variant-${selectedVariant.id}` : product.id;
     const exist = cart.find((i) => i.cartKey === cartKey);
 
     if (exist) {
@@ -138,6 +147,7 @@ function ProductDetail({ cart, setCart }) {
     </div>
   );
 
+  const currentStock = selectedVariant?.stock ?? product.stock ?? 0;
   const isOutOfStock = variants.length > 0 ? selectedVariant && selectedVariant.stock <= 0 : product.stock <= 0;
   
   const currentPrice = selectedVariant?.price ?? product.price;
@@ -263,7 +273,7 @@ function ProductDetail({ cart, setCart }) {
                     <button
                       key={v.id}
                       disabled={isOut}
-                      onClick={() => setSelectedVariant(v)}
+                      onClick={() => { setSelectedVariant(v); setQty(1); }}
                       className={`relative px-4 py-2 text-sm border rounded-[12px] transition-colors ${
                         isSelected 
                           ? "border-[#FF7A00] text-[#FF7A00] bg-white" 
@@ -284,7 +294,7 @@ function ProductDetail({ cart, setCart }) {
           )}
 
           {/* QUANTITY */}
-          <div className="flex items-center gap-4 mb-8">
+           <div className="flex items-center gap-4 mb-8">
              <span className="text-[#757575] w-24 text-sm">Số lượng</span>
              <div className="flex items-center">
                 <button 
@@ -300,14 +310,15 @@ function ProductDetail({ cart, setCart }) {
                   className="w-12 h-8 border-y border-gray-300 text-center text-sm font-bold focus:outline-none"
                 />
                 <button 
-                  onClick={() => setQty(qty + 1)} 
-                  className="w-8 h-8 border border-gray-300 rounded-r-[12px] flex items-center justify-center text-gray-600 hover:bg-gray-50 bg-white"
+                  onClick={() => setQty(Math.min(currentStock, qty + 1))}
+                  disabled={qty >= currentStock}
+                  className={`w-8 h-8 border border-gray-300 rounded-r-[12px] flex items-center justify-center text-gray-600 bg-white ${qty >= currentStock ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-50"}`}
                 >
                   <Plus size={14}/>
                 </button>
              </div>
              <span className="text-[#757575] text-sm ml-4">
-               {isOutOfStock ? "Hết hàng" : `${selectedVariant?.stock ?? product.stock} sản phẩm có sẵn`}
+               {isOutOfStock ? "Hết hàng" : `${currentStock} sản phẩm có sẵn`}
              </span>
           </div>
 
