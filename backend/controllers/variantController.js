@@ -16,15 +16,17 @@ exports.getVariantsByProduct = (req, res) => {
 
 // Thêm variant
 exports.createVariant = (req, res) => {
-  const { product_id, variant_name, price, stock } = req.body;
+  const { product_id, variant_name, price, stock, sku, color, size, image_url } = req.body;
 
-  if (!product_id || !variant_name || !price) {
+  const final_variant_name = variant_name ? String(variant_name).trim() : (color || '') + (size ? ' - ' + size : '');
+
+  if (!product_id || !price) {
     return res.status(400).json({ message: "Thiếu dữ liệu variant" });
   }
 
   db.query(
-    "INSERT INTO product_variants (product_id, variant_name, price, stock) VALUES (?, ?, ?, ?)",
-    [product_id, variant_name, price, stock || 0],
+    "INSERT INTO product_variants (product_id, variant_name, price, stock, sku, color, size, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    [product_id, final_variant_name, price, stock || 0, sku || null, color || null, size || null, image_url || null],
     (err) => {
       if (err) return res.status(500).json(err);
       res.json({ message: "Thêm variant thành công" });
@@ -57,9 +59,28 @@ exports.bulkUpdateVariantStock = (req, res) => {
   const updatePromises = updates.map(
     (v) =>
       new Promise((resolve, reject) => {
+        let query = "UPDATE product_variants SET stock = ?";
+        let params = [Number(v.stock) || 0];
+
+        if (v.price !== undefined && v.price !== '') {
+          query += ", price = ?";
+          params.push(Number(v.price) || 0);
+        }
+        if (v.color !== undefined) {
+          query += ", color = ?";
+          params.push(v.color || null);
+        }
+        if (v.image_url !== undefined) {
+          query += ", image_url = ?";
+          params.push(v.image_url || null);
+        }
+        
+        query += " WHERE id = ? AND product_id = ?";
+        params.push(v.id, productId);
+
         db.query(
-          "UPDATE product_variants SET stock = ? WHERE id = ? AND product_id = ?",
-          [Number(v.stock) || 0, v.id, productId],
+          query,
+          params,
           (err, result) => {
             if (err) return reject(err);
             if (result.affectedRows === 0) return reject(new Error(`Variant #${v.id} không tồn tại`));

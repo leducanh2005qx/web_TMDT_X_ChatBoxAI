@@ -60,7 +60,8 @@ function Vouchers() {
   };
 
   const renderVoucherCard = (v, isMyVoucher = false) => (
-    <div key={v.voucher_id} className={`voucher-ticket-card ${v.type}`}>
+    <div key={v.voucher_id} style={{ opacity: v.status === 'inactive' ? 0.6 : 1 }}>
+      <div className={`voucher-ticket-card ${v.type}`}>
       {/* LEFT: VALUE */}
       <div className="ticket-left">
         <div className="value-box">
@@ -76,6 +77,15 @@ function Vouchers() {
       <div className="ticket-right">
         <div className="ticket-content">
           <div className="code-badge">{v.code}</div>
+          {v.apply_scope && v.apply_scope !== 'all' && (
+            <p style={{ fontSize:'11px', color:'#f97316', fontWeight:600, margin:'2px 0 4px', background:'#fff7ed', borderRadius:'4px', padding:'1px 6px', display:'inline-block' }}>
+              📌 Áp dụng: {v.apply_scope === 'category' 
+                ? `${v.category_ids?.length || 0} ngành hàng`
+                : v.apply_scope === 'specific'
+                  ? `${v.product_ids?.length || 0} SP cố định`
+                  : `${v.category_ids?.length || 0} ngành, ${v.product_ids?.length || 0} SP`}
+            </p>
+          )}
           <p className="min-order">
             Đơn tối thiểu:{" "}
             <b>{(v.min_order_value || 0).toLocaleString()}đ</b>
@@ -116,10 +126,15 @@ function Vouchers() {
 
         {isMyVoucher && (
           <div className="my-voucher-status">
-            <span className="status-text">Sẵn sàng sử dụng</span>
+            {v.status === 'inactive' ? (
+              <span className="status-text" style={{ background: '#ccc', color: '#333' }}>⚫ Tạm khóa</span>
+            ) : (
+              <span className="status-text">Sẵn sàng sử dụng</span>
+            )}
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 

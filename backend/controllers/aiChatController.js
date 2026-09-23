@@ -172,6 +172,82 @@ exports.getChatSuggestions = async (req, res) => {
 };
 
 // ============================================================
+//  🛡️ ANTI-EXPLOIT — Kiểm tra điều kiện kích cầu AI
+// ============================================================
+
+/**
+ * 4 lớp bảo vệ chống gian lận:
+ *  1. Trần ngân sách: giỏ hàng >= 300.000đ
+ *  2. Rate limit: 1 lần/tháng/user
+ *  3. Phân tầng theo giá trị giỏ hàng
+ */
+async function checkBargainEligibility(userId, cartValue) {
+  // Lớp 1: Trần ngân sách tối thiểu
+  if (cartValue < 300000) {
+    return {
+      eligible: false,
+      reason: `Giỏ hàng chưa đạt mức tối thiểu 300.000đ để nhận ưu đãi (hiện tại: ${Number(cartValue).toLocaleString("vi-VN")}đ)`
+    };
+  }
+
+  // Lớp 2: Rate limit — 1 lần/tháng/user
+  const [usages] = await db.promise().query(
+    `SELECT COUNT(*) AS cnt FROM voucher_usages
+     WHERE user_id = ? AND used_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)`,
+    [userId]
+  );
+  if (usages[0].cnt > 0) {
+    return {
+      eligible: false,
+      reason: "Sếp đã nhận ưu đãi từ Tiger AI trong tháng này rồi ạ! Tháng sau em gửi tiếp nhé 🐯"
+    };
+  }
+
+  // Lớp 3: Phân tầng ưu đãi theo giá trị
+  if (cartValue >= 500000) {
+    return { eligible: true, tier: "gift_flag" };  // Quà tặng kèm đơn (xử lý lúc checkout)
+  } else {
+    return { eligible: true, tier: "freeship" };   // Mã Freeship 20k hết hạn 15 phút
+  }
+}
+
+/**
+ * Tạo mã voucher AI thực tế trong DB và gán vào ví user.
+ * Mã chỉ dùng 1 lần, hết hạn 15 phút, chỉ target_user_id đó dùng được.
+ */
+async function generateAIVoucher(userId, tier) {
+  const random = Math.random().toString(36).substring(2, 7).toUpperCase();
+  const code = tier === "freeship" ? `AI_SHIP_${random}` : `AI_GIFT_${random}`;
+
+  const [result] = await db.promise().query(
+    `INSERT INTO vouchers
+       (code, type, value, min_order_value, max_discount, quantity, used,
+        start_date, end_date, status, apply_scope, target_user_id, source_type, source)
+     VALUES
+       (?, 'free_ship', 20000, 0, NULL, 1, 0,
+        NOW(), DATE_ADD(NOW(), INTERVAL 15 MINUTE),
+        'active', 'all', ?, 'ai_auto', 'SYSTEM')`,
+    [code, userId]
+  );
+  const voucherId = result.insertId;
+
+  // Gán vào ví của user ngay
+  await db.promise().query(
+    "INSERT INTO user_vouchers (user_id, voucher_id, used) VALUES (?, ?, 0)",
+    [userId, voucherId]
+  );
+
+  // Ghi nhận vào voucher_usages để chặn gian lận lần sau
+  await db.promise().query(
+    "INSERT INTO voucher_usages (voucher_id, user_id, source) VALUES (?, ?, ?)",
+    [voucherId, userId, tier === "freeship" ? "ai_freeship" : "ai_gift_flag"]
+  );
+
+  console.log(`🎁 AI Voucher: ${code} | User #${userId} | Tier: ${tier} | Expires: +15min`);
+  return { code, voucherId };
+}
+
+// ============================================================
 //  🤖 CHAT WITH AI – Core handler (Multi-turn + Grounding)
 // ============================================================
 
@@ -184,7 +260,8 @@ exports.getChatSuggestions = async (req, res) => {
  *  Bước 3: Thiết lập systemInstruction nghiêm ngặt với catalog thực tế
  *  Bước 4: Gọi Gemini multi-turn chat với history đầy đủ
  *  Bước 5: Lưu USER message + AI reply vào DB
- *  Bước 6: Trả response về client
+ *  Bước 6: Anti-exploit check → Tạo voucher thực nếu đủ điều kiện
+ *  Bước 7: Trả response về client
  */
 exports.chatWithAi = async (req, res) => {
   const { message, orderId } = req.body;
@@ -211,9 +288,6 @@ exports.chatWithAi = async (req, res) => {
       sessionId = await getOrCreateSession(userId);
       const recentMessages = await getRecentMessages(sessionId, 10);
 
-      // Chuyển đổi sang định dạng Gemini multi-turn history
-      // Lưu ý: Gemini yêu cầu history phải bắt đầu bằng role 'user'
-      // và phải xen kẽ user/model. Ta lọc để đảm bảo tính hợp lệ.
       for (const msg of recentMessages) {
         conversationHistory.push({
           role: msg.role === "USER" ? "user" : "model",
@@ -221,7 +295,7 @@ exports.chatWithAi = async (req, res) => {
         });
       }
 
-      // Đảm bảo history hợp lệ: không bắt đầu bằng 'model'
+      // Gemini yêu cầu history không bắt đầu bằng 'model'
       if (conversationHistory.length > 0 && conversationHistory[0].role === "model") {
         conversationHistory.shift();
       }
@@ -253,7 +327,7 @@ exports.chatWithAi = async (req, res) => {
       }
     }
 
-    // ── BƯỚC 4: Xây dựng System Instruction nghiêm ngặt ──
+    // ── BƯỚC 4: System Instruction nghiêm ngặt ──
     const systemInstruction = `Bạn là "Tiger AI 🐯" – Trợ lý bán hàng chuyên nghiệp của Tiger Shop (Yên Nghĩa, Hà Đông).
 Khách hàng đang chat với bạn tên là: ${userName}.
 
@@ -267,17 +341,20 @@ QUY TẮC BẮT BUỘC – VI PHẠM LÀ SAI:
 
 1. CHỈ ĐƯỢC GỢI Ý sản phẩm có trong danh sách trên. TUYỆT ĐỐI không tự bịa ra tên sản phẩm, giá bán, mã sản phẩm nào khác.
 
-2. LỌC GIÁ CHÍNH XÁC: Khi khách nêu ngân sách (ví dụ "300k", "500 nghìn", "dưới 1 triệu"), chỉ gợi ý sản phẩm có giá ≤ ngân sách đó. Nếu không có sản phẩm nào phù hợp, thông báo lịch sự và gợi ý sản phẩm gần nhất.
+2. LỌC GIÁ CHÍNH XÁC: Khi khách nêu ngân sách (ví dụ "300k", "500 nghìn", "dưới 1 triệu"), chỉ gợi ý sản phẩm có giá ≤ ngân sách đó.
 
-3. KHÔNG BỊA CHÍNH SÁCH: Chỉ nói về chính sách thực tế của Tiger Shop (Đổi trả 7 ngày, Giao hàng nội thành Hà Đông). KHÔNG được tự thêm chính sách bảo hành vô lý (ví dụ thực phẩm/đồ ăn không có bảo hành 12 tháng).
+3. KHÔNG BỊA CHÍNH SÁCH: Chỉ nói về chính sách thực tế của Tiger Shop (Đổi trả 7 ngày, Giao hàng nội thành Hà Đông).
 
-4. TRÌNH BÀY SÚC TÍCH: Trả lời ngắn gọn, rõ ràng, xuống dòng từng ý. Tối đa 200 từ mỗi câu trả lời. Gọi khách là "Sếp".
+4. TRÌNH BÀY SÚC TÍCH: Tối đa 200 từ. Gọi khách là "Sếp".
 
-5. KHI KHÁCH PHÂN VÂN / CHÊ ĐẮT: Nhẹ nhàng hỏi thêm nhu cầu hoặc gợi ý sản phẩm tương tự rẻ hơn trong danh sách.
+5. QUY TẮC ƯU ĐÃI – TUYỆT ĐỐI TUÂN THỦ:
+   - KHÔNG bao giờ tự bịa ra mã giảm giá hay hứa hẹn mã giảm giá.
+   - Nếu khách chê đắt: Nhẹ nhàng hỏi nhu cầu hoặc gợi ý sản phẩm rẻ hơn trong danh sách.
+   - Chỉ khi response từ hệ thống có kèm field "voucher" thì mới thông báo mã đó cho khách.
 
-6. CHÀO HỎI: Trả lời thân thiện, nhiệt tình với emoji 🐯. Hỏi khách cần hỗ trợ gì khi mới bắt đầu hội thoại.${orderInfo}`;
+6. CHÀO HỎI: Thân thiện, nhiệt tình với emoji 🐯.${orderInfo}`;
 
-    // ── BƯỚC 5: Gọi Gemini API với multi-turn history ──
+    // ── BƯỚC 5: Gọi Gemini API ──
     console.log(`🐯 Tiger AI | User: ${userName} | History: ${conversationHistory.length} turns | Products: ${inStockProducts.length}`);
 
     const chatModel = genAI.getGenerativeModel({
@@ -285,43 +362,63 @@ QUY TẮC BẮT BUỘC – VI PHẠM LÀ SAI:
       systemInstruction: systemInstruction,
     });
 
-    const chat = chatModel.startChat({
-      history: conversationHistory,
-    });
-
+    const chat = chatModel.startChat({ history: conversationHistory });
     const result = await chat.sendMessage(message.trim());
-    const response = await result.response;
-    const aiReply = response.text().trim();
+    const aiReply = result.response.text().trim();
 
-    // ── BƯỚC 6: Lưu USER message + AI reply vào DB ──
+    // ── BƯỚC 6: Lưu lịch sử vào DB ──
     if (userId && sessionId) {
       try {
         await saveMessage(sessionId, "USER", message.trim(), null);
         await saveMessage(sessionId, "AI",   aiReply, null);
       } catch (saveErr) {
-        // Không block response nếu lưu lỗi
         console.error("⚠️ Save AI history error:", saveErr.message);
       }
     }
 
-    // ── Kiểm tra có nên tặng voucher không (dựa trên từ khoá) ──
-    const lowerReply = aiReply.toLowerCase();
-    const lowerMsg   = message.toLowerCase();
-    const shouldOfferVoucher = (
-      lowerMsg.includes("đắt") ||
-      lowerMsg.includes("mắc") ||
-      lowerMsg.includes("chê") ||
-      lowerMsg.includes("suy nghĩ") ||
-      lowerMsg.includes("nghĩ thêm") ||
-      lowerReply.includes("ưu đãi") ||
-      lowerReply.includes("khuyến mãi")
+    // ── BƯỚC 7: Anti-exploit check → Kích cầu thực tế ──
+    // Phát hiện ý định mặc cả từ khách
+    const lowerMsg = message.toLowerCase();
+    const isBargainIntent = (
+      lowerMsg.includes("đắt")    || lowerMsg.includes("mắc")      ||
+      lowerMsg.includes("chê")    || lowerMsg.includes("suy nghĩ") ||
+      lowerMsg.includes("nghĩ thêm") || lowerMsg.includes("giảm giá") ||
+      lowerMsg.includes("có mã không") || lowerMsg.includes("discount")
     );
-    const voucher = shouldOfferVoucher ? "TIGER_PROMO_10" : null;
+
+    let voucherCode    = null;
+    let incentiveType  = null;
+    let incentiveDenied = null;
+
+    if (isBargainIntent && userId) {
+      const cartValue = req.body.cartValue ? Number(req.body.cartValue) : 0;
+      if (cartValue > 0) {
+        try {
+          const eligibility = await checkBargainEligibility(userId, cartValue);
+          if (eligibility.eligible) {
+            if (eligibility.tier === "freeship") {
+              const generated = await generateAIVoucher(userId, "freeship");
+              voucherCode   = generated.code;
+              incentiveType = "freeship";
+            } else {
+              // gift_flag: quà tặng được tự động thêm lúc checkout, không cần mã
+              incentiveType = "gift_flag";
+            }
+          } else {
+            incentiveDenied = eligibility.reason;
+          }
+        } catch (e) {
+          console.error("⚠️ AI incentive error:", e.message);
+        }
+      }
+    }
 
     return res.json({
       success: true,
       reply: aiReply,
-      voucher: voucher
+      voucher: voucherCode,         // null hoặc mã Freeship thật (tồn tại trong DB)
+      incentiveType,                // 'freeship' | 'gift_flag' | null
+      incentiveDenied               // lý do từ chối nếu không đủ điều kiện
     });
 
   } catch (error) {
@@ -332,3 +429,4 @@ QUY TẮC BẮT BUỘC – VI PHẠM LÀ SAI:
     });
   }
 };
+

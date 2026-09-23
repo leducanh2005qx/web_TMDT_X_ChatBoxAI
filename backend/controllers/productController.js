@@ -25,7 +25,10 @@ exports.getAllProducts = (req, res) => {
               'id', v.id,
               'variant_name', v.variant_name, 
               'stock', v.stock,
-              'price', v.price
+              'price', v.price,
+              'color', v.color,
+              'size', v.size,
+              'image_url', v.image_url
             )
           ), 
           JSON_ARRAY()
@@ -89,7 +92,10 @@ exports.getProductById = (req, res) => {
               'id', v.id,
               'variant_name', v.variant_name, 
               'stock', v.stock, 
-              'price', v.price
+              'price', v.price,
+              'color', v.color,
+              'size', v.size,
+              'image_url', v.image_url
             )
           ), 
           JSON_ARRAY()
@@ -176,18 +182,21 @@ exports.createProduct = (req, res) => {
 
         // Lưu các biến thể (variants) vào bảng product_variants
         if (Array.isArray(parsedVariants) && parsedVariants.length > 0) {
-          const validVariants = parsedVariants.filter(v => v && v.variant_name && String(v.variant_name).trim());
+          const validVariants = parsedVariants.filter(v => v && (v.variant_name || v.color || v.size));
           if (validVariants.length > 0) {
             const variantValues = validVariants.map(v => [
               newProductId,
               v.sku || null,
-              String(v.variant_name).trim(),
+              v.variant_name ? String(v.variant_name).trim() : (v.color || '') + (v.size ? ' - ' + v.size : ''),
               Number(v.price) > 0 ? Number(v.price) : Number(price),
-              Number(v.stock) >= 0 ? Number(v.stock) : 0
+              Number(v.stock) >= 0 ? Number(v.stock) : 0,
+              v.color || null,
+              v.size || null,
+              v.image_url || null
             ]);
 
             db.query(
-              `INSERT INTO product_variants (product_id, sku, variant_name, price, stock) VALUES ?`,
+              `INSERT INTO product_variants (product_id, sku, variant_name, price, stock, color, size, image_url) VALUES ?`,
               [variantValues],
               (vErr) => {
                 if (vErr) console.error("Lỗi thêm variants:", vErr);
@@ -252,18 +261,21 @@ exports.updateProduct = (req, res) => {
           db.query("DELETE FROM product_variants WHERE product_id = ?", [id], (delErr) => {
             if (delErr) console.error("Lỗi xóa variants cũ:", delErr);
 
-            const validVariants = parsedVariants.filter(v => v && v.variant_name && String(v.variant_name).trim());
+            const validVariants = parsedVariants.filter(v => v && (v.variant_name || v.color || v.size));
             if (validVariants.length > 0) {
               const variantValues = validVariants.map(v => [
                 id,
                 v.sku || null,
-                String(v.variant_name).trim(),
+                v.variant_name ? String(v.variant_name).trim() : (v.color || '') + (v.size ? ' - ' + v.size : ''),
                 Number(v.price) > 0 ? Number(v.price) : Number(price),
-                Number(v.stock) >= 0 ? Number(v.stock) : 0
+                Number(v.stock) >= 0 ? Number(v.stock) : 0,
+                v.color || null,
+                v.size || null,
+                v.image_url || null
               ]);
 
               db.query(
-                `INSERT INTO product_variants (product_id, sku, variant_name, price, stock) VALUES ?`,
+                `INSERT INTO product_variants (product_id, sku, variant_name, price, stock, color, size, image_url) VALUES ?`,
                 [variantValues],
                 (vErr) => {
                   if (vErr) console.error("Lỗi cập nhật variants mới:", vErr);

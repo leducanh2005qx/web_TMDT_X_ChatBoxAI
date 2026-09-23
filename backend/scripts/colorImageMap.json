@@ -1,0 +1,30 @@
+{
+  "shoes": {
+    "colors": [
+      {"name": "Đen", "hex": "#000000", "img": "https://images.unsplash.com/photo-1549298916-b41d501d3772?q=80&w=300&auto=format&fit=crop"},
+      {"name": "Be", "hex": "#F5F5DC", "img": "https://images.unsplash.com/photo-1514989940723-e8e51635b782?q=80&w=300&auto=format&fit=crop"}
+    ],
+    "sizes": ["38","39","40","41","42"]
+  },
+  "fashion": {
+    "colors": [
+      {"name": "Trắng", "hex": "#FFFFFF", "img": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=300&auto=format&fit=crop"},
+      {"name": "Đen", "hex": "#000000", "img": "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?q=80&w=300&auto=format&fit=crop"}
+    ],
+    "sizes": ["S","M","L","XL"]
+  },
+  "electronics": {
+    "colors": [
+      {"name": "Titan Tự Nhiên", "hex": "#D2B48C", "img": "https://images.unsplash.com/photo-1695048064977-bc6cc5a39626?q=80&w=300&auto=format&fit=crop"},
+      {"name": "Đen Xám", "hex": "#2F4F4F", "img": "https://images.unsplash.com/photo-1695048132924-f725902bfbc6?q=80&w=300&auto=format&fit=crop"}
+    ],
+    "sizes": ["128GB","256GB"]
+  },
+  "default": {
+    "colors": [
+      {"name": "Bản Tiêu Chuẩn", "hex": "#CCCCCC", "img": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=300&auto=format&fit=crop"},
+      {"name": "Bản Cao Cấp", "hex": "#AAAAAA", "img": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=300&auto=format&fit=crop"}
+    ],
+    "sizes": ["Mặc định"]
+  }
+}

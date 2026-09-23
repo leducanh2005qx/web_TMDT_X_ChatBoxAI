@@ -46,19 +46,52 @@ function Checkout({ cart, setCart }) {
     return baseFee;
   }, [city, subtotal, shippingMethod]);
 
+  function getApplicableSubtotal(v, items) {
+    if (!v || !items) return 0;
+    return items.reduce((sum, item) => {
+      const itemTotal = Number(item.price || 0) * Number(item.quantity || 0);
+      
+      const cIds = Array.isArray(v.category_ids) ? v.category_ids : [];
+      const pIds = Array.isArray(v.product_ids) ? v.product_ids : [];
+      
+      if (v.apply_scope === 'category') {
+        return cIds.includes(Number(item.category_id)) ? sum + itemTotal : sum;
+      }
+      if (v.apply_scope === 'specific') {
+        return pIds.includes(Number(item.product_id)) ? sum + itemTotal : sum;
+      }
+      if (v.apply_scope === 'custom') {
+        if (cIds.includes(Number(item.category_id)) || pIds.includes(Number(item.product_id))) {
+          return sum + itemTotal;
+        }
+        return sum;
+      }
+      return sum + itemTotal; // 'all' hoặc undefined
+    }, 0);
+  }
+
+  function calcVoucherDiscount(v, applicableSubtotal) {
+    if (!v) return 0;
+    if (v.type === 'percent') {
+      const d = Math.floor(applicableSubtotal * Number(v.value || 0) / 100);
+      return v.max_discount ? Math.min(d, Number(v.max_discount)) : d;
+    }
+    if (v.type === 'fixed') return Math.min(Number(v.value || 0), applicableSubtotal);
+    return Number(v.value || 0); // free_ship
+  }
+
   const { itemDiscount, shippingDiscount } = useMemo(() => {
     let iDiscount = 0, sDiscount = 0;
     if (selectedVouchers.item) {
       const v = selectedVouchers.item;
-      iDiscount = v.type === "percent"
-          ? Math.min(Math.floor((subtotal * Number(v.value || 0)) / 100), Number(v.max_discount || Infinity))
-          : Number(v.value || 0);
+      const applicable = getApplicableSubtotal(v, checkoutItems);
+      iDiscount = calcVoucherDiscount(v, applicable);
     }
     if (selectedVouchers.shipping) {
       sDiscount = Math.min(originalShippingFee, Number(selectedVouchers.shipping.value || 0));
     }
     return { itemDiscount: iDiscount, shippingDiscount: sDiscount };
-  }, [selectedVouchers, subtotal, originalShippingFee]);
+  }, [selectedVouchers, subtotal, originalShippingFee, checkoutItems]);
 
   const finalShippingFee = Math.max(originalShippingFee - shippingDiscount, 0);
   const finalSubtotal = Math.max(subtotal - itemDiscount, 0);
@@ -66,9 +99,22 @@ function Checkout({ cart, setCart }) {
 
   const qrCodeUrl = `https://img.vietqr.io/image/${MY_BANK.BANK_ID}-${MY_BANK.ACCOUNT_NO}-compact2.png?amount=${finalTotal}&addInfo=TigerShop%20ThanhToan&accountName=${MY_BANK.ACCOUNT_NAME}`;
 
+  const [eligibleGift, setEligibleGift] = useState(null);
+
   useEffect(() => {
     getMyVouchers().then((data) => setVouchers(Array.isArray(data) ? data : []));
   }, []);
+
+  useEffect(() => {
+    if (!subtotal || subtotal <= 0) { setEligibleGift(null); return; }
+    const token = localStorage.getItem('token');
+    fetch(`http://localhost:5000/api/gifts/eligible?subtotal=${subtotal}`, {
+      headers: token ? { Authorization: 'Bearer ' + token } : {}
+    })
+      .then(r => r.json())
+      .then(data => setEligibleGift(data.gift || null))
+      .catch(() => setEligibleGift(null));
+  }, [subtotal]);
 
   const handleApplyVoucher = (id) => {
     if (!id) return;
@@ -229,8 +275,10 @@ function Checkout({ cart, setCart }) {
                  >
                    <option value="">Chọn Voucher</option>
                    {vouchers.map(v => (
-                     <option key={v.voucher_id} value={v.voucher_id} disabled={subtotal < Number(v.min_order_value || 0)}>
-                       {v.code} - {v.type === 'free_ship' ? "Freeship" : "Giảm giá"}
+                     <option key={v.voucher_id} value={v.voucher_id}
+                       disabled={getApplicableSubtotal(v, checkoutItems) < Number(v.min_order_value || 0)}>
+                       {v.code} - {v.type === 'free_ship' ? 'Freeship' : 'Giảm giá'}
+                       {v.apply_scope && v.apply_scope !== 'all' ? ` [${v.apply_scope === 'category' ? 'Ngành' : v.apply_scope === 'custom' ? 'Kết hợp' : 'Cố định'}]` : ''}
                      </option>
                    ))}
                  </select>
@@ -303,6 +351,16 @@ function Checkout({ cart, setCart }) {
 
 
            {/* TOTAL SUMMARY */}
+           {eligibleGift && (
+             <div style={{
+               background: '#fff7ed', border: '1px solid #fed7aa',
+               borderRadius: '10px', padding: '10px 16px', margin: '0 24px 12px',
+               display: 'flex', alignItems: 'center', gap: '8px',
+               fontSize: '13px', color: '#c2410c', fontWeight: 600
+             }}>
+               🎁 Đơn từ <b>{Number(eligibleGift.min_order_value).toLocaleString('vi-VN')}đ</b> tặng kèm: <b>{eligibleGift.gift_name}</b>!
+             </div>
+           )}
            <div className="bg-[#fffefb] p-6 lg:p-8 flex flex-col items-end gap-3 text-sm text-[#222]">
               <div className="flex justify-between w-full lg:w-80">
                  <span className="text-gray-500 font-medium">Tổng tiền hàng</span>
@@ -322,6 +380,11 @@ function Checkout({ cart, setCart }) {
                 <div className="flex justify-between w-full lg:w-80">
                    <span className="text-gray-500 font-medium">Voucher giảm giá</span>
                    <span className="font-bold">-₫{formatNumber(itemDiscount)}</span>
+                </div>
+              )}
+              {selectedVouchers.item && selectedVouchers.item.apply_scope !== 'all' && getApplicableSubtotal(selectedVouchers.item, checkoutItems) === 0 && (
+                <div className="text-xs text-red-500 text-right w-full lg:w-80">
+                  ⚠️ Voucher [{selectedVouchers.item.code}] không áp dụng cho sản phẩm trong giỏ hàng này
                 </div>
               )}
               <div className="flex justify-between w-full lg:w-80 items-center mt-2">

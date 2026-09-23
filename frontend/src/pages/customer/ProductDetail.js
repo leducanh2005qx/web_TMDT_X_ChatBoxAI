@@ -15,10 +15,17 @@ function ProductDetail({ cart, setCart }) {
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [variants, setVariants] = useState([]);
-  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [selectedColor, setSelectedColor] = useState(null);
+  const [selectedSize, setSelectedSize] = useState(null);
+  const [activeImage, setActiveImage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState([]);
   const [qty, setQty] = useState(1);
+
+  const uniqueColors = Array.from(new Set(variants.map(v => v.color).filter(Boolean)));
+  const uniqueSizes = Array.from(new Set(variants.map(v => v.size).filter(Boolean)));
+  
+  const currentVariant = variants.find(v => v.color === selectedColor && v.size === selectedSize);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -36,6 +43,7 @@ function ProductDetail({ cart, setCart }) {
 
   useEffect(() => {
     if (!product?.id) return;
+    if (product.image) setActiveImage(product.image);
     fetch(`http://localhost:5000/api/variants/product/${product.id}`)
       .then((res) => res.json())
       .then((data) => setVariants(Array.isArray(data) ? data : []))
@@ -50,14 +58,14 @@ function ProductDetail({ cart, setCart }) {
   }, [id]);
 
   const handleAddToCart = (isBuyNow = false) => {
-    if (variants.length > 0 && !selectedVariant) {
+    if (variants.length > 0 && !currentVariant) {
       alert("Vui lòng chọn phân loại hàng!");
       return;
     }
 
     // Kiểm tra tồn kho: tổng đã có trong giỏ + qty mới không vượt stock
-    const stock = selectedVariant?.stock ?? product.stock ?? 0;
-    const cartKey = selectedVariant ? `variant-${selectedVariant.id}` : product.id;
+    const stock = currentVariant?.stock ?? product.stock ?? 0;
+    const cartKey = currentVariant ? `variant-${currentVariant.id}` : product.id;
     const existInCart = cart.find((i) => i.cartKey === cartKey);
     const alreadyInCart = existInCart ? existInCart.quantity : 0;
     if (alreadyInCart + qty > stock) {
@@ -114,12 +122,12 @@ function ProductDetail({ cart, setCart }) {
         {
           cartKey,
           product_id: product.id,
-          variant_id: selectedVariant?.id || null,
+          variant_id: currentVariant?.id || null,
           name: product.name,
-          variant_name: selectedVariant?.variant_name || null,
-          price: selectedVariant?.price || product.price,
-          image: product.image,
-          stock: selectedVariant?.stock || product.stock,
+          variant_name: currentVariant?.variant_name || null,
+          price: currentVariant?.price || product.price,
+          image: activeImage || product.image,
+          stock: currentVariant?.stock || product.stock,
           quantity: qty,
         },
       ]);
@@ -147,10 +155,29 @@ function ProductDetail({ cart, setCart }) {
     </div>
   );
 
-  const currentStock = selectedVariant?.stock ?? product.stock ?? 0;
-  const isOutOfStock = variants.length > 0 ? selectedVariant && selectedVariant.stock <= 0 : product.stock <= 0;
+  let currentStock = product.stock ?? 0;
+  let currentPrice = product.price;
   
-  const currentPrice = selectedVariant?.price ?? product.price;
+  if (variants.length > 0) {
+    if (currentVariant) {
+      currentStock = currentVariant.stock;
+      currentPrice = currentVariant.price;
+    } else if (selectedColor) {
+      const colorVariants = variants.filter(v => v.color === selectedColor);
+      currentStock = colorVariants.reduce((sum, v) => sum + v.stock, 0);
+      currentPrice = colorVariants[0]?.price ?? product.price;
+    } else {
+      currentStock = variants.reduce((sum, v) => sum + v.stock, 0);
+      currentPrice = variants[0]?.price ?? product.price;
+    }
+  }
+
+  const isAddToCartDisabled = variants.length > 0 
+    ? (!currentVariant || currentStock <= 0) 
+    : (product.stock <= 0);
+
+  const isOutOfStock = currentStock <= 0;
+  
   const originalPrice = product.original_price;
   const discountPercent = originalPrice > currentPrice 
     ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100) 
@@ -174,7 +201,7 @@ function ProductDetail({ cart, setCart }) {
         <div className="w-full lg:w-[40%] flex flex-col gap-4">
           <div className="relative aspect-square w-full">
              <img 
-              src={product.image?.startsWith('http') ? product.image : `http://localhost:5000/${product.image}`}
+              src={(activeImage || product.image)?.startsWith('http') ? (activeImage || product.image) : `http://localhost:5000/${activeImage || product.image}`}
               alt={product.name}
               className="main-product-image w-full h-full object-cover border border-gray-100 rounded-[12px]"
             />
@@ -263,33 +290,90 @@ function ProductDetail({ cart, setCart }) {
 
           {/* VARIANTS */}
           {variants.length > 0 && (
-            <div className="flex items-center gap-4 mb-6">
-              <span className="text-[#757575] w-24 text-sm">Phân loại</span>
-              <div className="flex flex-wrap gap-2 flex-1">
-                {variants.map((v) => {
-                  const isSelected = selectedVariant?.id === v.id;
-                  const isOut = v.stock <= 0;
-                  return (
-                    <button
-                      key={v.id}
-                      disabled={isOut}
-                      onClick={() => { setSelectedVariant(v); setQty(1); }}
-                      className={`relative px-4 py-2 text-sm border rounded-[12px] transition-colors ${
-                        isSelected 
-                          ? "border-[#FF7A00] text-[#FF7A00] bg-white" 
-                          : "border-gray-200 text-gray-800 bg-white hover:border-[#FF7A00]"
-                      } ${isOut ? "opacity-50 cursor-not-allowed bg-gray-50" : ""}`}
-                    >
-                      {v.variant_name}
-                      {isSelected && (
-                        <div className="absolute bottom-0 right-0 w-0 h-0 border-t-[14px] border-t-transparent border-r-[14px] border-r-[#FF7A00] rounded-br-[10px]">
-                           <Check size={10} className="absolute top-[-10px] right-[-13px] text-white" />
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+            <div className="flex flex-col gap-4 mb-6">
+              {uniqueColors.length > 0 && (
+                <div className="flex items-center gap-4">
+                  <span className="text-[#757575] w-24 text-sm">Màu sắc</span>
+                  <div className="flex flex-wrap gap-2 flex-1">
+                    {uniqueColors.map((color) => {
+                      const isSelected = selectedColor === color;
+                      return (
+                        <button
+                          key={color}
+                          onClick={() => {
+                            setSelectedColor(color);
+                            if (selectedSize) {
+                              const sizeWithColor = variants.find(v => v.color === color && v.size === selectedSize);
+                              if (!sizeWithColor || sizeWithColor.stock <= 0) {
+                                setSelectedSize(null);
+                              }
+                            }
+                            setQty(1);
+                            const firstVariantWithImg = variants.find(v => v.color === color && v.image_url);
+                            if (firstVariantWithImg) {
+                              setActiveImage(firstVariantWithImg.image_url);
+                            } else if (product?.image) {
+                              setActiveImage(product.image);
+                            }
+                          }}
+                          className={`relative px-4 py-2 text-sm border rounded-[12px] transition-colors ${
+                            isSelected 
+                              ? "border-[#FF7A00] text-[#FF7A00] bg-white" 
+                              : "border-gray-200 text-gray-800 bg-white hover:border-[#FF7A00]"
+                          }`}
+                        >
+                          {color}
+                          {isSelected && (
+                            <div className="absolute bottom-0 right-0 w-0 h-0 border-t-[14px] border-t-transparent border-r-[14px] border-r-[#FF7A00] rounded-br-[10px]">
+                               <Check size={10} className="absolute top-[-10px] right-[-13px] text-white" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {uniqueSizes.length > 0 && (
+                <div className="flex items-center gap-4">
+                  <span className="text-[#757575] w-24 text-sm">Kích cỡ</span>
+                  <div className="flex flex-wrap gap-2 flex-1">
+                    {uniqueSizes.map((size) => {
+                      const isSelected = selectedSize === size;
+                      let stockForSize = 0;
+                      if (selectedColor) {
+                        const variant = variants.find(v => v.color === selectedColor && v.size === size);
+                        stockForSize = variant ? variant.stock : 0;
+                      } else {
+                        stockForSize = variants.filter(v => v.size === size).reduce((sum, v) => sum + v.stock, 0);
+                      }
+                      
+                      const isOut = stockForSize <= 0;
+                      
+                      return (
+                        <button
+                          key={size}
+                          disabled={isOut}
+                          onClick={() => { setSelectedSize(size); setQty(1); }}
+                          className={`relative px-4 py-2 text-sm border rounded-[12px] transition-colors ${
+                            isSelected 
+                              ? "border-[#FF7A00] text-[#FF7A00] bg-white" 
+                              : "border-gray-200 text-gray-800 bg-white hover:border-[#FF7A00]"
+                          } ${isOut ? "opacity-50 cursor-not-allowed bg-gray-50 line-through" : ""}`}
+                        >
+                          {size}
+                          {isSelected && (
+                            <div className="absolute bottom-0 right-0 w-0 h-0 border-t-[14px] border-t-transparent border-r-[14px] border-r-[#FF7A00] rounded-br-[10px]">
+                               <Check size={10} className="absolute top-[-10px] right-[-13px] text-white" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -326,16 +410,16 @@ function ProductDetail({ cart, setCart }) {
           <div className="flex items-center gap-4 mt-auto">
             <button 
               onClick={() => handleAddToCart(false)}
-              disabled={isOutOfStock}
-              className="h-14 px-6 bg-[#fffbf8] border-2 border-[#FF7A00] text-[#FF7A00] rounded-[12px] flex items-center justify-center gap-2 hover:bg-[#ffeee0] transition-colors font-bold text-base w-1/2"
+              disabled={isAddToCartDisabled}
+              className={`h-14 px-6 bg-[#fffbf8] border-2 border-[#FF7A00] text-[#FF7A00] rounded-[12px] flex items-center justify-center gap-2 transition-colors font-bold text-base w-1/2 ${isAddToCartDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-[#ffeee0]"}`}
             >
               <ShoppingCart size={20} />
               Thêm Vào Giỏ
             </button>
             <button 
               onClick={() => handleAddToCart(true)}
-              disabled={isOutOfStock}
-              className="h-14 px-6 bg-[#FF7A00] text-white rounded-[12px] font-bold text-base hover:bg-[#e66d00] transition-colors shadow-sm w-1/2"
+              disabled={isAddToCartDisabled}
+              className={`h-14 px-6 bg-[#FF7A00] text-white rounded-[12px] font-bold text-base transition-colors shadow-sm w-1/2 ${isAddToCartDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-[#e66d00]"}`}
             >
               Mua Ngay
             </button>

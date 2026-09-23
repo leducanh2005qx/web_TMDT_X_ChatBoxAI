@@ -705,3 +705,6 @@ export const markNotificationsAsRead = () =>
     headers: getAuthHeader(),
   }).then(handleResponse);
 
+export const getEligibleGift = (subtotal) =>
+  fetch(`${API_URL}/gifts/eligible?subtotal=${subtotal}`).then(handleResponse);
+

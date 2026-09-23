@@ -111,6 +111,30 @@ exports.createOrder = async (req, res) => {
       }
     }
 
+    // 6. Auto-Gift Logic
+    const subtotal = items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+    const [gifts] = await connection.query(
+      "SELECT * FROM gifts WHERE min_order_value <= ? AND stock > 0 AND is_active = 1 ORDER BY min_order_value DESC LIMIT 1",
+      [subtotal]
+    );
+
+    let assignedGift = null;
+    if (gifts && gifts.length > 0) {
+      assignedGift = gifts[0];
+      
+      // Insert gift as an order item
+      await connection.query(
+        "INSERT INTO order_items (order_id, product_id, variant_id, quantity, price, product_name, product_image, is_gift) VALUES (?, NULL, NULL, 1, 0, ?, NULL, 1)",
+        [orderId, `🎁 Quà tặng: ${assignedGift.gift_name}`]
+      );
+
+      // Reduce gift stock
+      await connection.query(
+        "UPDATE gifts SET stock = stock - 1 WHERE id = ?",
+        [assignedGift.id]
+      );
+    }
+
     await connection.commit();
 
     // ✅ LOGIC AUTO CHAT REAL-TIME (Thông báo đơn hàng)

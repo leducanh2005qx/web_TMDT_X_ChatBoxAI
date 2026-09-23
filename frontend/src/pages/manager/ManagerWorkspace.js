@@ -121,6 +121,8 @@ function ManagerWorkspace() {
   const [variantModal, setVariantModal] = useState(null); // { product, variants: [{id, variant_name, stock, newStock}] }
   const [variantModalLoading, setVariantModalLoading] = useState(false);
   const [variantModalError, setVariantModalError] = useState("");
+  const [variantBulkPrice, setVariantBulkPrice] = useState("");
+  const [variantBulkStock, setVariantBulkStock] = useState("");
 
   // --- Modal Phiếu lương ---
   const [payslipData, setPayslipData] = useState(null);
@@ -357,11 +359,14 @@ function ManagerWorkspace() {
   const handleOpenVariantModal = async (product) => {
     setVariantModalError("");
     setVariantModalLoading(true);
+    setVariantBulkPrice("");
+    setVariantBulkStock("");
     try {
       const variants = await getVariantsByProductId(product.id);
+      const sortedVariants = variants.sort((a, b) => (a.color || '').localeCompare(b.color || ''));
       setVariantModal({
         product,
-        variants: variants.map((v) => ({ ...v, newStock: v.stock })),
+        variants: sortedVariants.map((v) => ({ ...v, newStock: v.stock })),
       });
     } catch (err) {
       setError(err.message || "Không thể tải danh sách phân loại");
@@ -379,12 +384,51 @@ function ManagerWorkspace() {
     }));
   };
 
+  const handleVariantFieldChange = (variantId, field, value) => {
+    setVariantModal((prev) => ({
+      ...prev,
+      variants: prev.variants.map((v) =>
+        v.id === variantId ? { ...v, [field]: value } : v
+      ),
+    }));
+  };
+
+  const handleColorNameChange = (oldColor, newColor) => {
+    setVariantModal(prev => ({
+      ...prev,
+      variants: prev.variants.map(v => v.color === oldColor ? { ...v, color: newColor } : v)
+    }));
+  };
+
+  const handleBulkImageChange = (color, newImage) => {
+    setVariantModal(prev => ({
+      ...prev,
+      variants: prev.variants.map(v => v.color === color ? { ...v, image_url: newImage } : v)
+    }));
+  };
+
+  const handleBulkApply = () => {
+    if (!variantModal) return;
+    setVariantModal(prev => ({
+      ...prev,
+      variants: prev.variants.map(v => {
+         let updated = { ...v };
+         if (variantBulkStock !== "") updated.newStock = variantBulkStock;
+         if (variantBulkPrice !== "") updated.price = variantBulkPrice;
+         return updated;
+      })
+    }));
+  };
+
   const handleSaveVariantStock = async () => {
     if (!variantModal) return;
     setVariantModalError("");
     const updates = variantModal.variants.map((v) => ({
       id: v.id,
       stock: Number(v.newStock) || 0,
+      color: v.color,
+      image_url: v.image_url,
+      price: v.price
     }));
     try {
       await bulkUpdateVariantStock(variantModal.product.id, updates);
@@ -813,15 +857,7 @@ function ManagerWorkspace() {
                         <button
                           className="btn btn-sm btn-outline-secondary"
                           onClick={() => {
-                            setEditingProduct(p);
-                            setEditProductForm({
-                              name: p.name || "",
-                              price: p.price || "",
-                              description: p.description || "",
-                              stock: p.stock || 0,
-                              category_id: p.category_id || ""
-                            });
-                            setEditProductImage(null);
+                            window.location.href = `/manager/edit-product/${p.id}`;
                           }}
                         >
                           Sửa
@@ -1243,7 +1279,7 @@ function ManagerWorkspace() {
       {/* ===== MODAL CHI TIẾT PHÂN LOẠI ===== */}
       {variantModal && (
         <div className="modal-overlay" onClick={(e) => { if (e.target.classList.contains('modal-overlay')) setVariantModal(null); }}>
-          <div className="tiger-modal" style={{maxWidth: '560px', width: '95%'}}>
+          <div className="tiger-modal" style={{maxWidth: '800px', width: '95%'}}>
             <div className="tiger-modal-header d-flex justify-content-between align-items-center">
               <div>
                 <h4 className="mb-0">📦 Kho Theo Phân Loại</h4>
@@ -1280,33 +1316,127 @@ function ManagerWorkspace() {
                 );
               })()}
 
+              {/* Bulk Edit UI */}
+              <div className="d-flex align-items-center gap-3 bg-light rounded p-3 mb-4">
+                <span className="fw-bold">Thiết lập hàng loạt:</span>
+                <input
+                  type="number"
+                  className="form-control form-control-sm"
+                  style={{ width: '150px' }}
+                  placeholder="Giá bán chung"
+                  value={variantBulkPrice}
+                  onChange={e => setVariantBulkPrice(e.target.value)}
+                />
+                <input
+                  type="number"
+                  className="form-control form-control-sm"
+                  style={{ width: '150px' }}
+                  placeholder="Tồn kho chung"
+                  value={variantBulkStock}
+                  onChange={e => setVariantBulkStock(e.target.value)}
+                />
+                <button className="btn btn-sm btn-primary" onClick={handleBulkApply}>Áp dụng tất cả</button>
+              </div>
+
               {/* Variant rows */}
-              <div className="d-flex flex-column gap-3">
-                {variantModal.variants.map((v) => (
-                  <div key={v.id} className="d-flex align-items-center gap-3 p-3 border rounded-3 bg-white">
-                    <div className="flex-fill">
-                      <div className="fw-semibold">{v.variant_name}</div>
-                      <small className="text-muted">Hiện tại: {v.stock} sản phẩm</small>
-                    </div>
-                    <div style={{width: '130px'}}>
-                      <label className="text-muted" style={{fontSize:'0.75rem'}}>Tồn kho mới</label>
-                      <input
-                        type="number"
-                        className="form-control form-control-sm"
-                        value={v.newStock}
-                        min="0"
-                        onChange={(e) => handleVariantStockChange(v.id, e.target.value)}
-                      />
-                    </div>
-                    <div style={{width:'50px', textAlign:'right'}}>
-                      {Number(v.newStock) !== Number(v.stock) && (
-                        <span className={`badge ${Number(v.newStock) > Number(v.stock) ? 'bg-success' : 'bg-danger'}`}>
-                          {Number(v.newStock) > Number(v.stock) ? '▲' : '▼'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+              <div className="table-responsive">
+                <table className="table align-middle mt-3 table-bordered">
+                  <thead className="table-light text-center">
+                    <tr>
+                      <th style={{ width: '100px' }}>Ảnh</th>
+                      <th style={{ width: '150px' }}>Màu sắc</th>
+                      <th>Kích cỡ</th>
+                      <th style={{ width: '150px' }}>Giá bán</th>
+                      <th style={{ width: '100px' }}>Kho mới</th>
+                      <th>Biến động</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-center">
+                    {(() => {
+                      const colorCounts = {};
+                      variantModal.variants.forEach(v => {
+                        colorCounts[v.color] = (colorCounts[v.color] || 0) + 1;
+                      });
+
+                      let renderedColors = new Set();
+
+                      return variantModal.variants.map((v) => {
+                        const stockDiff = Number(v.newStock) - Number(v.stock);
+                        const isFirstOfColor = !renderedColors.has(v.color);
+                        if (isFirstOfColor) renderedColors.add(v.color);
+                        const rowSpan = colorCounts[v.color];
+
+                        return (
+                          <tr key={v.id}>
+                            {isFirstOfColor && (
+                              <td rowSpan={rowSpan} className="align-middle text-center">
+                                <div className="position-relative d-inline-block">
+                                  {v.image_url ? (
+                                    <img src={v.image_url.startsWith('http') ? v.image_url : `http://localhost:5000/${v.image_url}`} alt={v.color} style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '4px' }} />
+                                  ) : (
+                                    <div style={{ width: '48px', height: '48px', background: '#e9ecef', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                      <span style={{ fontSize: '10px' }}>No img</span>
+                                    </div>
+                                  )}
+                                  <button
+                                    className="btn btn-sm btn-light position-absolute top-0 start-100 translate-middle rounded-circle p-1 shadow-sm border"
+                                    style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                    onClick={() => {
+                                      const newLink = window.prompt("Nhập link ảnh mới:", v.image_url || "");
+                                      if (newLink !== null) {
+                                        handleBulkImageChange(v.color, newLink);
+                                      }
+                                    }}
+                                  >
+                                    <span style={{ fontSize: '12px' }}>✏️</span>
+                                  </button>
+                                </div>
+                              </td>
+                            )}
+                            {isFirstOfColor && (
+                              <td rowSpan={rowSpan} className="align-middle">
+                                <input
+                                    type="text"
+                                    className="form-control form-control-sm text-center"
+                                    placeholder="Màu..."
+                                    value={v.color || ''}
+                                    onChange={(e) => handleColorNameChange(v.color, e.target.value)}
+                                />
+                              </td>
+                            )}
+                            <td className="fw-semibold align-middle">{v.size || '-'}</td>
+                            <td className="align-middle">
+                                <input
+                                    type="number"
+                                    className="form-control form-control-sm text-center"
+                                    value={v.price || ''}
+                                    onChange={(e) => handleVariantFieldChange(v.id, 'price', e.target.value)}
+                                />
+                            </td>
+                            <td className="align-middle">
+                              <input
+                                type="number"
+                                className="form-control form-control-sm text-center"
+                                value={v.newStock}
+                                min="0"
+                                onChange={(e) => handleVariantStockChange(v.id, e.target.value)}
+                              />
+                            </td>
+                            <td className="align-middle">
+                              {stockDiff !== 0 ? (
+                                <span className={`badge ${stockDiff > 0 ? 'bg-success' : 'bg-danger'}`}>
+                                  {stockDiff > 0 ? '+' : ''}{stockDiff}
+                                </span>
+                              ) : (
+                                <span className="text-muted">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })()}
+                  </tbody>
+                </table>
               </div>
             </div>
 

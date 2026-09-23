@@ -19,8 +19,9 @@ const AddProduct = () => {
 
   // Variants state (Phân loại hàng & Kích cỡ)
   const [hasVariants, setHasVariants] = useState(false);
+  const [colors, setColors] = useState([{ name: "", imageUrl: "" }]);
+  const [sizes, setSizes] = useState([""]);
   const [variantsList, setVariantsList] = useState([]);
-  const [customVariantName, setCustomVariantName] = useState("");
   const [batchPrice, setBatchPrice] = useState("");
   const [batchStock, setBatchStock] = useState("");
 
@@ -84,12 +85,27 @@ const AddProduct = () => {
               setVariantsList(
                 product.variants.map((v) => ({
                   id: v.id,
-                  variant_name: v.variant_name,
+                  color: v.color || "",
+                  size: v.size || "",
                   price: v.price !== null && v.price !== undefined ? v.price : product.price,
                   stock: v.stock || 0,
                   sku: v.sku || "",
+                  image_url: v.image_url || "",
                 }))
               );
+              
+              const loadedColors = [];
+              const loadedSizes = [];
+              product.variants.forEach(v => {
+                if (v.color && !loadedColors.some(c => c.name === v.color)) {
+                  loadedColors.push({ name: v.color, imageUrl: v.image_url || "" });
+                }
+                if (v.size && !loadedSizes.includes(v.size)) {
+                  loadedSizes.push(v.size);
+                }
+              });
+              if (loadedColors.length > 0) setColors(loadedColors);
+              if (loadedSizes.length > 0) setSizes(loadedSizes);
             }
           });
         }
@@ -188,28 +204,68 @@ const AddProduct = () => {
     return { isFashion, isShoes, isElectronics, catName };
   };
 
-  const addVariantItem = (varName, vPrice = "", vStock = 10) => {
-    const trimmed = String(varName).trim();
-    if (!trimmed) return;
+  const handleAddColor = () => setColors([...colors, { name: "", imageUrl: "" }]);
+  const handleRemoveColor = (idx) => setColors(colors.filter((_, i) => i !== idx));
+  const handleColorChange = (idx, field, value) => {
+    const newColors = [...colors];
+    newColors[idx][field] = value;
+    setColors(newColors);
+  };
+
+  const handleAddSize = () => setSizes([...sizes, ""]);
+  const handleRemoveSize = (idx) => setSizes(sizes.filter((_, i) => i !== idx));
+  const handleSizeChange = (idx, value) => {
+    const newSizes = [...sizes];
+    newSizes[idx] = value;
+    setSizes(newSizes);
+  };
+
+  const generateVariantsMatrix = () => {
     setVariantsList((prev) => {
-      if (prev.some((item) => item.variant_name.toLowerCase() === trimmed.toLowerCase())) {
-        return prev;
+      const validColors = colors.filter(c => c.name.trim() !== "");
+      const validSizes = sizes.filter(s => s.trim() !== "");
+      
+      let newVariants = [];
+      if (validColors.length > 0 && validSizes.length > 0) {
+        validColors.forEach(c => {
+          validSizes.forEach(s => {
+            const existing = prev.find(v => v.color === c.name.trim() && v.size === s.trim());
+            if (existing) {
+              newVariants.push({ ...existing, image_url: c.imageUrl || existing.image_url });
+            } else {
+              newVariants.push({ color: c.name.trim(), size: s.trim(), price: price || "", stock: "", sku: "", image_url: c.imageUrl });
+            }
+          });
+        });
+      } else if (validColors.length > 0) {
+        validColors.forEach(c => {
+          const existing = prev.find(v => v.color === c.name.trim() && (!v.size || v.size === ""));
+          if (existing) {
+            newVariants.push({ ...existing, image_url: c.imageUrl || existing.image_url });
+          } else {
+            newVariants.push({ color: c.name.trim(), size: "", price: price || "", stock: "", sku: "", image_url: c.imageUrl });
+          }
+        });
+      } else if (validSizes.length > 0) {
+        validSizes.forEach(s => {
+          const existing = prev.find(v => (!v.color || v.color === "") && v.size === s.trim());
+          if (existing) {
+            newVariants.push(existing);
+          } else {
+            newVariants.push({ color: "", size: s.trim(), price: price || "", stock: "", sku: "", image_url: "" });
+          }
+        });
       }
-      return [
-        ...prev,
-        {
-          variant_name: trimmed,
-          price: vPrice || price || "",
-          stock: vStock,
-          sku: "",
-        },
-      ];
+      return newVariants;
     });
   };
 
-  const addPresetGroup = (group) => {
-    group.forEach((item) => addVariantItem(item));
-  };
+  useEffect(() => {
+    if (hasVariants) {
+      generateVariantsMatrix();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colors, sizes, hasVariants]);
 
   const removeVariantItem = (index) => {
     setVariantsList((prev) => prev.filter((_, i) => i !== index));
@@ -260,15 +316,25 @@ const AddProduct = () => {
           alert("⚠️ Vui lòng thêm ít nhất một kích cỡ/phân loại hoặc tắt tính năng phân loại hàng!");
           return;
         }
-        const hasEmptyName = variantsList.some((v) => !v.variant_name || !String(v.variant_name).trim());
+        const hasEmptyName = variantsList.some((v) => !String(v.color).trim() && !String(v.size).trim());
         if (hasEmptyName) {
-          alert("⚠️ Vui lòng nhập đầy đủ tên cho tất cả các dòng phân loại!");
+          alert("⚠️ Vui lòng nhập đầy đủ màu sắc hoặc kích cỡ cho tất cả các dòng phân loại!");
           return;
         }
-        formData.append("variants", JSON.stringify(variantsList));
+        
+        // Map variantsList with image_url from colors
+        const finalVariants = variantsList.map(v => {
+          const matchedColor = colors.find(c => c.name.trim() === v.color?.trim());
+          return {
+            ...v,
+            image_url: matchedColor?.imageUrl || v.image_url || ""
+          };
+        });
+        
+        formData.append("variants", JSON.stringify(finalVariants));
         formData.append("stock", totalVariantStock);
         // Nếu giá chính rỗng, lấy giá của phân loại đầu tiên
-        const mainPrice = price || variantsList[0].price || 0;
+        const mainPrice = price || finalVariants[0].price || 0;
         formData.append("price", mainPrice);
       } else {
         formData.append("variants", JSON.stringify([]));
@@ -571,137 +637,69 @@ const AddProduct = () => {
 
           {hasVariants && (
             <div className="space-y-5 animate-in fade-in duration-200">
-              {/* Nút bấm chọn nhanh mẫu (Presets) theo danh mục */}
-              <div className="p-4 bg-orange-50/70 border border-orange-200/70 rounded-md space-y-3">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[#ee4d2d]">
-                  <Sparkles size={16} /> Chọn nhanh mẫu phân loại theo danh mục:
+              {/* Matrix Builder - Config */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50/50 p-4 border border-gray-100 rounded-sm">
+                {/* Cột 1: Màu sắc / Phân loại 1 */}
+                <div className="space-y-3 border-r border-gray-200 pr-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-gray-700 uppercase">1. Màu sắc / Phân loại 1</h3>
+                    <button type="button" onClick={handleAddColor} className="text-[#ee4d2d] text-xs font-bold flex items-center gap-1 hover:underline">
+                      <Plus size={14} /> Thêm
+                    </button>
+                  </div>
+                  {colors.map((c, idx) => (
+                    <div key={idx} className="flex flex-col gap-2 p-2 bg-white border border-gray-200 rounded-sm">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="VD: Đỏ, Xanh, Bản 64GB..."
+                          value={c.name}
+                          onChange={(e) => handleColorChange(idx, "name", e.target.value)}
+                          className="flex-1 border border-gray-300 px-2.5 py-1.5 rounded-sm focus:border-[#ee4d2d] outline-none text-xs"
+                        />
+                        <button type="button" onClick={() => handleRemoveColor(idx)} className="text-gray-400 hover:text-red-500">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Link ảnh (tùy chọn)"
+                        value={c.imageUrl}
+                        onChange={(e) => handleColorChange(idx, "imageUrl", e.target.value)}
+                        className="w-full border border-gray-300 px-2.5 py-1.5 rounded-sm focus:border-[#ee4d2d] outline-none text-xs"
+                      />
+                    </div>
+                  ))}
                 </div>
-                <div className="flex flex-wrap gap-2 items-center">
-                  {getCategoryInfo().isFashion && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => addPresetGroup(["S", "M", "L", "XL", "2XL"])}
-                        className="px-3 py-1.5 bg-[#ee4d2d] hover:bg-[#d73f22] text-white font-bold text-xs rounded shadow-sm transition-all flex items-center gap-1"
-                      >
-                        ⚡ Tạo nhanh [S, M, L, XL, 2XL]
-                      </button>
-                      {["S", "M", "L", "XL", "2XL", "FreeSize"].map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => addVariantItem(s)}
-                          className="px-3 py-1 bg-white border border-orange-200 hover:border-[#ee4d2d] text-gray-700 hover:text-[#ee4d2d] text-xs rounded font-medium transition-colors"
-                        >
-                          + {s}
-                        </button>
-                      ))}
-                    </>
-                  )}
 
-                  {getCategoryInfo().isShoes && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => addPresetGroup(["38", "39", "40", "41", "42", "43"])}
-                        className="px-3 py-1.5 bg-[#ee4d2d] hover:bg-[#d73f22] text-white font-bold text-xs rounded shadow-sm transition-all flex items-center gap-1"
-                      >
-                        ⚡ Tạo nhanh [38, 39, 40, 41, 42, 43]
+                {/* Cột 2: Kích cỡ / Phân loại 2 */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-gray-700 uppercase">2. Kích cỡ / Phân loại 2</h3>
+                    <button type="button" onClick={handleAddSize} className="text-[#ee4d2d] text-xs font-bold flex items-center gap-1 hover:underline">
+                      <Plus size={14} /> Thêm
+                    </button>
+                  </div>
+                  {sizes.map((s, idx) => (
+                    <div key={idx} className="flex items-center gap-2 p-2 bg-white border border-gray-200 rounded-sm">
+                      <input
+                        type="text"
+                        placeholder="VD: S, M, L..."
+                        value={s}
+                        onChange={(e) => handleSizeChange(idx, e.target.value)}
+                        className="flex-1 border border-gray-300 px-2.5 py-1.5 rounded-sm focus:border-[#ee4d2d] outline-none text-xs"
+                      />
+                      <button type="button" onClick={() => handleRemoveSize(idx)} className="text-gray-400 hover:text-red-500">
+                        <Trash2 size={14} />
                       </button>
-                      {["36", "37", "38", "39", "40", "41", "42", "43", "44"].map((sz) => (
-                        <button
-                          key={sz}
-                          type="button"
-                          onClick={() => addVariantItem(`Size ${sz}`)}
-                          className="px-3 py-1 bg-white border border-orange-200 hover:border-[#ee4d2d] text-gray-700 hover:text-[#ee4d2d] text-xs rounded font-medium transition-colors"
-                        >
-                          + Size {sz}
-                        </button>
-                      ))}
-                    </>
-                  )}
-
-                  {getCategoryInfo().isElectronics && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => addPresetGroup(["Bản tiêu chuẩn", "Bản Pro"])}
-                        className="px-3 py-1.5 bg-[#ee4d2d] hover:bg-[#d73f22] text-white font-bold text-xs rounded shadow-sm transition-all flex items-center gap-1"
-                      >
-                        ⚡ Tạo nhanh [Bản tiêu chuẩn, Bản Pro]
-                      </button>
-                      {["Bản tiêu chuẩn", "Bản Pro", "Bản Cao cấp", "64GB", "128GB", "256GB"].map((opt) => (
-                        <button
-                          key={opt}
-                          type="button"
-                          onClick={() => addVariantItem(opt)}
-                          className="px-3 py-1 bg-white border border-orange-200 hover:border-[#ee4d2d] text-gray-700 hover:text-[#ee4d2d] text-xs rounded font-medium transition-colors"
-                        >
-                          + {opt}
-                        </button>
-                      ))}
-                    </>
-                  )}
-
-                  {!getCategoryInfo().isFashion && !getCategoryInfo().isShoes && !getCategoryInfo().isElectronics && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => addPresetGroup(["Bản tiêu chuẩn", "Bản nâng cấp"])}
-                        className="px-3 py-1.5 bg-[#ee4d2d] hover:bg-[#d73f22] text-white font-bold text-xs rounded shadow-sm transition-all flex items-center gap-1"
-                      >
-                        ⚡ Tạo nhanh mẫu cơ bản
-                      </button>
-                      {["Nhỏ", "Vừa", "Lớn", "1m2", "1m4", "1m6", "250g", "500g"].map((tag) => (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => addVariantItem(tag)}
-                          className="px-3 py-1 bg-white border border-orange-200 hover:border-[#ee4d2d] text-gray-700 hover:text-[#ee4d2d] text-xs rounded font-medium transition-colors"
-                        >
-                          + {tag}
-                        </button>
-                      ))}
-                    </>
-                  )}
+                    </div>
+                  ))}
                 </div>
-              </div>
-
-              {/* Thêm/xóa size thủ công */}
-              <div className="flex gap-2 items-center">
-                <input
-                  type="text"
-                  placeholder="Tự gõ size/phân loại khác (VD: Size 29, 1m6 x 80cm, Màu Xanh...)"
-                  value={customVariantName}
-                  onChange={(e) => setCustomVariantName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      if (customVariantName.trim()) {
-                        addVariantItem(customVariantName.trim());
-                        setCustomVariantName("");
-                      }
-                    }
-                  }}
-                  className="flex-1 border border-gray-300 px-3 py-2 rounded-sm focus:border-[#ee4d2d] outline-none text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (customVariantName.trim()) {
-                      addVariantItem(customVariantName.trim());
-                      setCustomVariantName("");
-                    }
-                  }}
-                  className="px-4 py-2 bg-gray-800 hover:bg-black text-white text-xs font-bold rounded-sm transition-colors flex items-center gap-1 shrink-0"
-                >
-                  <Plus size={16} /> Thêm phân loại
-                </button>
               </div>
 
               {/* Áp dụng nhanh cho tất cả size */}
               {variantsList.length > 1 && (
-                <div className="flex flex-wrap items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-sm text-xs">
+                <div className="flex flex-wrap items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-sm text-xs mt-4">
                   <span className="font-bold text-gray-700">Áp dụng giá & kho cho tất cả:</span>
                   <input
                     type="number"
@@ -729,29 +727,46 @@ const AddProduct = () => {
 
               {/* Bảng chi tiết biến thể */}
               {variantsList.length > 0 ? (
-                <div className="border border-gray-200 rounded-sm overflow-x-auto">
+                <div className="border border-gray-200 rounded-sm overflow-x-auto mt-4">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="bg-gray-100 border-b border-gray-200 text-gray-600">
                         <th className="p-3 w-12 text-center">#</th>
-                        <th className="p-3 min-w-[160px]">Tên size / phân loại <span className="text-red-500">*</span></th>
-                        <th className="p-3 w-44">Giá bán (₫) <span className="text-red-500">*</span></th>
-                        <th className="p-3 w-36">Kho hàng <span className="text-red-500">*</span></th>
+                        <th className="p-3 w-40">Màu sắc <span className="text-red-500">*</span></th>
+                        <th className="p-3 w-40">Kích cỡ <span className="text-red-500">*</span></th>
+                        <th className="p-3 w-40">Giá bán (₫) <span className="text-red-500">*</span></th>
+                        <th className="p-3 w-32">Kho hàng <span className="text-red-500">*</span></th>
                         <th className="p-3 w-40">Mã SKU (Tùy chọn)</th>
                         <th className="p-3 w-16 text-center">Xóa</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {variantsList.map((item, idx) => (
+                      {variantsList.map((item, idx) => {
+                        const matchedColor = colors.find(c => c.name.trim() === item.color.trim());
+                        const displayImage = matchedColor?.imageUrl || item.image_url;
+                        return (
                         <tr key={idx} className="hover:bg-orange-50/30 transition-colors">
                           <td className="p-3 text-center font-bold text-gray-400">{idx + 1}</td>
                           <td className="p-2">
+                            <div className="flex items-center gap-2">
+                              {displayImage && (
+                                <img src={displayImage} alt="Màu" className="w-8 h-8 object-cover rounded border border-gray-200" />
+                              )}
+                              <input
+                                type="text"
+                                value={item.color}
+                                onChange={(e) => updateVariantItem(idx, "color", e.target.value)}
+                                placeholder="VD: Đỏ"
+                                className="w-full border border-gray-300 px-2.5 py-1.5 rounded-sm focus:border-[#ee4d2d] outline-none font-medium"
+                              />
+                            </div>
+                          </td>
+                          <td className="p-2">
                             <input
                               type="text"
-                              required
-                              value={item.variant_name}
-                              onChange={(e) => updateVariantItem(idx, "variant_name", e.target.value)}
-                              placeholder="VD: Size L"
+                              value={item.size}
+                              onChange={(e) => updateVariantItem(idx, "size", e.target.value)}
+                              placeholder="VD: M"
                               className="w-full border border-gray-300 px-2.5 py-1.5 rounded-sm focus:border-[#ee4d2d] outline-none font-medium"
                             />
                           </td>
@@ -795,11 +810,11 @@ const AddProduct = () => {
                             </button>
                           </td>
                         </tr>
-                      ))}
+                      )})}
                     </tbody>
                     <tfoot>
                       <tr className="bg-gray-50 font-semibold text-gray-700 border-t border-gray-200">
-                        <td colSpan={3} className="p-3">
+                        <td colSpan={4} className="p-3">
                           Tổng số phân loại: <span className="text-[#ee4d2d] font-bold">{variantsList.length}</span> loại
                         </td>
                         <td colSpan={3} className="p-3 text-right pr-6">
