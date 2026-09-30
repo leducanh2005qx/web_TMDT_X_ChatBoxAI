@@ -91,7 +91,7 @@ function Checkout({ cart, setCart }) {
       sDiscount = Math.min(originalShippingFee, Number(selectedVouchers.shipping.value || 0));
     }
     return { itemDiscount: iDiscount, shippingDiscount: sDiscount };
-  }, [selectedVouchers, subtotal, originalShippingFee, checkoutItems]);
+  }, [selectedVouchers, originalShippingFee, checkoutItems]);
 
   const finalShippingFee = Math.max(originalShippingFee - shippingDiscount, 0);
   const finalSubtotal = Math.max(subtotal - itemDiscount, 0);

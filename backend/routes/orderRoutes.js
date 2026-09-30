@@ -13,6 +13,9 @@ router.get("/:id", authMiddleware, orderController.getOrderDetail);
 // Khách hàng tự hủy đơn khi Pending
 router.post("/:id/cancel", authMiddleware, orderController.cancelOrder);
 
+// Khách hàng đổi địa chỉ khi Pending/Processing
+router.put("/:id/address", authMiddleware, orderController.updateOrderAddress);
+
 // Khách hàng yêu cầu đổi trả/bảo hành khi Completed
 router.post("/:id/return-warranty", authMiddleware, orderController.requestReturnWarranty);
 

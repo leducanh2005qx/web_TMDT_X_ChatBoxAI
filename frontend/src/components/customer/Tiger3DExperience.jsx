@@ -20,7 +20,6 @@ import {
   Sparkles,
   Environment,
   MeshReflectorMaterial,
-  Text,
   useProgress,
   Html,
   ContactShadows,
@@ -39,7 +38,6 @@ import {
   Package,
   Heart,
   BadgeCheck,
-  X,
 } from "lucide-react";
 
 // ──────────────────────────────────────────

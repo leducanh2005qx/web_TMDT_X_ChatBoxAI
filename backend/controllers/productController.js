@@ -15,7 +15,7 @@ exports.getAllProducts = (req, res) => {
     SELECT 
       p.*, 
       IFNULL(c.name, 'Chưa phân loại') AS category_name,
-      (SELECT IFNULL(SUM(oi.quantity), 0) FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE oi.product_id = p.id AND o.status != 'cancelled') AS sold,
+      p.sold_count AS sold_count,
       (SELECT IFNULL(AVG(r.rating), 5) FROM product_reviews r WHERE r.product_id = p.id) AS rating,
       (SELECT IFNULL(SUM(v.stock), 0) FROM product_variants v WHERE v.product_id = p.id) AS total_variant_stock,
       (
@@ -63,7 +63,8 @@ exports.getAllProducts = (req, res) => {
       return {
         ...p,
         stock: Number(p.total_variant_stock) > 0 ? Number(p.total_variant_stock) : p.stock,
-        sold: Number(p.sold) || 0,
+        sold_count: Number(p.sold_count) || 0,
+        sold: Number(p.sold_count) || 0,
         rating: Number(p.rating) || 5,
         variants: Array.isArray(variantsData) ? variantsData : [],
         category: p.category_name,
@@ -82,7 +83,7 @@ exports.getProductById = (req, res) => {
     SELECT 
       p.*, 
       IFNULL(c.name, 'Chưa phân loại') AS category_name,
-      (SELECT IFNULL(SUM(oi.quantity), 0) FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE oi.product_id = p.id AND o.status != 'cancelled') AS sold,
+      p.sold_count AS sold_count,
       (SELECT IFNULL(AVG(r.rating), 5) FROM product_reviews r WHERE r.product_id = p.id) AS rating,
       (SELECT IFNULL(SUM(v.stock), 0) FROM product_variants v WHERE v.product_id = p.id) AS total_variant_stock,
       (
@@ -125,7 +126,8 @@ exports.getProductById = (req, res) => {
     res.json({
       ...p,
       stock: Number(p.total_variant_stock) > 0 ? Number(p.total_variant_stock) : p.stock,
-      sold: Number(p.sold) || 0,
+      sold_count: Number(p.sold_count) || 0,
+      sold: Number(p.sold_count) || 0,
       rating: Number(p.rating) || 5,
       variants: Array.isArray(variantsData) ? variantsData : [],
       category: p.category_name,

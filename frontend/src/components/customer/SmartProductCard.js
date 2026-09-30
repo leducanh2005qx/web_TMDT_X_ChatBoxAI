@@ -1,9 +1,8 @@
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Star, ShoppingCart } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ShoppingCart, MapPin, Star } from "lucide-react";
 
-function SmartProductCard({ product, onAddToCart }) {
-  const navigate = useNavigate();
+export default function SmartProductCard({ product, onAddToCart }) {
   if (!product) return null;
 
   const {
@@ -12,8 +11,7 @@ function SmartProductCard({ product, onAddToCart }) {
     price = 0,
     original_price,
     image,
-    sold = 0,
-    rating = 5,
+    sold_count = 0,
     stock = 10
   } = product;
 
@@ -24,187 +22,104 @@ function SmartProductCard({ product, onAddToCart }) {
       ? Math.round(((original_price - price) / original_price) * 100)
       : 0;
 
-  const hasVariants = product.variants && product.variants.length > 0;
   const isOutOfStock = stock <= 0;
 
   const handleQuickAdd = (e) => {
     e.preventDefault();
     e.stopPropagation();
-
     if (isOutOfStock) return;
-
-    if (hasVariants) {
-      navigate(`/product/${id}`);
-      return;
-    }
-
     if (onAddToCart) onAddToCart(product);
-
-    // Fly to cart animation
-    const imgEl = e.currentTarget.closest(".premium-card")?.querySelector("img");
-    const cartEl = document.querySelector(".cart-icon-nav") || document.querySelector("a[href='/cart']");
-
-    if (imgEl && cartEl) {
-      const imgRect = imgEl.getBoundingClientRect();
-      const cartRect = cartEl.getBoundingClientRect();
-
-      const clone = imgEl.cloneNode(true);
-      clone.style.position = "fixed";
-      clone.style.top = `${imgRect.top}px`;
-      clone.style.left = `${imgRect.left}px`;
-      clone.style.width = `${imgRect.width}px`;
-      clone.style.height = `${imgRect.height}px`;
-      clone.style.borderRadius = "50%";
-      clone.style.border = "4px solid #FF8C00";
-      clone.style.zIndex = "9999";
-      clone.style.transition = "all 0.8s cubic-bezier(0.25, 1, 0.5, 1)";
-      clone.style.pointerEvents = "none";
-      
-      document.body.appendChild(clone);
-
-      clone.getBoundingClientRect(); // Trigger reflow
-
-      clone.style.top = `${cartRect.top + cartRect.height / 2 - 10}px`;
-      clone.style.left = `${cartRect.left + cartRect.width / 2 - 10}px`;
-      clone.style.width = "20px";
-      clone.style.height = "20px";
-      clone.style.opacity = "0.2";
-
-      setTimeout(() => {
-        if (document.body.contains(clone)) {
-          document.body.removeChild(clone);
-        }
-      }, 800);
-    }
   };
 
-  const renderStars = () => {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      stars.push(
-        <Star
-          key={i}
-          size={12}
-          fill={i <= Math.round(rating) ? "#FFB347" : "#E2E8F0"}
-          color={i <= Math.round(rating) ? "#FFB347" : "#E2E8F0"}
-        />
-      );
-    }
-    return stars;
+  const getImageUrl = (img) => {
+    if (!img) return "/placeholder.png";
+    if (img.startsWith("http")) return img;
+    const baseUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
+    if (img.startsWith("/")) return `${baseUrl}${img}`;
+    return `${baseUrl}/${img}`;
   };
 
   return (
-    <div className="premium-card flex flex-col h-full group bg-white border border-gray-100 shadow-sm hover:shadow-lg">
-      <Link to={`/product/${id}`} className="flex flex-col h-full hover:no-underline">
-        {/* IMAGE CONTAINER */}
-        <div className="relative w-full pt-[100%] bg-gray-50 overflow-hidden">
-          {image ? (
-            <img
-              src={image.startsWith('http') ? image : `http://localhost:5000/${image}`}
-              alt={name}
-              className="absolute top-0 left-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
-            />
-          ) : (
-            <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center text-4xl bg-gray-100">🐯</div>
-          )}
+    <Link 
+      to={`/product/${id}`} 
+      className="group block border border-gray-100 rounded-lg overflow-hidden bg-white hover:shadow-md transition-shadow relative flex flex-col h-full no-underline text-inherit hover:text-inherit hover:no-underline"
+    >
+      {/* Hình ảnh */}
+      <div className="relative w-full aspect-square bg-gray-50 overflow-hidden">
+        <img
+          src={getImageUrl(image)}
+          alt={name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          loading="lazy"
+          onError={(e) => { e.target.onerror = null; e.target.src = '/placeholder.png'; }}
+        />
 
-          {/* Badge Tiger Choice */}
-          <div className="absolute top-3 left-0 z-10 bg-[#FF8C00] text-white text-[10px] font-bold px-2.5 py-1 shadow-sm rounded-r-md">
-            Tiger Choice
-          </div>
-
-          {/* Badge Discount */}
-          {discountPercent > 0 && (
-            <div className="absolute top-3 right-3 z-10 bg-red-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-md">
-              -{discountPercent}%
-            </div>
-          )}
+        {/* Badge Tiger Choice (Góc trái trên) */}
+        <div className="absolute top-1 left-1 bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm z-10">
+          Tiger Choice
         </div>
 
-        {/* CONTENT */}
-        <div className="p-4 flex flex-col flex-1">
-          {/* Rating stars */}
-          <div className="flex items-center gap-[2px] mb-1.5">
-            {renderStars()}
-            <span className="text-[10px] text-gray-400 font-medium ml-1">({rating || 5}.0)</span>
+        {/* Badge Giảm giá (Góc phải trên) */}
+        {discountPercent > 0 && (
+          <div className="absolute top-1 right-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full shadow-sm z-10">
+            -{discountPercent}%
           </div>
+        )}
 
-          {/* Title */}
-          <h3 
-            className="text-sm text-gray-800 font-bold leading-snug mb-2 group-hover:text-[#FF8C00] transition-colors"
-            style={{
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-              wordBreak: "break-word",
-              height: "40px"
-            }}
+        {/* Nút giỏ hàng (Góc phải dưới của ảnh) */}
+        {!isOutOfStock && (
+          <button 
+            onClick={handleQuickAdd}
+            className="absolute bottom-2 right-2 w-9 h-9 bg-white text-[#FF8C00] rounded-full shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-orange-50 z-20"
+            title="Thêm nhanh vào giỏ"
           >
-            {name}
-          </h3>
+            <ShoppingCart size={16} />
+          </button>
+        )}
+        {isOutOfStock && (
+          <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs font-bold py-1.5 text-center">
+            HẾT HÀNG
+          </div>
+        )}
+      </div>
 
-          <div className="mt-auto">
-            {/* Prices */}
-            <div className="flex items-baseline gap-2 mb-3">
-              <span className="text-[#FF8C00] font-black text-lg">
-                <span className="text-xs mr-[1px]">₫</span>{formatNumber(price)}
-              </span>
-              {original_price > price && (
-                <span className="text-[11px] text-gray-400 line-through">
-                  ₫{formatNumber(original_price)}
-                </span>
-              )}
-            </div>
+      {/* Thông tin thẻ */}
+      <div className="p-3 flex flex-col flex-1">
+        {/* 5 Ngôi sao vàng */}
+        <div className="flex gap-[2px] mb-1">
+          {Array(5).fill(0).map((_, i) => (
+            <Star key={i} size={10} fill="currentColor" className="text-yellow-400" />
+          ))}
+        </div>
 
-            {/* Progress Sold bar */}
-            <div className="flex flex-col gap-1 mb-4">
-              <div className="flex justify-between items-center text-[10px] font-bold text-gray-500">
-                <span>Đã bán {sold >= 1000 ? `${(sold / 1000).toFixed(1)}k` : sold}</span>
-                {isOutOfStock ? (
-                  <span className="text-red-500">Hết hàng</span>
-                ) : (
-                  <span className="text-gray-400">Kho: {stock}</span>
-                )}
-              </div>
-              <div className="relative w-full h-1.5 rounded-full overflow-hidden bg-gray-100">
-                <div 
-                  className={`absolute top-0 left-0 h-full rounded-full transition-all duration-500`}
-                  style={{
-                    backgroundColor: isOutOfStock ? "#CBD5E1" : "#FF8C00",
-                    width: `${Math.min((sold / (sold + stock || 1)) * 100, 100)}%`,
-                    minWidth: sold > 0 ? "10%" : "0%"
-                  }}
-                ></div>
-              </div>
-            </div>
+        {/* Tên SP */}
+        <h3 className="text-sm text-gray-800 font-medium line-clamp-2 leading-snug mb-1 no-underline flex-1">
+          {name}
+        </h3>
+        
+        {/* Giá tiền */}
+        <div className="flex items-baseline mt-1">
+          <span className="text-orange-500 font-bold text-lg mr-2">
+            {formatNumber(price)}đ
+          </span>
+          {discountPercent > 0 && (
+            <span className="text-gray-400 text-sm line-through">
+              {formatNumber(original_price)}đ
+            </span>
+          )}
+        </div>
 
-            {/* Quick Action Button */}
-            <button
-              onClick={handleQuickAdd}
-              disabled={isOutOfStock}
-              className={`w-full text-white rounded-xl py-3 text-xs font-black tracking-wider uppercase transition-all flex items-center justify-center gap-2 shadow-sm ${
-                isOutOfStock 
-                  ? "bg-gray-300 cursor-not-allowed text-gray-500" 
-                  : "bg-[#FF8C00] hover:bg-[#CC7000] hover:shadow-md hover:shadow-orange-500/10 active:scale-[0.98]"
-              }`}
-            >
-              {isOutOfStock ? (
-                "Hết Hàng"
-              ) : hasVariants ? (
-                "Chọn Loại"
-              ) : (
-                <>
-                  <ShoppingCart size={14} />
-                  <span>Mua Ngay</span>
-                </>
-              )}
-            </button>
+        {/* Footer thẻ */}
+        <div className="flex justify-between items-center mt-3 pt-2 border-t border-gray-100">
+          <div className="flex items-center text-[11px] text-gray-500">
+            <MapPin size={10} className="mr-0.5" />
+            Hà Nội
+          </div>
+          <div className="text-[11px] text-gray-500">
+            {Number(sold_count) > 0 ? `Đã bán ${sold_count}` : "Chưa có lượt mua"}
           </div>
         </div>
-      </Link>
-    </div>
+      </div>
+    </Link>
   );
 }
-
-export default SmartProductCard;

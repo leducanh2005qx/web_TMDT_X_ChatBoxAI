@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import SmartProductCard from "../../components/customer/SmartProductCard";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
@@ -8,9 +9,10 @@ import {
 import {
   getProductById,
   getProductReviews,
+  getProducts,
 } from "../../services/api";
 
-function ProductDetail({ cart, setCart }) {
+function ProductDetail({ cart, setCart, addToCart }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
@@ -20,12 +22,20 @@ function ProductDetail({ cart, setCart }) {
   const [activeImage, setActiveImage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState([]);
+  const [reviewFilter, setReviewFilter] = useState('ALL');
   const [qty, setQty] = useState(1);
+  const [recommendedProducts, setRecommendedProducts] = useState([]);
 
   const uniqueColors = Array.from(new Set(variants.map(v => v.color).filter(Boolean)));
   const uniqueSizes = Array.from(new Set(variants.map(v => v.size).filter(Boolean)));
   
   const currentVariant = variants.find(v => v.color === selectedColor && v.size === selectedSize);
+
+  const filteredReviews = useMemo(() => {
+    if (reviewFilter === 'ALL') return reviews;
+    if (reviewFilter === 'HAS_COMMENT') return reviews.filter(r => r.comment && r.comment.trim() !== '');
+    return reviews.filter(r => r.rating === Number(reviewFilter));
+  }, [reviews, reviewFilter]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -56,6 +66,18 @@ function ProductDetail({ cart, setCart }) {
       .then((data) => setReviews(Array.isArray(data) ? data : []))
       .catch(() => setReviews([]));
   }, [id]);
+
+  
+  useEffect(() => {
+    if (!product?.category_id) return;
+    getProducts().then(data => {
+      if (Array.isArray(data)) {
+        const filtered = data.filter(p => p.category_id === product.category_id && String(p.id) !== String(product.id));
+        const shuffled = filtered.sort(() => 0.5 - Math.random());
+        setRecommendedProducts(shuffled.slice(0, 5));
+      }
+    }).catch(console.error);
+  }, [product?.category_id, product?.id]);
 
   const handleAddToCart = (isBuyNow = false) => {
     if (variants.length > 0 && !currentVariant) {
@@ -187,7 +209,8 @@ function ProductDetail({ cart, setCart }) {
   const rating = product.rating ? Number(product.rating).toFixed(1) : "5.0";
   const sold = product.sold || 0;
 
-  return (
+
+    return (
     <div className="max-w-[1200px] mx-auto pb-24 lg:pb-10 pt-4 px-2 lg:px-0">
       {/* BREADCRUMB */}
       <div className="flex items-center text-sm text-[#FF7A00] mb-4 px-2">
@@ -427,31 +450,9 @@ function ProductDetail({ cart, setCart }) {
         </div>
       </div>
 
-      {/* SHOP INFO */}
-      <div className="bg-white rounded-[12px] shadow-[0_4px_20px_rgba(0,0,0,0.05)] p-4 lg:p-6 mb-6 flex items-center gap-6">
-         <div className="w-20 h-20 rounded-full border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center bg-gray-50 text-3xl">
-           🐯
-         </div>
-         <div className="flex flex-col gap-1 border-r border-gray-200 pr-8">
-            <h3 className="font-bold text-base text-[#222]">Tiger Shop Official</h3>
-            <span className="text-xs text-gray-500">Online 5 phút trước</span>
-            <div className="flex gap-2 mt-2">
-               <button className="border border-[#FF7A00] text-[#FF7A00] bg-[#fffbf8] px-3 py-1.5 rounded-[12px] text-xs font-bold flex items-center gap-1 hover:bg-[#ffeee0]"><ShoppingCart size={14}/> Xem Shop</button>
-            </div>
-         </div>
-         <div className="flex-1 grid grid-cols-3 gap-y-4 px-8 text-sm text-[#757575]">
-            <div className="flex justify-between w-32"><label>Đánh Giá</label><span className="text-[#FF7A00] font-bold">15,4k</span></div>
-            <div className="flex justify-between w-32"><label>Sản Phẩm</label><span className="text-[#FF7A00] font-bold">243</span></div>
-            <div className="flex justify-between w-32"><label>Tỉ Lệ Phản Hồi</label><span className="text-[#FF7A00] font-bold">99%</span></div>
-            <div className="flex justify-between w-32"><label>Tham Gia</label><span className="text-[#FF7A00] font-bold">3 Năm</span></div>
-            <div className="flex justify-between w-32"><label>Người Theo Dõi</label><span className="text-[#FF7A00] font-bold">12,1k</span></div>
-         </div>
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-6">
-        <div className="w-full lg:w-[80%] flex flex-col gap-6">
+      <div className="max-w-7xl mx-auto mt-6 bg-white rounded-lg p-6 shadow-sm flex flex-col gap-10">
           {/* DESCRIPTION */}
-          <div className="bg-white rounded-[12px] shadow-[0_4px_20px_rgba(0,0,0,0.05)] p-6">
+          <div className="">
             <div className="bg-[#f5f5f5] p-3 mb-6 uppercase text-[#222] font-bold text-lg rounded-[12px]">Chi Tiết Sản Phẩm</div>
             <div className="text-base text-gray-800 leading-[1.6] whitespace-pre-wrap px-4 pb-4 font-normal">
               {product.description || "Chào mừng bạn đến với Tiger Shop. Đây là một trong những sản phẩm được yêu thích nhất của chúng tôi với chất lượng vượt trội và thiết kế hiện đại."}
@@ -459,7 +460,7 @@ function ProductDetail({ cart, setCart }) {
           </div>
 
           {/* REVIEWS */}
-          <div className="bg-white rounded-[12px] shadow-[0_4px_20px_rgba(0,0,0,0.05)] p-6">
+          <div className="">
             <div className="text-lg font-bold uppercase text-[#222] mb-4">Đánh Giá Sản Phẩm</div>
             
             {/* RATING OVERVIEW */}
@@ -477,21 +478,42 @@ function ProductDetail({ cart, setCart }) {
                   </div>
                </div>
                <div className="flex flex-wrap gap-2 flex-1">
-                  <button className="border border-[#FF7A00] text-[#FF7A00] bg-white px-4 py-1.5 text-sm font-bold rounded-[12px]">Tất Cả ({reviews.length})</button>
-                  <button className="border border-gray-200 text-[#222] bg-white px-4 py-1.5 text-sm rounded-[12px]">5 Sao ({reviews.filter(r => r.rating === 5).length})</button>
-                  <button className="border border-gray-200 text-[#222] bg-white px-4 py-1.5 text-sm rounded-[12px]">4 Sao ({reviews.filter(r => r.rating === 4).length})</button>
-                  <button className="border border-gray-200 text-[#222] bg-white px-4 py-1.5 text-sm rounded-[12px]">3 Sao ({reviews.filter(r => r.rating === 3).length})</button>
-                  <button className="border border-gray-200 text-[#222] bg-white px-4 py-1.5 text-sm rounded-[12px]">2 Sao ({reviews.filter(r => r.rating === 2).length})</button>
-                  <button className="border border-gray-200 text-[#222] bg-white px-4 py-1.5 text-sm rounded-[12px]">1 Sao ({reviews.filter(r => r.rating === 1).length})</button>
-                  <button className="border border-gray-200 text-[#222] bg-white px-4 py-1.5 text-sm rounded-[12px]">Có Bình Luận ({reviews.filter(r => r.comment).length})</button>
+                  <button 
+                    onClick={() => setReviewFilter('ALL')}
+                    className={`border px-4 py-1.5 text-sm rounded-[12px] ${reviewFilter === 'ALL' ? 'border-[#FF7A00] text-[#FF7A00] bg-white font-bold' : 'border-gray-200 text-[#222] bg-white hover:border-[#FF7A00] hover:text-[#FF7A00] transition-colors'}`}
+                  >Tất Cả ({reviews.length})</button>
+                  <button 
+                    onClick={() => setReviewFilter('5')}
+                    className={`border px-4 py-1.5 text-sm rounded-[12px] ${reviewFilter === '5' ? 'border-[#FF7A00] text-[#FF7A00] bg-white font-bold' : 'border-gray-200 text-[#222] bg-white hover:border-[#FF7A00] hover:text-[#FF7A00] transition-colors'}`}
+                  >5 Sao ({reviews.filter(r => r.rating === 5).length})</button>
+                  <button 
+                    onClick={() => setReviewFilter('4')}
+                    className={`border px-4 py-1.5 text-sm rounded-[12px] ${reviewFilter === '4' ? 'border-[#FF7A00] text-[#FF7A00] bg-white font-bold' : 'border-gray-200 text-[#222] bg-white hover:border-[#FF7A00] hover:text-[#FF7A00] transition-colors'}`}
+                  >4 Sao ({reviews.filter(r => r.rating === 4).length})</button>
+                  <button 
+                    onClick={() => setReviewFilter('3')}
+                    className={`border px-4 py-1.5 text-sm rounded-[12px] ${reviewFilter === '3' ? 'border-[#FF7A00] text-[#FF7A00] bg-white font-bold' : 'border-gray-200 text-[#222] bg-white hover:border-[#FF7A00] hover:text-[#FF7A00] transition-colors'}`}
+                  >3 Sao ({reviews.filter(r => r.rating === 3).length})</button>
+                  <button 
+                    onClick={() => setReviewFilter('2')}
+                    className={`border px-4 py-1.5 text-sm rounded-[12px] ${reviewFilter === '2' ? 'border-[#FF7A00] text-[#FF7A00] bg-white font-bold' : 'border-gray-200 text-[#222] bg-white hover:border-[#FF7A00] hover:text-[#FF7A00] transition-colors'}`}
+                  >2 Sao ({reviews.filter(r => r.rating === 2).length})</button>
+                  <button 
+                    onClick={() => setReviewFilter('1')}
+                    className={`border px-4 py-1.5 text-sm rounded-[12px] ${reviewFilter === '1' ? 'border-[#FF7A00] text-[#FF7A00] bg-white font-bold' : 'border-gray-200 text-[#222] bg-white hover:border-[#FF7A00] hover:text-[#FF7A00] transition-colors'}`}
+                  >1 Sao ({reviews.filter(r => r.rating === 1).length})</button>
+                  <button 
+                    onClick={() => setReviewFilter('HAS_COMMENT')}
+                    className={`border px-4 py-1.5 text-sm rounded-[12px] ${reviewFilter === 'HAS_COMMENT' ? 'border-[#FF7A00] text-[#FF7A00] bg-white font-bold' : 'border-gray-200 text-[#222] bg-white hover:border-[#FF7A00] hover:text-[#FF7A00] transition-colors'}`}
+                  >Có Bình Luận ({reviews.filter(r => r.comment && r.comment.trim() !== '').length})</button>
                </div>
             </div>
 
             <div className="flex flex-col">
-               {reviews.length === 0 ? (
+               {filteredReviews.length === 0 ? (
                  <div className="text-center py-10 text-gray-500 text-sm">Chưa có đánh giá nào cho sản phẩm này.</div>
                ) : (
-                 reviews.map(r => (
+                 filteredReviews.map(r => (
                    <div key={r.id} className="border-b border-gray-100 py-4 flex gap-4">
                       <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-500 overflow-hidden shrink-0">
                          {r.user_name?.[0]?.toUpperCase()}
@@ -517,8 +539,19 @@ function ProductDetail({ cart, setCart }) {
           </div>
         </div>
 
-      </div>
-    </div>
+        {/* ĐỀ XUẤT CHO BẠN */}
+        {recommendedProducts.length > 0 && (
+          <div className="max-w-7xl mx-auto mt-8 mb-12 px-2 lg:px-0">
+            <h2 className="text-lg font-bold uppercase text-gray-800 mb-4">Đề xuất cho bạn</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {recommendedProducts.map(p => (
+                <SmartProductCard key={p.id} product={p} onAddToCart={addToCart} />
+              ))}
+            </div>
+          </div>
+        )}
+        
+        </div>
   );
 }
 

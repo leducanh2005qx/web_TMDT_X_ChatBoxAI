@@ -1,9 +1,14 @@
+// UnifiedChatWidget.js - Updated with image upload, product attachment, and unified chat endpoint
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { io } from "socket.io-client";
-import { Send, User, X, MessageCircle, Sparkles, ChevronLeft, Trash2 } from "lucide-react";
+import { Send, User, X, MessageCircle, Sparkles, ChevronLeft, Trash2, Paperclip } from "lucide-react";
 import { getMyThread, getMyMessages, getMyOrdersSummary } from "../../services/chatApi";
 import "./Chat.css";
+import ChatCheckoutCard from "./ChatCheckoutCard";
+import ChatReturnCard from "./ChatReturnCard";
+import ChatVoucherCard from "./ChatVoucherCard";
 
 // ============================================================
 //  🔧 BUG FIX #1: useStreamingEffect
@@ -44,7 +49,7 @@ function useStreamingEffect(text, speed = 20) {
         return;
       }
       const char = text.charAt(i); // lấy char TRƯỚC
-      i++;                          // rồi mới tăng i
+      i++; // rồi mới tăng i
       setDisplayedText((prev) => prev + char);
     }, speed);
 
@@ -99,24 +104,12 @@ function AiMessage({ message, isLast }) {
   );
 }
 
-// ============================================================
-//  🔧 BUG FIX #2: isValidVoucher helper
-//  Gemini đôi khi trả về chuỗi "null" thay vì null thực sự.
-//  Hàm này lọc sạch mọi giá trị không hợp lệ.
-// ============================================================
-function isValidVoucher(v) {
-  return (
-    v != null &&
-    v !== "null" &&
-    v !== "undefined" &&
-    String(v).trim().length > 0
-  );
-}
+
 
 // ============================================================
 //  MAIN COMPONENT
 // ============================================================
-export default function UnifiedChatWidget() {
+export default function UnifiedChatWidget({ onAddToCart, cart = [] }) {
   const [open, setOpen] = useState(false);
   const [chatMode, setChatMode] = useState(null); // null | 'ai' | 'staff'
 
@@ -132,6 +125,15 @@ export default function UnifiedChatWidget() {
   const [staffInput, setStaffInput] = useState("");
   const [staffOrders, setStaffOrders] = useState([]);
   const [staffSelectedOrderId, setStaffSelectedOrderId] = useState("");
+
+  // New: Image upload handling
+  const [imageBase64, setImageBase64] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+
+  // New: Product attachment detection
+  const location = useLocation();
+  const [attachedProductId, setAttachedProductId] = useState(null);
+  const [attachedProductInfo, setAttachedProductInfo] = useState(null);
 
   const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");
@@ -243,8 +245,38 @@ export default function UnifiedChatWidget() {
     staffBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [staffMessages]);
 
-  // ── Gửi tin nhắn đến AI ──
-  const onSendAi = useCallback(async () => {
+  // ── Detect product page and fetch product info ──
+  useEffect(() => {
+    const match = location.pathname.match(/^\/product\/(\d+)/);
+    if (match) {
+      const pid = Number(match[1]);
+      setAttachedProductId(pid);
+      // Fetch product info (name & image) – simple fetch, ignore errors
+      fetch(`/api/products/${pid}`)
+        .then((r) => r.json())
+        .then((data) => setAttachedProductInfo(data))
+        .catch(() => setAttachedProductInfo(null));
+    } else {
+      setAttachedProductId(null);
+      setAttachedProductInfo(null);
+    }
+  }, [location.pathname]);
+
+  // ── Image upload handler ──
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result.split(',')[1]; // strip data URL prefix
+      setImageBase64(base64);
+      setImagePreviewUrl(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // ── Send tin nhắn (Unified endpoint) ──
+  const onSendMessage = useCallback(async () => {
     const msg = aiInput.trim();
     if (!msg) return;
 
@@ -252,42 +284,46 @@ export default function UnifiedChatWidget() {
     setAiMessages((prev) => [...prev, userMsg]);
     setAiInput("");
     setAiLoading(true);
-
+    // Reset image after sending
+    const cartValue = cart.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity || 1)), 0);
+    const payload = {
+      message: msg,
+      imageBase64: imageBase64 || null,
+      attachedProductId: attachedProductId || null,
+      cartValue,
+    };
     try {
-      const res = await fetch("http://localhost:5000/api/chat/ai/talk", {
+      const res = await fetch("http://localhost:5000/api/chat/message", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ message: msg }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
 
-      // Thêm tin AI reply
-      setAiMessages((prev) => [
-        ...prev,
-        {
-          id: "ai-" + Date.now(),
-          role: "AI",
-          text: data.reply || data.error || "Tiger AI đang bảo trì ạ...",
-        },
-      ]);
-
-      // ── BUG FIX #2: Chỉ hiển thị voucher khi giá trị THỰC SỰ hợp lệ ──
-      // Backend cũng đã sanitize, nhưng double-check ở frontend cho chắc
-      if (isValidVoucher(data.voucher)) {
-        setTimeout(() => {
-          setAiMessages((prev) => [
-            ...prev,
-            {
-              id: "ai-voucher-" + Date.now(),
-              role: "AI",
-              text: `🎁 TIGER TẶNG SẾP MÃ: **${data.voucher}**\nSếp áp dụng ngay trong trang thanh toán để được giảm giá nhé!`,
-              voucher: data.voucher,
-            },
-          ]);
-        }, 1000);
+      // Handle different response types
+      if (data.responseType === "text" || !data.responseType) {
+        setAiMessages((prev) => [
+          ...prev,
+          { id: "ai-" + Date.now(), role: "AI", text: data.reply || data.message || "" },
+        ]);
+      } else if (data.responseType === "checkout_card") {
+        setAiMessages((prev) => [
+          ...prev,
+          { id: "ai-" + Date.now(), role: "AI", responseType: "checkout_card", data: data.data },
+        ]);
+      } else if (data.responseType === "return_card") {
+        setAiMessages((prev) => [
+          ...prev,
+          { id: "ai-" + Date.now(), role: "AI", responseType: "return_card", data: { message: data.message } },
+        ]);
+      } else if (data.responseType === "voucher_card") {
+        setAiMessages((prev) => [
+          ...prev,
+          { id: "ai-" + Date.now(), role: "AI", responseType: "voucher_card", data: data.data },
+        ]);
       }
     } catch (err) {
       setAiMessages((prev) => [
@@ -296,8 +332,10 @@ export default function UnifiedChatWidget() {
       ]);
     } finally {
       setAiLoading(false);
+      setImageBase64(null);
+      setImagePreviewUrl(null);
     }
-  }, [aiInput, token]);
+  }, [aiInput, token, imageBase64, attachedProductId, cart]);
 
   // ── Xoá lịch sử AI chat ──
   const onClearAiHistory = useCallback(async () => {
@@ -319,7 +357,7 @@ export default function UnifiedChatWidget() {
     }
   }, [token]);
 
-  // ── Gửi tin nhắn đến Staff ──
+  // ── Gửi tin nhắn đến Staff ── (unchanged)
   const onSendStaff = useCallback(() => {
     const msg = staffInput.trim();
     if (!msg || !staffThreadId || !socket) return;
@@ -356,72 +394,76 @@ export default function UnifiedChatWidget() {
           {/* ── MENU CHỌN KÊNH ── */}
           {chatMode === null && (
             <div className="chat-menu-container">
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  borderBottom: "1px solid #f1f5f9",
-                  paddingBottom: "10px",
-                  marginBottom: "15px",
-                }}
-              >
-                <h5
+              <div>
+                <div
                   style={{
-                    color: "#FF7A00",
-                    fontSize: "16px",
-                    margin: 0,
-                    fontWeight: 800,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    borderBottom: "1px solid #f1f5f9",
+                    paddingBottom: "10px",
+                    marginBottom: "15px",
                   }}
                 >
-                  🐯 Tiger Support
-                </h5>
-                <button
-                  style={{ cursor: "pointer", border: "none", background: "transparent" }}
-                  onClick={() => setOpen(false)}
+                  <h5
+                    style={{
+                      color: "#FF7A00",
+                      fontSize: "16px",
+                      margin: 0,
+                      fontWeight: 800,
+                    }}
+                  >
+                    🐯 Tiger Support
+                  </h5>
+                  <button
+                    style={{ cursor: "pointer", border: "none", background: "transparent" }}
+                    onClick={() => setOpen(false)}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <p
+                  style={{
+                    fontSize: "12px",
+                    color: "#64748b",
+                    marginBottom: "20px",
+                  }}
                 >
-                  <X size={18} />
-                </button>
-              </div>
+                  Chào sếp! Vui lòng chọn kênh hỗ trợ để Tiger phục vụ sếp tốt nhất ạ:
+                </p>
 
-              <p
-                style={{
-                  fontSize: "12px",
-                  color: "#64748b",
-                  marginBottom: "20px",
-                }}
-              >
-                Chào sếp! Vui lòng chọn kênh hỗ trợ để Tiger phục vụ sếp tốt nhất ạ:
-              </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <button className="btn-chat-choice" onClick={() => setChatMode("ai")}
+                  >
+                    <div className="choice-icon ai-icon">
+                      <Sparkles size={22} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "14px", color: "#0f172a", fontWeight: 700 }}>
+                        Chat với AI Tiger
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#64748b" }}>
+                        Tư vấn sản phẩm nhanh, tặng voucher 🎁
+                      </div>
+                    </div>
+                  </button>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                <button className="btn-chat-choice" onClick={() => setChatMode("ai")}>
-                  <div className="choice-icon ai-icon">
-                    <Sparkles size={22} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "14px", color: "#0f172a", fontWeight: 700 }}>
-                      Chat với AI Tiger
+                  <button className="btn-chat-choice" onClick={() => setChatMode("staff")}
+                  >
+                    <div className="choice-icon staff-icon">
+                      <User size={22} />
                     </div>
-                    <div style={{ fontSize: "11px", color: "#64748b" }}>
-                      Tư vấn sản phẩm nhanh, tặng voucher 🎁
+                    <div>
+                      <div style={{ fontSize: "14px", color: "#0f172a", fontWeight: 700 }}>
+                        Chat với Nhân Viên
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#64748b" }}>
+                        Hỏi đáp đơn hàng, hỗ trợ trực tuyến 👥
+                      </div>
                     </div>
-                  </div>
-                </button>
-
-                <button className="btn-chat-choice" onClick={() => setChatMode("staff")}>
-                  <div className="choice-icon staff-icon">
-                    <User size={22} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "14px", color: "#0f172a", fontWeight: 700 }}>
-                      Chat với Nhân Viên
-                    </div>
-                    <div style={{ fontSize: "11px", color: "#64748b" }}>
-                      Hỏi đáp đơn hàng, hỗ trợ trực tuyến 👥
-                    </div>
-                  </div>
-                </button>
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -470,10 +512,26 @@ export default function UnifiedChatWidget() {
                   >
                     <div className="chat-bubble">
                       {m.role === "AI" ? (
-                        <AiMessage
-                          message={m.text ?? ""}
-                          isLast={i === aiMessages.length - 1}
-                        />
+                        m.responseType ? (
+                          // Render special cards based on responseType
+                          m.responseType === "checkout_card" ? (
+                            <ChatCheckoutCard data={m.data} onAddToCart={onAddToCart} />
+                          ) : m.responseType === "return_card" ? (
+                            <ChatReturnCard message={m.data?.message} />
+                          ) : m.responseType === "voucher_card" ? (
+                            <ChatVoucherCard data={m.data} />
+                          ) : (
+                            <AiMessage
+                              message={m.text ?? ""}
+                              isLast={i === aiMessages.length - 1}
+                            />
+                          )
+                        ) : (
+                          <AiMessage
+                            message={m.text ?? ""}
+                            isLast={i === aiMessages.length - 1}
+                          />
+                        )
                       ) : (
                         m.text
                       )}
@@ -489,13 +547,31 @@ export default function UnifiedChatWidget() {
               </div>
 
               <div className="chat-input-area">
+                {/* If product attached, show a small tag */}
+                {attachedProductInfo && (
+                  <div className="attached-product-tag" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                    <img src={attachedProductInfo.imageUrl} alt={attachedProductInfo.name} style={{ width: 32, height: 32, objectFit: "cover", borderRadius: 4 }} />
+                    <span style={{ fontSize: "12px", color: "#333" }}>{attachedProductInfo.name}</span>
+                  </div>
+                )}
+                {/* Image preview */}
+                {imagePreviewUrl && (
+                  <div className="image-preview" style={{ marginBottom: "6px" }}>
+                    <img src={imagePreviewUrl} alt="preview" style={{ maxWidth: "100px", maxHeight: "100px", borderRadius: "4px" }} />
+                  </div>
+                )}
                 <input
                   value={aiInput}
                   onChange={(e) => setAiInput(e.target.value)}
                   placeholder="Hỏi AI: 'Tư vấn áo thun', 'Giá rẻ nhất'..."
-                  onKeyDown={(e) => e.key === "Enter" && onSendAi()}
+                  onKeyDown={(e) => e.key === "Enter" && onSendMessage()}
                 />
-                <button onClick={onSendAi} disabled={aiLoading}>
+                {/* Hidden file input */}
+                <input type="file" accept="image/*" id="chat-image-upload" style={{ display: "none" }} onChange={handleImageChange} />
+                <button onClick={() => document.getElementById('chat-image-upload').click()} title="Upload image">
+                  <Paperclip size={18} />
+                </button>
+                <button onClick={onSendMessage} disabled={aiLoading}>
                   <Send size={18} />
                 </button>
               </div>

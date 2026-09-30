@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Laptop, Shirt, Utensils, Box, Layers, Trash2, Plus, Sparkles, Check } from "lucide-react";
+import { Laptop, Shirt, Utensils, Box, Layers, Trash2, Plus, Check } from "lucide-react";
 import { getCategories, createProduct, getProductById, updateProduct, createCategory, deleteCategory } from "../../services/api";
 
 const AddProduct = () => {
@@ -194,15 +194,7 @@ const AddProduct = () => {
     }
   };
 
-  // Helper lấy thông tin danh mục cho preset phân loại
-  const getCategoryInfo = () => {
-    const cat = categories.find((c) => String(c.id) === String(selectedCategoryId));
-    const catName = (cat?.name || "").toLowerCase();
-    const isFashion = catName.includes("thời trang") || catName.includes("áo") || catName.includes("quần") || selectedCategoryType === "fashion";
-    const isShoes = catName.includes("giày") || catName.includes("dép") || catName.includes("shoes");
-    const isElectronics = catName.includes("điện tử") || catName.includes("máy ảnh") || catName.includes("điện thoại") || catName.includes("tai nghe") || selectedCategoryType === "electronics";
-    return { isFashion, isShoes, isElectronics, catName };
-  };
+  // Lấy thông tin danh mục cho preset phân loại đã bị xóa vì không dùng đến
 
   const handleAddColor = () => setColors([...colors, { name: "", imageUrl: "" }]);
   const handleRemoveColor = (idx) => setColors(colors.filter((_, i) => i !== idx));

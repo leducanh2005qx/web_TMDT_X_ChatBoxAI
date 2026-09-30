@@ -88,6 +88,10 @@ exports.createOrder = async (req, res) => {
           throw new Error("Hết hàng (sản phẩm chính). Product ID: " + i.product_id);
         }
       }
+      await connection.query(
+        "UPDATE products SET sold_count = sold_count + ? WHERE id = ?",
+        [i.quantity, i.product_id]
+      );
     }
 
     // 5. Handle Voucher
@@ -483,6 +487,10 @@ exports.cancelOrder = async (req, res) => {
           [item.quantity, item.product_id]
         );
       }
+      await connection.query(
+        "UPDATE products SET sold_count = GREATEST(sold_count - ?, 0) WHERE id = ?",
+        [item.quantity, item.product_id]
+      );
     }
 
     const logAction = `Đã hủy đơn hàng #${orderId}. ${reason ? `Lý do: ${reason}` : ""}`;
@@ -523,9 +531,6 @@ exports.requestReturnWarranty = async (req, res) => {
     
     if (!orders.length) return res.status(404).json({ message: "Không tìm thấy đơn hàng." });
     
-    if (orders[0].status !== 'completed') {
-      return res.status(400).json({ message: "Chỉ đơn hàng đã giao thành công mới có thể yêu cầu bảo hành/đổi trả." });
-    }
 
     await connection.query(
       "INSERT INTO return_requests (user_id, order_id, reason) VALUES (?, ?, ?)",
@@ -808,4 +813,37 @@ exports.requestRefundAPI = (req, res) => {
 
     res.json({ success: true, message: "Đã gửi yêu cầu hoàn trả tới Manager" });
   });
+};
+
+exports.updateOrderAddress = async (req, res) => {
+  const orderId = req.params.id;
+  const userId = req.user.id;
+  const { address } = req.body;
+
+  if (!address || !address.trim()) {
+    return res.status(400).json({ message: "Vui lòng nhập địa chỉ mới." });
+  }
+
+  let connection;
+  try {
+    connection = await db.promise().getConnection();
+    const [orders] = await connection.query("SELECT * FROM orders WHERE id = ? AND user_id = ?", [orderId, userId]);
+    
+    if (!orders.length) {
+      return res.status(404).json({ message: "Không tìm thấy đơn hàng." });
+    }
+
+    const order = orders[0];
+    if (order.status !== 'pending' && order.status !== 'processing') {
+      return res.status(400).json({ message: "Chỉ có thể đổi địa chỉ khi đơn hàng đang chờ xử lý." });
+    }
+
+    await connection.query("UPDATE orders SET shipping_address = ? WHERE id = ?", [address.trim(), orderId]);
+    
+    res.json({ success: true, message: "Đã cập nhật địa chỉ giao hàng thành công." });
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi cập nhật địa chỉ.", error: error.message });
+  } finally {
+    if (connection) connection.release();
+  }
 };

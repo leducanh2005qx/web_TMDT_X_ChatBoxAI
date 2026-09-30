@@ -2,7 +2,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const db = require("../config/db");
 const { cosineSimilarity } = require("../utils/vectorMath");
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY_SALE || process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
 
 /**

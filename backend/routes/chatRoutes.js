@@ -113,5 +113,7 @@ router.post("/ai/talk", authMiddleware, aiChatController.chatWithAi);
 ===================================================== */
 router.get("/ai/history",    authMiddleware, aiChatController.getAiHistory);
 router.delete("/ai/history", authMiddleware, aiChatController.clearAiHistory);
+// Unified chat endpoint – receives message, optional image and product attachment
+router.post("/message", authMiddleware, aiChatController.unifiedChatMessage);
 
 module.exports = router;

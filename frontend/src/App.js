@@ -423,7 +423,7 @@ function App() {
       </Routes>
 
       {/* ================= CUSTOMER CHAT ================= */}
-      {!hideChat && <UnifiedChatWidget />}
+      {!hideChat && <UnifiedChatWidget onAddToCart={addToCart} cart={cart} />}
     </>
   );
 }
