@@ -27,12 +27,25 @@ function Shop({ keyword, addToCart }) {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([getProducts(), getCategories()]).then(([pData, cData]) => {
+    const selectedCategory = selectedCategories.length === 1
+      ? categories.find((category) => category.name === selectedCategories[0])?.id
+      : undefined;
+    const sortMap = { priceAsc: "price_asc", priceDesc: "price_desc", newest: "newest", bestSelling: "best_selling" };
+    Promise.all([
+      getProducts({
+        q: keyword || "",
+        category_id: selectedCategory,
+        min_price: appliedPriceRange.min,
+        max_price: appliedPriceRange.max,
+        sort: sortMap[sortOrder],
+      }),
+      categories.length ? Promise.resolve(categories) : getCategories(),
+    ]).then(([pData, cData]) => {
       setProducts(Array.isArray(pData) ? pData : []);
       setCategories(Array.isArray(cData) ? cData : []);
       setLoading(false);
-    });
-  }, []);
+    }).catch(() => setLoading(false));
+  }, [keyword, selectedCategories, appliedPriceRange, sortOrder, categories]);
 
   const handleApplyPrice = () => {
     setAppliedPriceRange({ min: priceMin, max: priceMax });

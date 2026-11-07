@@ -14,6 +14,10 @@ router.get("/me", authMiddleware, userController.getMe);
 
 // UPDATE MY PROFILE
 router.put("/me", authMiddleware, userController.updateMe);
+router.get("/me/addresses", authMiddleware, userController.getMyAddresses);
+router.post("/me/addresses", authMiddleware, userController.createMyAddress);
+router.delete("/me/addresses/:id", authMiddleware, userController.deleteMyAddress);
+router.patch("/me/addresses/:id/default", authMiddleware, userController.setDefaultAddress);
 
 // CHANGE PASSWORD
 router.put("/me/change-password", authMiddleware, userController.changePassword);

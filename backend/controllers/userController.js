@@ -63,6 +63,96 @@ exports.updateMe = (req, res) => {
   );
 };
 
+exports.getMyAddresses = async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(
+      `SELECT id, receiver_name AS receiverName, receiver_phone AS receiverPhone,
+              province, district, ward, address_detail AS address, is_default AS isDefault
+       FROM user_addresses WHERE user_id = ? ORDER BY is_default DESC, updated_at DESC`,
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: "Không thể tải sổ địa chỉ", error: error.message });
+  }
+};
+
+exports.createMyAddress = async (req, res) => {
+  const { receiverName, receiverPhone, province, district, ward, address, isDefault } = req.body;
+  if (!receiverName?.trim() || !receiverPhone?.trim() || !province?.trim() || !address?.trim()) {
+    return res.status(400).json({ message: "Vui lòng nhập đủ thông tin nhận hàng" });
+  }
+  const connection = await db.promise().getConnection();
+  try {
+    await connection.beginTransaction();
+    if (isDefault) await connection.query("UPDATE user_addresses SET is_default = 0 WHERE user_id = ?", [req.user.id]);
+    const [result] = await connection.query(
+      `INSERT INTO user_addresses
+       (user_id, receiver_name, receiver_phone, province, district, ward, address_detail, is_default)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.user.id, receiverName.trim(), receiverPhone.trim(), province.trim(), district?.trim() || null,
+        ward?.trim() || null, address.trim(), isDefault ? 1 : 0]
+    );
+    await connection.commit();
+    res.status(201).json({ id: result.insertId, success: true });
+  } catch (error) {
+    await connection.rollback();
+    res.status(500).json({ message: "Không thể lưu địa chỉ", error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
+exports.deleteMyAddress = async (req, res) => {
+  const connection = await db.promise().getConnection();
+  try {
+    await connection.beginTransaction();
+    const [found] = await connection.query(
+      "SELECT is_default FROM user_addresses WHERE id = ? AND user_id = ?",
+      [req.params.id, req.user.id]
+    );
+    if (!found.length) {
+      await connection.rollback();
+      return res.status(404).json({ message: "Không tìm thấy địa chỉ" });
+    }
+    await connection.query("DELETE FROM user_addresses WHERE id = ? AND user_id = ?", [req.params.id, req.user.id]);
+    if (found[0].is_default) {
+      await connection.query(
+        "UPDATE user_addresses SET is_default = 1 WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1",
+        [req.user.id]
+      );
+    }
+    await connection.commit();
+    res.json({ success: true });
+  } catch (error) {
+    await connection.rollback();
+    res.status(500).json({ message: "Không thể xóa địa chỉ", error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
+exports.setDefaultAddress = async (req, res) => {
+  const connection = await db.promise().getConnection();
+  try {
+    await connection.beginTransaction();
+    const [found] = await connection.query(
+      "SELECT id FROM user_addresses WHERE id = ? AND user_id = ?",
+      [req.params.id, req.user.id]
+    );
+    if (!found.length) return res.status(404).json({ message: "Không tìm thấy địa chỉ" });
+    await connection.query("UPDATE user_addresses SET is_default = 0 WHERE user_id = ?", [req.user.id]);
+    await connection.query("UPDATE user_addresses SET is_default = 1 WHERE id = ?", [req.params.id]);
+    await connection.commit();
+    res.json({ success: true });
+  } catch (error) {
+    await connection.rollback();
+    res.status(500).json({ message: "Không thể đặt địa chỉ mặc định", error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
 // UPLOAD AVATAR
 exports.uploadAvatar = (req, res) => {
   if (!req.file) {

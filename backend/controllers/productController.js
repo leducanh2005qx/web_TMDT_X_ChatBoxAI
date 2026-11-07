@@ -5,18 +5,47 @@ const { autoVectorize } = require("../utils/aiHelper");
 // ✅ LẤY TẤT CẢ SẢN PHẨM
 exports.getAllProducts = (req, res) => {
   const showDeleted = req.query.deleted === "true";
+  const { q, category_id, min_price, max_price, in_stock, sort } = req.query;
+  const params = [];
+  const filters = [showDeleted ? "p.deleted_at IS NOT NULL" : "p.deleted_at IS NULL"];
   
   // Kiểm tra quyền: Nếu không có token hoặc không phải Admin/Manager thì chỉ lấy 'active'
   const userRole = req.user ? String(req.user.role || "").toUpperCase() : null;
   const canSeeAll = ["ADMIN", "MANAGER"].includes(userRole);
   const isManager = userRole === "MANAGER";
 
+  if (q?.trim()) {
+    filters.push("(p.name LIKE ? OR p.description LIKE ?)");
+    params.push(`%${q.trim()}%`, `%${q.trim()}%`);
+  }
+  if (category_id) {
+    filters.push("p.category_id = ?");
+    params.push(Number(category_id));
+  }
+  if (min_price !== undefined && Number.isFinite(Number(min_price))) {
+    filters.push("p.price >= ?");
+    params.push(Number(min_price));
+  }
+  if (max_price !== undefined && Number.isFinite(Number(max_price))) {
+    filters.push("p.price <= ?");
+    params.push(Number(max_price));
+  }
+  if (in_stock === "true") filters.push("p.stock > 0");
+  const sortMap = {
+    price_asc: "p.price ASC",
+    price_desc: "p.price DESC",
+    best_selling: "p.sold_count DESC",
+    rating: "rating DESC",
+    newest: "p.id DESC",
+  };
+  const orderBy = sortMap[sort] || "p.id DESC";
+
   const sql = `
     SELECT 
       p.*, 
       IFNULL(c.name, 'Chưa phân loại') AS category_name,
       p.sold_count AS sold_count,
-      (SELECT IFNULL(AVG(r.rating), 5) FROM product_reviews r WHERE r.product_id = p.id) AS rating,
+      (SELECT IFNULL(AVG(r.rating), 0) FROM product_reviews r WHERE r.product_id = p.id) AS rating,
       (SELECT IFNULL(SUM(v.stock), 0) FROM product_variants v WHERE v.product_id = p.id) AS total_variant_stock,
       (
         SELECT IFNULL(
@@ -38,13 +67,13 @@ exports.getAllProducts = (req, res) => {
       ) AS variants
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
-    WHERE ${showDeleted ? "p.deleted_at IS NOT NULL" : "p.deleted_at IS NULL"}
+    WHERE ${filters.join(" AND ")}
     ${canSeeAll ? "" : " AND p.status = 'active'"}
     GROUP BY p.id, c.name
-    ORDER BY p.id DESC
+    ORDER BY ${orderBy}
   `;
 
-  db.query(sql, (err, result) => {
+  db.query(sql, params, (err, result) => {
     if (err) {
       console.error("SQL Error:", err.message);
       return res.status(500).json({ error: "Lỗi truy vấn database", details: err.message });
@@ -84,7 +113,7 @@ exports.getProductById = (req, res) => {
       p.*, 
       IFNULL(c.name, 'Chưa phân loại') AS category_name,
       p.sold_count AS sold_count,
-      (SELECT IFNULL(AVG(r.rating), 5) FROM product_reviews r WHERE r.product_id = p.id) AS rating,
+      (SELECT IFNULL(AVG(r.rating), 0) FROM product_reviews r WHERE r.product_id = p.id) AS rating,
       (SELECT IFNULL(SUM(v.stock), 0) FROM product_variants v WHERE v.product_id = p.id) AS total_variant_stock,
       (
         SELECT IFNULL(
@@ -352,7 +381,7 @@ exports.createOrUpdateProductReview = (req, res) => {
     const verifySql = `
       SELECT 1 FROM orders o
       JOIN order_items oi ON oi.order_id = o.id
-      WHERE o.user_id = ? AND oi.product_id = ? AND (o.payment_method = 'qr' OR o.status = 'completed')
+      WHERE o.user_id = ? AND oi.product_id = ? AND o.status = 'completed'
       LIMIT 1
     `;
     db.query(verifySql, [req.user.id, id], (verifyErr, verifyRows) => {

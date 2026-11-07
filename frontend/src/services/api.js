@@ -75,6 +75,28 @@ export const updateMe = (payload) =>
     body: JSON.stringify(payload),
   }).then(handleResponse);
 
+export const getMyAddresses = () =>
+  fetch(`${API_URL}/users/me/addresses`, { headers: getAuthHeader() }).then(handleResponse);
+
+export const createMyAddress = (payload) =>
+  fetch(`${API_URL}/users/me/addresses`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
+  }).then(handleResponse);
+
+export const deleteMyAddress = (id) =>
+  fetch(`${API_URL}/users/me/addresses/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
+export const setDefaultAddress = (id) =>
+  fetch(`${API_URL}/users/me/addresses/${id}/default`, {
+    method: "PATCH",
+    headers: getAuthHeader(),
+  }).then(handleResponse);
+
 export const changePassword = (currentPassword, newPassword) =>
   fetch(`${API_URL}/users/me/change-password`, {
     method: "PUT",
@@ -94,10 +116,13 @@ export const uploadAvatar = (file) => {
 
 /* ================= PRODUCTS ================= */
 
-export const getProducts = () => {
+export const getProducts = (filters = {}) => {
   const token = localStorage.getItem("token");
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
-  return fetch(`${API_URL}/products`, { headers }).then(handleResponse);
+  const query = new URLSearchParams(
+    Object.entries(filters).filter(([, value]) => value !== undefined && value !== "")
+  ).toString();
+  return fetch(`${API_URL}/products${query ? `?${query}` : ""}`, { headers }).then(handleResponse);
 };
 
 export const getProductById = (id) =>
@@ -678,6 +703,16 @@ export const requestOrderRefund = (orderId, reason) =>
     method: "POST",
     headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify({ reason }),
+  }).then(handleResponse);
+
+export const getReturnRequestsAdmin = () =>
+  fetch(`${API_URL}/orders/admin/returns`, { headers: getAuthHeader() }).then(handleResponse);
+
+export const updateReturnRequestAdmin = (id, payload) =>
+  fetch(`${API_URL}/orders/admin/returns/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload),
   }).then(handleResponse);
 
 export const updateOrderStatus = (id, status) =>

@@ -29,7 +29,10 @@ function ProductDetail({ cart, setCart, addToCart }) {
   const uniqueColors = Array.from(new Set(variants.map(v => v.color).filter(Boolean)));
   const uniqueSizes = Array.from(new Set(variants.map(v => v.size).filter(Boolean)));
   
-  const currentVariant = variants.find(v => v.color === selectedColor && v.size === selectedSize);
+  const currentVariant = variants.find(v =>
+    (!uniqueColors.length || v.color === selectedColor) &&
+    (!uniqueSizes.length || v.size === selectedSize)
+  );
 
   const filteredReviews = useMemo(() => {
     if (reviewFilter === 'ALL') return reviews;
@@ -59,6 +62,11 @@ function ProductDetail({ cart, setCart, addToCart }) {
       .then((data) => setVariants(Array.isArray(data) ? data : []))
       .catch(() => setVariants([]));
   }, [product]);
+
+  useEffect(() => {
+    if (uniqueColors.length === 1 && selectedColor === null) setSelectedColor(uniqueColors[0]);
+    if (uniqueSizes.length === 1 && selectedSize === null) setSelectedSize(uniqueSizes[0]);
+  }, [uniqueColors, uniqueSizes, selectedColor, selectedSize]);
 
   useEffect(() => {
     if (!id) return;
@@ -147,9 +155,9 @@ function ProductDetail({ cart, setCart, addToCart }) {
           variant_id: currentVariant?.id || null,
           name: product.name,
           variant_name: currentVariant?.variant_name || null,
-          price: currentVariant?.price || product.price,
+          price: currentVariant?.price ?? product.price,
           image: activeImage || product.image,
-          stock: currentVariant?.stock || product.stock,
+          stock: currentVariant?.stock ?? product.stock,
           quantity: qty,
         },
       ]);

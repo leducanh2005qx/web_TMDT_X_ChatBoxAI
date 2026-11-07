@@ -52,7 +52,6 @@ export default function ChatReturnCard({ message }) {
   const isPending = selectedOrderObj?.status === "pending";
   const isProcessing = selectedOrderObj?.status === "processing";
   const isCompleted = selectedOrderObj?.status === "completed";
-  const isShipped = selectedOrderObj?.status === "shipped";
 
   // Khi đổi đơn hàng, reset các field con
   useEffect(() => {

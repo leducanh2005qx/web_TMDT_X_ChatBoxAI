@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { createOrder, getMyVouchers, getMyProfile } from "../../services/api";
+import { createOrder, getMyVouchers, getMyProfile, getMyAddresses, createMyAddress, getProductById } from "../../services/api";
 import { MapPin, Ticket } from "lucide-react";
 // Import CSS if needed, but we will use Tailwind mainly
 // import "./Checkout.css"; 
@@ -27,6 +27,7 @@ function Checkout({ cart, setCart }) {
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState("");
   const [saveAddress, setSaveAddress] = useState(true);
+  const [priceStockWarning, setPriceStockWarning] = useState("");
   const [vouchers, setVouchers] = useState([]);
   const [selectedVouchers, setSelectedVouchers] = useState({ item: null, shipping: null });
   const [paymentMethod, setPaymentMethod] = useState("cod");
@@ -45,8 +46,13 @@ function Checkout({ cart, setCart }) {
   }, []);
 
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem(addressStorageKey) || "[]");
-    setSavedAddresses(Array.isArray(saved) ? saved : []);
+    if (!localStorage.getItem("token")) return;
+    getMyAddresses()
+      .then((addresses) => setSavedAddresses(Array.isArray(addresses) ? addresses : []))
+      .catch(() => {
+        const saved = JSON.parse(localStorage.getItem(addressStorageKey) || "[]");
+        setSavedAddresses(Array.isArray(saved) ? saved : []);
+      });
     getMyProfile().then((profile) => {
       setReceiverName(profile.name || "");
       setReceiverPhone(profile.phone || "");
@@ -62,21 +68,27 @@ function Checkout({ cart, setCart }) {
     setReceiverName(saved.receiverName || "");
     setReceiverPhone(saved.receiverPhone || "");
     setAddress(saved.address || "");
-    setCity(saved.city || "Hà Nội");
+    setCity(saved.province || saved.city || "Hà Nội");
   };
 
-  const saveCurrentAddress = () => {
+  const saveCurrentAddress = async () => {
     const item = {
       id: selectedAddressId || `address_${Date.now()}`,
       receiverName: receiverName.trim(),
       receiverPhone: receiverPhone.trim(),
       address: address.trim(),
-      city,
+      province: city,
     };
-    const next = [item, ...savedAddresses.filter((saved) => saved.id !== item.id)].slice(0, 10);
-    setSavedAddresses(next);
-    setSelectedAddressId(item.id);
-    localStorage.setItem(addressStorageKey, JSON.stringify(next));
+    try {
+      const created = await createMyAddress({ ...item, isDefault: savedAddresses.length === 0 });
+      setSavedAddresses((previous) => [{ ...item, id: created.id }, ...previous]);
+      setSelectedAddressId(created.id);
+    } catch {
+      const next = [item, ...savedAddresses.filter((saved) => saved.id !== item.id)].slice(0, 10);
+      setSavedAddresses(next);
+      setSelectedAddressId(item.id);
+      localStorage.setItem(addressStorageKey, JSON.stringify(next));
+    }
   };
 
   const subtotal = useMemo(() => {
@@ -152,8 +164,27 @@ function Checkout({ cart, setCart }) {
   const [eligibleGift, setEligibleGift] = useState(null);
 
   useEffect(() => {
+    if (!localStorage.getItem("token")) return;
     getMyVouchers().then((data) => setVouchers(Array.isArray(data) ? data : []));
   }, []);
+
+  useEffect(() => {
+    const productIds = [...new Set(checkoutItems.map((item) => item.product_id).filter(Boolean))];
+    if (!productIds.length) return;
+    Promise.all(productIds.map((id) => getProductById(id).catch(() => null))).then((products) => {
+      const changed = checkoutItems.some((item) => {
+        const product = products.find((candidate) => String(candidate?.id) === String(item.product_id));
+        if (!product) return false;
+        const variant = item.variant_id
+          ? (product.variants || []).find((candidate) => String(candidate.id) === String(item.variant_id))
+          : null;
+        const currentPrice = Number(variant?.price ?? product.price);
+        const currentStock = Number(variant?.stock ?? product.stock);
+        return currentPrice !== Number(item.price) || currentStock < Number(item.quantity);
+      });
+      setPriceStockWarning(changed ? "Giá hoặc tồn kho của một sản phẩm đã thay đổi. Hệ thống sẽ xác nhận lại theo dữ liệu mới nhất khi đặt hàng." : "");
+    });
+  }, [checkoutItems]);
 
   useEffect(() => {
     if (!subtotal || subtotal <= 0) { setEligibleGift(null); return; }
@@ -185,6 +216,8 @@ function Checkout({ cart, setCart }) {
         receiver_name: receiverName.trim(),
         receiver_phone: receiverPhone.trim(),
         shipping_address: `${address.trim()}, ${city}`,
+        city,
+        shipping_method: shippingMethod,
         voucher_ids: appliedVoucherIds,
         payment_method: paymentMethod,
       });
@@ -202,7 +235,7 @@ function Checkout({ cart, setCart }) {
     if (!receiverName.trim() || !receiverPhone.trim() || !address.trim() || !city) {
       return alert("Vui lòng nhập đủ tên, số điện thoại và địa chỉ nhận hàng");
     }
-    if (saveAddress) saveCurrentAddress();
+    if (saveAddress && !selectedAddressId) await saveCurrentAddress();
 
     if (paymentMethod === 'qr') {
       setIsWaitingPayment(true);
@@ -232,6 +265,11 @@ function Checkout({ cart, setCart }) {
           }}></div>
           
           <div className="p-6 lg:p-7">
+            {priceStockWarning && (
+              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                ⚠️ {priceStockWarning}
+              </div>
+            )}
             <div className="flex items-center gap-2 text-[#FF7A00] text-lg mb-4">
               <MapPin size={20} />
               <h2 className="font-bold">Địa Chỉ Nhận Hàng</h2>
@@ -247,7 +285,7 @@ function Checkout({ cart, setCart }) {
                     className={`text-left border rounded-lg px-3 py-2 text-xs ${selectedAddressId === saved.id ? "border-[#FF7A00] bg-orange-50" : "border-gray-200 bg-white"}`}
                   >
                     <span className="font-bold">{saved.receiverName}</span> · {saved.receiverPhone}
-                    <span className="block text-gray-500 mt-1">{saved.address}, {saved.city}</span>
+                    <span className="block text-gray-500 mt-1">{saved.address}, {saved.province || saved.city}</span>
                   </button>
                 ))}
               </div>

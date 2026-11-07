@@ -60,6 +60,20 @@ router.post(
 );
 
 router.get(
+  "/admin/returns",
+  authMiddleware,
+  roleMiddleware(["ADMIN", "MANAGER", "STAFF"]),
+  orderController.getReturnRequestsAdmin
+);
+
+router.patch(
+  "/admin/returns/:id",
+  authMiddleware,
+  roleMiddleware(["ADMIN", "MANAGER"]),
+  orderController.updateReturnRequestAdmin
+);
+
+router.get(
   "/admin/stats",
   authMiddleware,
   roleMiddleware(["ADMIN", "MANAGER"]),

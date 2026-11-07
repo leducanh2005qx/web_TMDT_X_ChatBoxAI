@@ -64,9 +64,9 @@ function App() {
           variant_id: selectedVariant?.id || null,
           name: product.name,
           variant_name: selectedVariant?.variant_name || null,
-          price: selectedVariant?.price || product.price,
+          price: selectedVariant?.price ?? product.price,
           image: product.image,
-          stock: selectedVariant?.stock || product.stock,
+          stock: selectedVariant?.stock ?? product.stock,
           quantity: quantity,
         },
       ]);

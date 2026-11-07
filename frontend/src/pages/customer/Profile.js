@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { getMyProfile, updateMyProfile, uploadAvatar } from "../../services/api";
-import { Camera, X, User } from "lucide-react";
+import { getMyProfile, updateMyProfile, uploadAvatar, getMyAddresses, createMyAddress, deleteMyAddress, setDefaultAddress } from "../../services/api";
+import { Camera, X, User, MapPin, Trash2 } from "lucide-react";
 import "./Profile.css";
 
 function Profile() {
@@ -10,6 +10,8 @@ function Profile() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [addresses, setAddresses] = useState([]);
+  const [addressForm, setAddressForm] = useState({ receiverName: "", receiverPhone: "", province: "", address: "" });
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
@@ -24,6 +26,43 @@ function Profile() {
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    getMyAddresses().then((data) => setAddresses(Array.isArray(data) ? data : [])).catch(() => setAddresses([]));
+  }, []);
+
+  const handleAddAddress = async () => {
+    if (!addressForm.receiverName.trim() || !addressForm.receiverPhone.trim() || !addressForm.province.trim() || !addressForm.address.trim()) {
+      return alert("Vui lòng nhập đủ thông tin địa chỉ");
+    }
+    try {
+      const result = await createMyAddress({ ...addressForm, isDefault: addresses.length === 0 });
+      const next = { ...addressForm, id: result.id, isDefault: addresses.length === 0 };
+      setAddresses((previous) => [next, ...previous]);
+      setAddressForm({ receiverName: "", receiverPhone: "", province: "", address: "" });
+    } catch (err) {
+      alert(err.message || "Không thể lưu địa chỉ");
+    }
+  };
+
+  const handleDeleteAddress = async (id) => {
+    if (!window.confirm("Xóa địa chỉ này?")) return;
+    try {
+      await deleteMyAddress(id);
+      setAddresses((previous) => previous.filter((address) => address.id !== id));
+    } catch (err) {
+      alert(err.message || "Không thể xóa địa chỉ");
+    }
+  };
+
+  const handleSetDefaultAddress = async (id) => {
+    try {
+      await setDefaultAddress(id);
+      setAddresses((previous) => previous.map((address) => ({ ...address, isDefault: address.id === id })));
+    } catch (err) {
+      alert(err.message || "Không thể đặt địa chỉ mặc định");
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -155,6 +194,29 @@ function Profile() {
             <span className="note-text">
               💡 Lưu ý: Bạn không thể tự sửa chức vụ, mức lương, hay email tài khoản. Nếu cần thay đổi, vui lòng liên hệ Quản lý.
             </span>
+          </div>
+
+          <div className="address-book">
+            <div className="address-book-title"><MapPin size={17} /> Sổ địa chỉ nhận hàng</div>
+            {addresses.map((address) => (
+              <div className="saved-address" key={address.id}>
+                <div>
+                  <strong>{address.receiverName} · {address.receiverPhone}</strong>
+                  <div>{address.address}, {address.province}</div>
+                  {address.isDefault ? <span className="default-address-badge">Mặc định</span> : (
+                    <button className="address-link" onClick={() => handleSetDefaultAddress(address.id)}>Đặt mặc định</button>
+                  )}
+                </div>
+                <button className="delete-address-btn" onClick={() => handleDeleteAddress(address.id)} aria-label="Xóa địa chỉ"><Trash2 size={16} /></button>
+              </div>
+            ))}
+            <div className="address-form-grid">
+              <input className="form-input" placeholder="Tên người nhận" value={addressForm.receiverName} onChange={(e) => setAddressForm({ ...addressForm, receiverName: e.target.value })} />
+              <input className="form-input" placeholder="Số điện thoại" value={addressForm.receiverPhone} onChange={(e) => setAddressForm({ ...addressForm, receiverPhone: e.target.value })} />
+              <input className="form-input" placeholder="Tỉnh/Thành phố" value={addressForm.province} onChange={(e) => setAddressForm({ ...addressForm, province: e.target.value })} />
+              <input className="form-input address-full-input" placeholder="Địa chỉ chi tiết" value={addressForm.address} onChange={(e) => setAddressForm({ ...addressForm, address: e.target.value })} />
+            </div>
+            <button className="address-add-btn" onClick={handleAddAddress}>+ Thêm địa chỉ</button>
           </div>
 
           {/* Actions */}

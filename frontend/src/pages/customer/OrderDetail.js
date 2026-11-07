@@ -162,9 +162,13 @@ function OrderDetail({ cart = [], setCart }) {
     switch(s) {
       case "pending": return "Chờ xác nhận";
       case "confirmed": return "Đã soạn xong";
+      case "processing": return "Đang chuẩn bị hàng";
       case "shipping": return "Đang giao hàng";
       case "completed": return "Giao hàng thành công";
       case "cancelled": return "Đã hủy";
+      case "return_requested": return "Đang xử lý đổi trả";
+      case "returned": return "Đã nhận hàng trả";
+      case "refunded": return "Đã hoàn tiền";
       default: return s?.toUpperCase();
     }
   };
@@ -187,6 +191,7 @@ function OrderDetail({ cart = [], setCart }) {
     if (status === 'cancelled') return -1;
     if (status === 'pending') return 0;
     if (status === 'confirmed') return 1;
+    if (status === 'processing') return 1;
     if (status === 'shipping') return 2;
     if (status === 'completed') return 3;
     return 0;

@@ -49,6 +49,8 @@ import {
   getCategories,
   createCategory,
   deleteCategory,
+  getReturnRequestsAdmin,
+  updateReturnRequestAdmin,
 } from "../../services/api";
 import PayslipModal from "../../components/payroll/PayslipModal";
 import "./ManagerWorkspace.css";
@@ -92,6 +94,7 @@ function ManagerWorkspace() {
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [payrollRows, setPayrollRows] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [returnRequests, setReturnRequests] = useState([]);
   const [attendanceIssues, setAttendanceIssues] = useState([]);
   const [allShifts, setAllShifts] = useState([]);
   const [payrollMonth, setPayrollMonth] = useState(
@@ -207,11 +210,12 @@ function ManagerWorkspace() {
       }
 
       await getProbationStaff();
-      const [reqData, issueData, allUsersData, shiftsData] = await Promise.all([
+      const [reqData, issueData, allUsersData, shiftsData, returnData] = await Promise.all([
         getPendingStaffRequests(),
         getAttendanceIssues(),
         getAllUsersAdmin(),
-        getAllShiftsAdmin()
+        getAllShiftsAdmin(),
+        getReturnRequestsAdmin(),
       ]);
       await getPendingShifts();
       
@@ -219,6 +223,7 @@ function ManagerWorkspace() {
       setAttendanceIssues(Array.isArray(issueData) ? issueData : []);
       setAllStaff(Array.isArray(allUsersData) ? allUsersData.filter(u => u.role_id === 2 || u.role_id === 3) : []);
       setAllShifts(Array.isArray(shiftsData) ? shiftsData : []);
+      setReturnRequests(Array.isArray(returnData) ? returnData : []);
       
       setError("");
     } catch (err) {
@@ -227,6 +232,21 @@ function ManagerWorkspace() {
       setLoading(false);
     }
   }, [payrollMonth]);
+
+  const handleReturnDecision = async (request, status) => {
+    const label = status === "rejected" ? "từ chối" : status === "refunded" ? "hoàn tiền" : "duyệt";
+    if (!window.confirm(`Bạn có chắc muốn ${label} yêu cầu đổi trả #${request.id}?`)) return;
+    try {
+      await updateReturnRequestAdmin(request.id, {
+        status,
+        refund_amount: status === "refunded" ? request.total : null,
+      });
+      setSuccess(`Đã ${label} yêu cầu đổi trả #${request.id}.`);
+      await loadData();
+    } catch (err) {
+      setError(err.message || "Không thể cập nhật yêu cầu đổi trả");
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -697,6 +717,36 @@ function ManagerWorkspace() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="card p-4 border-0 bg-light mt-4">
+          <h6 className="fw-bold mb-3">Yêu cầu đổi trả trực tiếp từ khách ({returnRequests.filter((r) => ["pending", "approved", "returned"].includes(r.status)).length})</h6>
+          {returnRequests.length === 0 ? (
+            <p className="text-muted mb-0">Chưa có yêu cầu đổi trả nào.</p>
+          ) : (
+            <div className="table-responsive">
+              <table className="table bg-white rounded shadow-sm align-middle">
+                <thead><tr><th>Đơn hàng</th><th>Khách hàng</th><th>Lý do</th><th>Trạng thái</th><th className="text-end">Thao tác</th></tr></thead>
+                <tbody>
+                  {returnRequests.map((request) => (
+                    <tr key={request.id}>
+                      <td>#{request.order_id}</td>
+                      <td>{request.email || request.receiver_name}</td>
+                      <td>{request.reason}</td>
+                      <td><span className="badge bg-secondary">{request.status}</span></td>
+                      <td className="text-end">
+                        {request.status === "pending" && <div className="d-flex gap-2 justify-content-end">
+                          <button className="btn btn-sm btn-success" onClick={() => handleReturnDecision(request, "approved")}>Duyệt</button>
+                          <button className="btn btn-sm btn-outline-danger" onClick={() => handleReturnDecision(request, "rejected")}>Từ chối</button>
+                        </div>}
+                        {request.status === "approved" && <button className="btn btn-sm btn-warning" onClick={() => handleReturnDecision(request, "returned")}>Đã nhận hàng trả</button>}
+                        {request.status === "returned" && <button className="btn btn-sm btn-primary" onClick={() => handleReturnDecision(request, "refunded")}>Hoàn tiền</button>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     );

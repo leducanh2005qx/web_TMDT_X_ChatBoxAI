@@ -6,15 +6,20 @@ const Chat = require("../models/Chat");
 ===================================================== */
 exports.createOrder = async (req, res) => {
   const userId = req.user?.id;
-  const { items, total, receiver_name, receiver_phone, shipping_address, voucher_ids, payment_method } = req.body;
+  const {
+    items,
+    receiver_name,
+    receiver_phone,
+    shipping_address,
+    city,
+    shipping_method,
+    voucher_ids,
+    payment_method,
+  } = req.body;
 
   if (!userId) return res.status(401).json({ message: "Unauthorized" });
   if (!Array.isArray(items) || items.length === 0)
     return res.status(400).json({ message: "Giỏ hàng trống" });
-
-  const totalNumber = Number(total);
-  if (!Number.isFinite(totalNumber) || totalNumber < 0)
-    return res.status(400).json({ message: "Tổng tiền không hợp lệ" });
 
   if (!shipping_address || !String(shipping_address).trim())
     return res.status(400).json({ message: "Thiếu địa chỉ nhận hàng" });
@@ -36,6 +41,97 @@ exports.createOrder = async (req, res) => {
     const receiverName = String(receiver_name || urows[0].name || "").trim();
     const receiverPhone = String(receiver_phone || urows[0].phone || "").trim();
 
+    // Re-price every line from the database. Client-provided price/total is never trusted.
+    const pricedItems = [];
+    for (const item of items) {
+      const productId = Number(item.product_id);
+      const quantity = Number(item.quantity);
+      if (!Number.isInteger(productId) || !Number.isInteger(quantity) || quantity <= 0) {
+        throw new Error("Sản phẩm hoặc số lượng không hợp lệ");
+      }
+
+      let rows;
+      if (item.variant_id) {
+        [rows] = await connection.query(
+          `SELECT p.id AS product_id, p.name, p.image, p.status, p.deleted_at, p.category_id,
+                  v.id AS variant_id, v.variant_name, v.price, v.stock
+           FROM product_variants v
+           JOIN products p ON p.id = v.product_id
+           WHERE v.id = ? AND v.product_id = ? FOR UPDATE`,
+          [Number(item.variant_id), productId]
+        );
+      } else {
+        [rows] = await connection.query(
+          `SELECT p.id AS product_id, p.name, p.image, p.status, p.deleted_at, p.category_id,
+                  NULL AS variant_id, NULL AS variant_name, p.price, p.stock
+           FROM products p WHERE p.id = ? FOR UPDATE`,
+          [productId]
+        );
+      }
+
+      const product = rows[0];
+      if (!product || product.deleted_at || product.status !== "active") {
+        throw new Error(`Sản phẩm #${productId} không còn kinh doanh`);
+      }
+      if (Number(product.stock) < quantity) {
+        throw new Error(`Sản phẩm ${product.name} không đủ tồn kho`);
+      }
+
+      pricedItems.push({
+        ...item,
+        product_id: product.product_id,
+        variant_id: product.variant_id,
+        variant_name: product.variant_name,
+        category_id: product.category_id,
+        name: product.name,
+        image: product.image,
+        quantity,
+        price: Number(product.price),
+      });
+    }
+
+    const subtotal = pricedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    let itemDiscount = 0;
+    let shippingDiscount = 0;
+    const selectedVoucherIds = [...new Set((Array.isArray(voucher_ids) ? voucher_ids : []).map(Number).filter(Number.isInteger))];
+    if (selectedVoucherIds.length > 0) {
+      const [vouchers] = await connection.query(
+        `SELECT v.* FROM vouchers v
+         JOIN user_vouchers uv ON uv.voucher_id = v.voucher_id
+         WHERE uv.user_id = ? AND uv.used = 0 AND v.voucher_id IN (?)
+           AND v.status = 'active' AND v.quantity > v.used
+           AND (v.start_date IS NULL OR v.start_date <= CURDATE())
+           AND (v.end_date IS NULL OR v.end_date >= CURDATE())
+         FOR UPDATE`,
+        [userId, selectedVoucherIds]
+      );
+      if (vouchers.length !== selectedVoucherIds.length) throw new Error("Voucher không khả dụng");
+      for (const voucher of vouchers) {
+        const parseList = (value) => {
+          try { return Array.isArray(value) ? value.map(Number) : JSON.parse(value || "[]").map(Number); }
+          catch { return []; }
+        };
+        const categoryIds = parseList(voucher.category_ids);
+        const productIds = parseList(voucher.product_ids);
+        const applicable = pricedItems.reduce((sum, item) => {
+          const applies = voucher.apply_scope === "category" ? categoryIds.includes(Number(item.category_id))
+            : voucher.apply_scope === "specific" ? productIds.includes(Number(item.product_id))
+            : voucher.apply_scope === "custom" ? (categoryIds.includes(Number(item.category_id)) || productIds.includes(Number(item.product_id)))
+            : true;
+          return applies ? sum + item.price * item.quantity : sum;
+        }, 0);
+        if (applicable < Number(voucher.min_order_value || 0)) throw new Error(`Đơn hàng chưa đạt điều kiện voucher ${voucher.code}`);
+        if (voucher.type === "free_ship") shippingDiscount += Number(voucher.value || 0);
+        else if (voucher.type === "percent") itemDiscount += Math.min(applicable * Number(voucher.value || 0) / 100, Number(voucher.max_discount || Infinity));
+        else itemDiscount += Math.min(Number(voucher.value || 0), applicable);
+      }
+    }
+    const shippingRates = { "Hà Nội": 20000, "TP Hồ Chí Minh": 35000, "Khác": 45000 };
+    const shippingFee = subtotal > 1000000 ? 0 : (shippingRates[city] || shippingRates["Khác"]);
+    const expressFee = shipping_method === "express" ? 50000 : 0;
+    shippingDiscount = Math.min(shippingDiscount, shippingFee + expressFee);
+    const totalNumber = Math.max(0, subtotal - itemDiscount + shippingFee + expressFee - shippingDiscount);
+
     // 2. Insert order
     const [result] = await connection.query(
       `INSERT INTO orders 
@@ -54,23 +150,24 @@ exports.createOrder = async (req, res) => {
     const orderId = result.insertId;
 
     // 3. Insert order items
-    const values = items.map((i) => [
+    const values = pricedItems.map((i) => [
       orderId,
       i.product_id,
       i.variant_id || null,
       i.quantity,
       i.price,
       i.name || "Sản phẩm",
-      i.image || null
+      i.image || null,
+      i.variant_name || null,
     ]);
 
     await connection.query(
-      "INSERT INTO order_items (order_id, product_id, variant_id, quantity, price, product_name, product_image) VALUES ?",
+      "INSERT INTO order_items (order_id, product_id, variant_id, quantity, price, product_name, product_image, variant_name) VALUES ?",
       [values]
     );
 
     // 4. Update stock
-    for (const i of items) {
+    for (const i of pricedItems) {
       if (i.variant_id) {
         const [resultStock] = await connection.query(
           "UPDATE product_variants SET stock = stock - ? WHERE id = ? AND stock >= ?",
@@ -79,6 +176,12 @@ exports.createOrder = async (req, res) => {
         if (resultStock.affectedRows === 0) {
           throw new Error("Hết hàng hoặc ID variant sai. Variant ID: " + i.variant_id);
         }
+        await connection.query(
+          `UPDATE products p
+           SET p.stock = (SELECT IFNULL(SUM(v.stock), 0) FROM product_variants v WHERE v.product_id = ?)
+           WHERE p.id = ?`,
+          [i.product_id, i.product_id]
+        );
       } else {
         const [resultStock] = await connection.query(
           "UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?",
@@ -116,7 +219,6 @@ exports.createOrder = async (req, res) => {
     }
 
     // 6. Auto-Gift Logic
-    const subtotal = items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
     const [gifts] = await connection.query(
       "SELECT * FROM gifts WHERE min_order_value <= ? AND stock > 0 AND is_active = 1 ORDER BY min_order_value DESC LIMIT 1",
       [subtotal]
@@ -208,7 +310,7 @@ exports.getOrdersByUser = async (req, res) => {
       `SELECT oi.order_id, oi.quantity, oi.price, oi.product_id,
               IFNULL(p.name, oi.product_name) AS name,
               IFNULL(p.image, oi.product_image) AS image,
-              pv.variant_name
+              COALESCE(pv.variant_name, oi.variant_name) AS variant_name
        FROM order_items oi
        LEFT JOIN products p ON oi.product_id = p.id
        LEFT JOIN product_variants pv ON oi.variant_id = pv.id
@@ -265,7 +367,7 @@ exports.getOrderDetail = async (req, res) => {
               oi.product_id, 
               IFNULL(p.name, oi.product_name) AS name, 
               IFNULL(p.image, oi.product_image) AS image,
-              pv.variant_name
+              COALESCE(pv.variant_name, oi.variant_name) AS variant_name
        FROM order_items oi
        LEFT JOIN products p ON oi.product_id = p.id
        LEFT JOIN product_variants pv ON oi.variant_id = pv.id
@@ -337,7 +439,7 @@ exports.getOrderDetailAdmin = async (req, res) => {
               oi.product_id, 
               IFNULL(p.name, oi.product_name) AS name, 
               IFNULL(p.image, oi.product_image) AS image,
-              pv.variant_name
+              COALESCE(pv.variant_name, oi.variant_name) AS variant_name
        FROM order_items oi
        LEFT JOIN products p ON oi.product_id = p.id
        LEFT JOIN product_variants pv ON oi.variant_id = pv.id
@@ -366,6 +468,21 @@ exports.updateOrderStatus = async (req, res) => {
   const { status } = req.body;
   const orderId = req.params.id;
   const actorId = req.user.id;
+  const allowedTransitions = {
+    pending: ["confirmed", "processing", "shipping", "cancelled"],
+    confirmed: ["processing", "shipping", "cancelled"],
+    processing: ["shipping", "cancelled"],
+    shipping: ["completed"],
+    completed: ["return_requested"],
+    return_requested: ["returned", "cancelled"],
+    returned: ["refunded"],
+    refunded: [],
+    cancelled: [],
+  };
+
+  if (!Object.prototype.hasOwnProperty.call(allowedTransitions, status)) {
+    return res.status(400).json({ message: "Trạng thái đơn hàng không hợp lệ" });
+  }
 
   try {
     const [rows] = await db.promise().query("SELECT status, user_id FROM orders WHERE id = ?", [orderId]);
@@ -373,9 +490,17 @@ exports.updateOrderStatus = async (req, res) => {
     const oldStatus = rows[0].status;
     const customerId = rows[0].user_id;
 
+    if (oldStatus !== status && !(allowedTransitions[oldStatus] || []).includes(status)) {
+      return res.status(400).json({ message: `Không thể chuyển từ ${oldStatus} sang ${status}` });
+    }
+
     await db.promise().query(
-      "UPDATE orders SET status = ?, processed_by = ? WHERE id = ?",
-      [status, actorId, orderId]
+      "UPDATE orders SET status = ?, processed_by = ?, completed_at = CASE WHEN ? = 'completed' THEN NOW() ELSE completed_at END WHERE id = ?",
+      [status, actorId, status, orderId]
+    );
+    await db.promise().query(
+      "INSERT INTO order_status_history (order_id, old_status, new_status, changed_by) VALUES (?, ?, ?, ?)",
+      [orderId, oldStatus, status, actorId]
     );
 
     const logAction = `Đã đổi trạng thái đơn hàng #${orderId} từ ${oldStatus.toUpperCase()} sang ${status.toUpperCase()}`;
@@ -481,6 +606,12 @@ exports.cancelOrder = async (req, res) => {
           "UPDATE product_variants SET stock = stock + ? WHERE id = ?",
           [item.quantity, item.variant_id]
         );
+        await connection.query(
+          `UPDATE products p
+           SET p.stock = (SELECT IFNULL(SUM(v.stock), 0) FROM product_variants v WHERE v.product_id = ?)
+           WHERE p.id = ?`,
+          [item.product_id, item.product_id]
+        );
       } else if (item.product_id) {
         await connection.query(
           "UPDATE products SET stock = stock + ? WHERE id = ?",
@@ -497,6 +628,10 @@ exports.cancelOrder = async (req, res) => {
     await connection.query(
       "INSERT INTO user_activity_logs (user_id, action, target_id) VALUES (?, ?, ?)",
       [userId, logAction, orderId]
+    );
+    await connection.query(
+      "INSERT INTO order_status_history (order_id, old_status, new_status, changed_by, note) VALUES (?, ?, 'cancelled', ?, ?)",
+      [orderId, order.status, userId, reason || null]
     );
 
     await connection.commit();
@@ -530,11 +665,27 @@ exports.requestReturnWarranty = async (req, res) => {
     const [orders] = await connection.query("SELECT * FROM orders WHERE id = ? AND user_id = ?", [orderId, userId]);
     
     if (!orders.length) return res.status(404).json({ message: "Không tìm thấy đơn hàng." });
+
+    if (orders[0].status !== "completed") {
+      return res.status(400).json({ message: "Chỉ có thể đổi trả đơn hàng đã hoàn tất." });
+    }
+    const [existing] = await connection.query(
+      "SELECT id FROM return_requests WHERE order_id = ? AND user_id = ? AND status NOT IN ('rejected', 'cancelled') LIMIT 1",
+      [orderId, userId]
+    );
+    if (existing.length) {
+      return res.status(400).json({ message: "Đơn hàng đã có yêu cầu đổi trả đang xử lý." });
+    }
     
 
     await connection.query(
       "INSERT INTO return_requests (user_id, order_id, reason) VALUES (?, ?, ?)",
       [userId, orderId, reason.trim()]
+    );
+    await connection.query("UPDATE orders SET status = 'return_requested' WHERE id = ?", [orderId]);
+    await connection.query(
+      "INSERT INTO order_status_history (order_id, old_status, new_status, changed_by, note) VALUES (?, 'completed', 'return_requested', ?, ?)",
+      [orderId, userId, reason.trim()]
     );
 
     res.json({ success: true, message: "Đã gửi yêu cầu bảo hành/đổi trả thành công." });
@@ -542,6 +693,91 @@ exports.requestReturnWarranty = async (req, res) => {
     res.status(500).json({ message: "Lỗi gửi yêu cầu.", error: error.message });
   } finally {
     if (connection) connection.release();
+  }
+};
+
+exports.getReturnRequestsAdmin = async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(
+      `SELECT rr.*, o.total, o.status AS order_status, o.receiver_name, u.email
+       FROM return_requests rr
+       JOIN orders o ON o.id = rr.order_id
+       JOIN users u ON u.id = rr.user_id
+       ORDER BY rr.created_at DESC`
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: "Không thể tải yêu cầu đổi trả", error: error.message });
+  }
+};
+
+exports.updateReturnRequestAdmin = async (req, res) => {
+  const requestId = req.params.id;
+  const { status, refund_amount, staff_note } = req.body;
+  if (!["approved", "rejected", "returned", "refunded"].includes(status)) {
+    return res.status(400).json({ message: "Trạng thái đổi trả không hợp lệ" });
+  }
+  const connection = await db.promise().getConnection();
+  try {
+    await connection.beginTransaction();
+    const [rows] = await connection.query(
+      `SELECT rr.*, o.status AS order_status FROM return_requests rr
+       JOIN orders o ON o.id = rr.order_id WHERE rr.id = ? FOR UPDATE`,
+      [requestId]
+    );
+    if (!rows.length) {
+      await connection.rollback();
+      return res.status(404).json({ message: "Không tìm thấy yêu cầu đổi trả" });
+    }
+    const request = rows[0];
+    if (status === "returned" && request.status !== "approved") {
+      await connection.rollback();
+      return res.status(400).json({ message: "Chỉ có thể xác nhận đã nhận hàng sau khi yêu cầu được duyệt" });
+    }
+    if (status === "refunded" && request.status !== "returned") {
+      await connection.rollback();
+      return res.status(400).json({ message: "Chỉ có thể hoàn tiền sau khi đã nhận hàng trả" });
+    }
+    const nextOrderStatus = status === "refunded" ? "refunded" : status === "returned" ? "returned" : request.order_status;
+    if (status === "returned" && !request.stock_restored) {
+      const [items] = await connection.query(
+        "SELECT product_id, variant_id, quantity FROM order_items WHERE order_id = ? AND (is_gift IS NULL OR is_gift = 0)",
+        [request.order_id]
+      );
+      for (const item of items) {
+        if (item.variant_id) {
+          await connection.query("UPDATE product_variants SET stock = stock + ? WHERE id = ?", [item.quantity, item.variant_id]);
+          await connection.query(
+            `UPDATE products p SET p.stock = (SELECT IFNULL(SUM(v.stock), 0) FROM product_variants v WHERE v.product_id = ?)
+             WHERE p.id = ?`,
+            [item.product_id, item.product_id]
+          );
+        } else if (item.product_id) {
+          await connection.query("UPDATE products SET stock = stock + ? WHERE id = ?", [item.quantity, item.product_id]);
+        }
+        if (item.product_id) {
+          await connection.query("UPDATE products SET sold_count = GREATEST(sold_count - ?, 0) WHERE id = ?", [item.quantity, item.product_id]);
+        }
+      }
+    }
+    await connection.query(
+      "UPDATE return_requests SET status = ?, refund_amount = ?, staff_note = ?, stock_restored = CASE WHEN ? = 'returned' THEN 1 ELSE stock_restored END WHERE id = ?",
+      [status, refund_amount == null ? null : Number(refund_amount), staff_note?.trim() || null, status, requestId]
+    );
+    await connection.query("UPDATE orders SET status = ? WHERE id = ?", [nextOrderStatus, request.order_id]);
+    if (nextOrderStatus !== request.order_status) {
+      await connection.query(
+        "INSERT INTO order_status_history (order_id, old_status, new_status, changed_by, note) VALUES (?, ?, ?, ?, ?)",
+        [request.order_id, request.order_status, nextOrderStatus, req.user.id, staff_note?.trim() || null]
+      );
+    }
+    await connection.commit();
+    res.json({ success: true, message: "Đã cập nhật yêu cầu đổi trả" });
+  } catch (error) {
+    await connection.rollback();
+    res.status(500).json({ message: "Không thể cập nhật yêu cầu đổi trả", error: error.message });
+  } finally {
+    connection.release();
   }
 };
 
