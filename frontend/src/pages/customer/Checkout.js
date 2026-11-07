@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { createOrder, getMyVouchers } from "../../services/api";
+import { createOrder, getMyVouchers, getMyProfile } from "../../services/api";
 import { MapPin, Ticket } from "lucide-react";
 // Import CSS if needed, but we will use Tailwind mainly
 // import "./Checkout.css"; 
@@ -22,12 +22,62 @@ function Checkout({ cart, setCart }) {
   }, [location.state, cart]);
 
   const [address, setAddress] = useState("");
+  const [receiverName, setReceiverName] = useState("");
+  const [receiverPhone, setReceiverPhone] = useState("");
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState("");
+  const [saveAddress, setSaveAddress] = useState(true);
   const [vouchers, setVouchers] = useState([]);
   const [selectedVouchers, setSelectedVouchers] = useState({ item: null, shipping: null });
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [shippingMethod, setShippingMethod] = useState("standard");
   const [city, setCity] = useState("Hà Nội");
   const [isWaitingPayment, setIsWaitingPayment] = useState(false);
+
+  const addressStorageKey = useMemo(() => {
+    try {
+      const token = localStorage.getItem("token");
+      const payload = token ? JSON.parse(atob(token.split(".")[1])) : {};
+      return `tiger_saved_addresses_${payload.id || payload.userId || "guest"}`;
+    } catch {
+      return "tiger_saved_addresses_guest";
+    }
+  }, []);
+
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem(addressStorageKey) || "[]");
+    setSavedAddresses(Array.isArray(saved) ? saved : []);
+    getMyProfile().then((profile) => {
+      setReceiverName(profile.name || "");
+      setReceiverPhone(profile.phone || "");
+    }).catch(() => {
+      const profile = JSON.parse(localStorage.getItem("user") || "{}");
+      setReceiverName(profile.name || "");
+      setReceiverPhone(profile.phone || "");
+    });
+  }, [addressStorageKey]);
+
+  const selectSavedAddress = (saved) => {
+    setSelectedAddressId(saved.id);
+    setReceiverName(saved.receiverName || "");
+    setReceiverPhone(saved.receiverPhone || "");
+    setAddress(saved.address || "");
+    setCity(saved.city || "Hà Nội");
+  };
+
+  const saveCurrentAddress = () => {
+    const item = {
+      id: selectedAddressId || `address_${Date.now()}`,
+      receiverName: receiverName.trim(),
+      receiverPhone: receiverPhone.trim(),
+      address: address.trim(),
+      city,
+    };
+    const next = [item, ...savedAddresses.filter((saved) => saved.id !== item.id)].slice(0, 10);
+    setSavedAddresses(next);
+    setSelectedAddressId(item.id);
+    localStorage.setItem(addressStorageKey, JSON.stringify(next));
+  };
 
   const subtotal = useMemo(() => {
     return checkoutItems.reduce((sum, i) => sum + Number(i.price || 0) * Number(i.quantity || 0), 0);
@@ -132,6 +182,8 @@ function Checkout({ cart, setCart }) {
       await createOrder({
         items: checkoutItems,
         total: finalTotal,
+        receiver_name: receiverName.trim(),
+        receiver_phone: receiverPhone.trim(),
         shipping_address: `${address.trim()}, ${city}`,
         voucher_ids: appliedVoucherIds,
         payment_method: paymentMethod,
@@ -147,7 +199,10 @@ function Checkout({ cart, setCart }) {
 
   const handleCheckout = async () => {
     if (checkoutItems.length === 0) return alert("Không có sản phẩm để thanh toán");
-    if (!address.trim() || !city) return alert("Vui lòng nhập địa chỉ và chọn Tỉnh/Thành phố");
+    if (!receiverName.trim() || !receiverPhone.trim() || !address.trim() || !city) {
+      return alert("Vui lòng nhập đủ tên, số điện thoại và địa chỉ nhận hàng");
+    }
+    if (saveAddress) saveCurrentAddress();
 
     if (paymentMethod === 'qr') {
       setIsWaitingPayment(true);
@@ -181,10 +236,27 @@ function Checkout({ cart, setCart }) {
               <MapPin size={20} />
               <h2 className="font-bold">Địa Chỉ Nhận Hàng</h2>
             </div>
+
+            {savedAddresses.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {savedAddresses.map((saved) => (
+                  <button
+                    key={saved.id}
+                    type="button"
+                    onClick={() => selectSavedAddress(saved)}
+                    className={`text-left border rounded-lg px-3 py-2 text-xs ${selectedAddressId === saved.id ? "border-[#FF7A00] bg-orange-50" : "border-gray-200 bg-white"}`}
+                  >
+                    <span className="font-bold">{saved.receiverName}</span> · {saved.receiverPhone}
+                    <span className="block text-gray-500 mt-1">{saved.address}, {saved.city}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             
             <div className="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-8">
-               <div className="flex gap-4">
-                 <span className="font-bold text-[#222]">Đức Anh (+84) 987654321</span>
+               <div className="flex flex-col gap-2 lg:w-64">
+                 <input type="text" placeholder="Tên người nhận" value={receiverName} onChange={(e) => setReceiverName(e.target.value)} className="border border-gray-300 rounded-[12px] px-3 py-2 text-sm focus:outline-none focus:border-[#FF7A00]" />
+                 <input type="tel" placeholder="Số điện thoại" value={receiverPhone} onChange={(e) => setReceiverPhone(e.target.value)} className="border border-gray-300 rounded-[12px] px-3 py-2 text-sm focus:outline-none focus:border-[#FF7A00]" />
                </div>
                <div className="flex flex-1 flex-col lg:flex-row gap-4 items-start lg:items-center">
                   <input 
@@ -204,7 +276,10 @@ function Checkout({ cart, setCart }) {
                     <option value="Khác">Tỉnh thành khác</option>
                   </select>
                </div>
-               <button className="text-blue-600 text-sm uppercase font-bold hover:underline">Thiết lập</button>
+               <label className="flex items-center gap-2 text-sm text-gray-600 whitespace-nowrap">
+                 <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
+                 Lưu địa chỉ này
+               </label>
             </div>
           </div>
         </div>

@@ -6,7 +6,7 @@ const Chat = require("../models/Chat");
 ===================================================== */
 exports.createOrder = async (req, res) => {
   const userId = req.user?.id;
-  const { items, total, shipping_address, voucher_ids, payment_method } = req.body;
+  const { items, total, receiver_name, receiver_phone, shipping_address, voucher_ids, payment_method } = req.body;
 
   if (!userId) return res.status(401).json({ message: "Unauthorized" });
   if (!Array.isArray(items) || items.length === 0)
@@ -33,8 +33,8 @@ exports.createOrder = async (req, res) => {
     if (!urows || urows.length === 0) {
       throw new Error("Không lấy được thông tin người dùng");
     }
-    const receiver_name = urows[0].name || "";
-    const receiver_phone = urows[0].phone || "";
+    const receiverName = String(receiver_name || urows[0].name || "").trim();
+    const receiverPhone = String(receiver_phone || urows[0].phone || "").trim();
 
     // 2. Insert order
     const [result] = await connection.query(
@@ -44,8 +44,8 @@ exports.createOrder = async (req, res) => {
       [
         userId,
         totalNumber,
-        receiver_name,
-        receiver_phone,
+        receiverName,
+        receiverPhone,
         shipping_address,
         expected_delivery,
         payment_method || "cod",

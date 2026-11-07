@@ -75,7 +75,8 @@ export default function ChatReturnCard({ message }) {
       finalReason = returnReason === "Lý do khác" ? customReason : returnReason;
       canSubmit = isCompleted && finalReason.trim().length >= 5;
     } else if (actionType === "support") {
-      finalReason = returnReason === "Lý do khác" ? customReason : returnReason;
+      // "Yêu cầu khác" nhập nội dung trực tiếp trong customReason.
+      finalReason = customReason;
       canSubmit = finalReason.trim().length >= 5;
     }
   }
